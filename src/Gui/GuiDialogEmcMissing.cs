@@ -17,7 +17,7 @@ namespace VintageE
     {
         const double ListWidth = 560;
         const double ListHeight = 420;
-        const int MaxRows = 1500; // plenty for any real modpack; more would only slow the window down
+        const int PerPage = 40; // keeps the rendered text small; page with the arrows for more
 
         sealed class Entry
         {
@@ -35,6 +35,8 @@ namespace VintageE
         string search = "";
         string domainFilter = "*";
         string typeFilter = "*";
+        int page;
+        bool composing;
         ElementBounds clipBounds;
 
         public override string ToggleKeyCombinationCode => null;
@@ -80,13 +82,15 @@ namespace VintageE
             ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(insetBounds.fixedWidth + 4).WithFixedWidth(20);
 
             double bottom = row + 42 + ListHeight + 14;
-            ElementBounds countBounds = ElementBounds.Fixed(0, bottom + 6, 330, 24);
+            ElementBounds prevBounds = ElementBounds.Fixed(0, bottom, 36, 30);
+            ElementBounds countBounds = ElementBounds.Fixed(44, bottom + 6, 250, 24);
+            ElementBounds nextBounds = ElementBounds.Fixed(300, bottom, 36, 30);
             ElementBounds copyBounds = ElementBounds.Fixed(ListWidth - 230, bottom, 130, 30);
             ElementBounds closeBounds = ElementBounds.Fixed(ListWidth - 90, bottom, 90, 30);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, insetBounds, scrollbarBounds, countBounds, copyBounds, closeBounds);
+            bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
@@ -106,6 +110,7 @@ namespace VintageE
                 ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
                 : Lang.Get("vintagee:missing-summary", all.Count, packet.CreativeTotal, packet.ValueCount, packet.Version);
 
+            composing = true;
             SingleComposer = capi.Gui
                 .CreateCompo("vintagee-missing", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
@@ -120,81 +125,113 @@ namespace VintageE
                         .AddRichtext(Array.Empty<RichTextComponentBase>(), listBounds, "list")
                     .EndClip()
                     .AddVerticalScrollbar(OnScroll, scrollbarBounds, "scrollbar")
-                    .AddDynamicText("", CairoFont.WhiteDetailText(), countBounds, "count")
+                    .AddSmallButton("<", OnPrev, prevBounds)
+                    .AddDynamicText("", CairoFont.WhiteDetailText().WithOrientation(EnumTextOrientation.Center), countBounds, "count")
+                    .AddSmallButton(">", OnNext, nextBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-copy"), OnCopy, copyBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-close"), () => TryClose(), closeBounds)
                 .EndChildElements()
                 .Compose();
 
-            SingleComposer.GetTextInput("search").SetPlaceHolderText(Lang.Get("vintagee:gui-search-missing"));
+            composing = false;
+            SingleComposer.GetTextInput("search")?.SetPlaceHolderText(Lang.Get("vintagee:gui-search-missing"));
             Refill();
         }
 
         void Refill()
         {
-            string needle = search.Trim().ToLowerInvariant();
-            shown = all.Where(e =>
-                    (domainFilter == "*" || e.Domain == domainFilter) &&
-                    (typeFilter == "*" || (typeFilter == "block") == e.IsBlock) &&
-                    (needle.Length == 0 || e.Code.ToLowerInvariant().Contains(needle) || e.Name.ToLowerInvariant().Contains(needle)))
-                .ToList();
-
-            var comps = new List<RichTextComponentBase>();
-            CairoFont nameFont = CairoFont.WhiteSmallText();
-            CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.75, 0.75, 0.75, 1 });
-            foreach (Entry e in shown.Take(MaxRows))
+            if (composing || SingleComposer == null) return;
+            try
             {
-                ItemStack stack;
-                try { stack = new ItemStack(e.Collectible); }
-                catch { continue; }
-                comps.Add(new ItemstackTextComponent(capi, stack, 40, 10, EnumFloat.Left, OpenHandbook));
-                comps.Add(new RichTextComponent(capi, e.Name + "\n", nameFont));
-                comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont));
-                comps.Add(new ClearFloatTextComponent(capi, 6));
+                string needle = search.Trim().ToLowerInvariant();
+                shown = all.Where(e =>
+                        (domainFilter == "*" || e.Domain == domainFilter) &&
+                        (typeFilter == "*" || (typeFilter == "block") == e.IsBlock) &&
+                        (needle.Length == 0 || e.Code.ToLowerInvariant().Contains(needle) || e.Name.ToLowerInvariant().Contains(needle)))
+                    .ToList();
+                int pages = Math.Max(1, (shown.Count + PerPage - 1) / PerPage);
+                page = Math.Clamp(page, 0, pages - 1);
+
+                var comps = new List<RichTextComponentBase>();
+                CairoFont nameFont = CairoFont.WhiteSmallText();
+                CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
+                foreach (Entry e in shown.Skip(page * PerPage).Take(PerPage))
+                {
+                    ItemStack stack = null;
+                    try { stack = new ItemStack(e.Collectible); }
+                    catch { /* no icon for this one */ }
+                    // Inline icons, one entry per line - the same layout the handbook uses for item lists.
+                    if (stack != null) comps.Add(new ItemstackTextComponent(capi, stack, 32, 6, EnumFloat.Inline, OpenHandbook) { VerticalAlign = EnumVerticalAlign.Middle });
+                    comps.Add(new RichTextComponent(capi, e.Name + "  ", nameFont) { VerticalAlign = EnumVerticalAlign.Middle });
+                    comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont) { VerticalAlign = EnumVerticalAlign.Middle });
+                }
+                if (shown.Count == 0)
+                {
+                    comps.Add(new RichTextComponent(capi, Lang.Get(all.Count == 0 ? "vintagee:missing-empty" : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
+                }
+
+                GuiElementRichtext list = SingleComposer.GetRichtext("list");
+                if (list == null) return;
+                list.SetNewText(comps.ToArray());
+                list.Bounds.fixedY = 0;
+                list.Bounds.CalcWorldBounds();
+
+                GuiElementScrollbar bar = SingleComposer.GetScrollbar("scrollbar");
+                if (bar != null)
+                {
+                    bar.Bounds.CalcWorldBounds();
+                    bar.SetHeights((float)ListHeight, (float)Math.Max(ListHeight, list.Bounds.fixedHeight));
+                }
+
+                SingleComposer.GetDynamicText("count")?.SetNewText(Lang.Get("vintagee:missing-page", page + 1, pages, shown.Count, all.Count));
             }
-            if (shown.Count == 0)
+            catch (Exception ex)
             {
-                comps.Add(new RichTextComponent(capi, Lang.Get(all.Count == 0 ? "vintagee:missing-empty" : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
+                capi.Logger.Error("Vintage-E: could not fill the missing-EMC list: {0}", ex);
             }
-
-            GuiElementRichtext list = SingleComposer.GetRichtext("list");
-            list.SetNewText(comps.ToArray());
-            list.Bounds.fixedY = 0;
-            list.Bounds.CalcWorldBounds();
-
-            GuiElementScrollbar bar = SingleComposer.GetScrollbar("scrollbar");
-            bar.Bounds.CalcWorldBounds();
-            bar.SetHeights((float)ListHeight, (float)Math.Max(ListHeight, list.Bounds.fixedHeight));
-            bar.CurrentYPosition = 0;
-
-            string count = Lang.Get("vintagee:missing-count", shown.Count, all.Count);
-            if (shown.Count > MaxRows) count += " " + Lang.Get("vintagee:missing-capped", MaxRows);
-            SingleComposer.GetDynamicText("count").SetNewText(count);
         }
 
         void OnScroll(float value)
         {
-            GuiElementRichtext list = SingleComposer.GetRichtext("list");
+            GuiElementRichtext list = SingleComposer?.GetRichtext("list");
+            if (list == null) return;
             list.Bounds.fixedY = -value;
             list.Bounds.CalcWorldBounds();
+        }
+
+        bool OnPrev()
+        {
+            page--;
+            Refill();
+            return true;
+        }
+
+        bool OnNext()
+        {
+            page++;
+            Refill();
+            return true;
         }
 
         void OnSearch(string text)
         {
             if ((text ?? "") == search) return;
             search = text ?? "";
+            page = 0;
             Refill();
         }
 
         void OnDomain(string code, bool selected)
         {
             domainFilter = code ?? "*";
+            page = 0;
             Refill();
         }
 
         void OnType(string code, bool selected)
         {
             typeFilter = code ?? "*";
+            page = 0;
             Refill();
         }
 
@@ -202,7 +239,8 @@ namespace VintageE
         {
             var sb = new StringBuilder();
             foreach (Entry e in shown) sb.Append('"').Append(e.IsBlock ? "block:" : "item:").Append(e.Code).Append("\": 0,\n");
-            capi.Forms.SetClipboardText(sb.ToString());
+            try { capi.Forms.SetClipboardText(sb.ToString()); }
+            catch (Exception ex) { capi.Logger.Warning("Vintage-E: clipboard not available: {0}", ex.Message); return true; }
             capi.ShowChatMessage(Lang.Get("vintagee:missing-copied", shown.Count));
             return true;
         }
@@ -211,8 +249,11 @@ namespace VintageE
         {
             // Same page code the survival mod's handbook uses for item stacks.
             string pageCode = stack.Class.Name() + "-" + stack.Collectible.Code.ToShortString();
-            capi.LinkProtocols.TryGetValue("handbook", out Action<LinkTextComponent> open);
-            open?.Invoke(new LinkTextComponent("handbook://" + pageCode));
+            if (capi.LinkProtocols != null && capi.LinkProtocols.TryGetValue("handbook", out Action<LinkTextComponent> open))
+            {
+                try { open?.Invoke(new LinkTextComponent("handbook://" + pageCode)); }
+                catch (Exception ex) { capi.Logger.Warning("Vintage-E: could not open handbook page {0}: {1}", pageCode, ex.Message); }
+            }
         }
     }
 }

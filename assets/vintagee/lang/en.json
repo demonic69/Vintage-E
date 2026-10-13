@@ -106,12 +106,11 @@
   "missing-alltypes": "Blocks and items",
   "missing-blocks": "Blocks",
   "missing-items": "Items",
-  "missing-count": "Showing {0} of {1}",
-  "missing-capped": "(first {0} listed - search or filter to narrow it down)",
   "missing-copy": "Copy codes",
   "missing-close": "Close",
   "missing-copied": "Copied {0} codes to the clipboard, ready to paste into BaseValues.",
   "missing-empty": "Nothing is missing - every block and item has an EMC value.",
   "missing-nomatch": "Nothing matches this search/filter.",
-  "gui-search-missing": "Search by name or code..."
+  "gui-search-missing": "Search by name or code...",
+  "missing-page": "Page {0} / {1}  ({2} of {3})"
 }
