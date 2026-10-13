@@ -1,0 +1,513 @@
+{
+  "code": "matterarmor",
+  "variantgroups": [
+    {
+      "code": "material",
+      "states": [
+        "dark",
+        "red",
+        "gem"
+      ]
+    },
+    {
+      "code": "bodypart",
+      "states": [
+        "head",
+        "body",
+        "legs"
+      ]
+    }
+  ],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "heldTpIdleAnimation": "holdunderarm",
+  "behaviors": [
+    {
+      "name": "Wearable"
+    },
+    {
+      "name": "VintageEMatterTool",
+      "properties": {
+        "maxAreaRadius": 0
+      }
+    }
+  ],
+  "durability": 10000,
+  "shapeByType": {
+    "*-head": {
+      "base": "game:entity/humanoid/seraph/armor/plate/head-steel"
+    },
+    "*-body": {
+      "base": "game:entity/humanoid/seraph/armor/plate/body"
+    },
+    "*-legs": {
+      "base": "game:entity/humanoid/seraph/armor/plate/legs"
+    }
+  },
+  "texturesByType": {
+    "*-dark-*": {
+      "seraph": {
+        "base": "game:block/transparent"
+      },
+      "material": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      }
+    },
+    "*-red-*": {
+      "seraph": {
+        "base": "game:block/transparent"
+      },
+      "material": {
+        "base": "vintagee:item/tool/material/redmatter"
+      }
+    },
+    "*-gem-*": {
+      "seraph": {
+        "base": "game:block/transparent"
+      },
+      "material": {
+        "base": "vintagee:item/tool/material/gem"
+      }
+    }
+  },
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "clothing": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "attributesByType": {
+    "*-dark-head": {
+      "clothescategory": "armorhead",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-head-dark",
+        "categoryCode": "armorhead",
+        "disableElements": [
+          "hidehat",
+          "hoodshoulder",
+          "hoodupperover",
+          "Hair tile upper part",
+          "ponytailhigh",
+          "ponytaillow",
+          "Hair",
+          "hair-uncovered",
+          "hidefacialhair",
+          "sidehigh",
+          "sidelow",
+          "bangs"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.98,
+        "flatDamageReduction": 2.4,
+        "highDamageTierResistant": true,
+        "protectionTier": 5
+      },
+      "statModifiers": {},
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-dark-body": {
+      "clothescategory": "armorbody",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-body-dark",
+        "categoryCode": "armorbody"
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.98,
+        "flatDamageReduction": 2.4,
+        "highDamageTierResistant": true,
+        "protectionTier": 5
+      },
+      "statModifiers": {},
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-dark-legs": {
+      "clothescategory": "armorlegs",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-legs-dark",
+        "categoryCode": "armorlegs",
+        "disableElements": [
+          "shoeL",
+          "shoeR"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.98,
+        "flatDamageReduction": 2.4,
+        "highDamageTierResistant": true,
+        "protectionTier": 5
+      },
+      "statModifiers": {},
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-red-head": {
+      "clothescategory": "armorhead",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-head-red",
+        "categoryCode": "armorhead",
+        "disableElements": [
+          "hidehat",
+          "hoodshoulder",
+          "hoodupperover",
+          "Hair tile upper part",
+          "ponytailhigh",
+          "ponytaillow",
+          "Hair",
+          "hair-uncovered",
+          "hidefacialhair",
+          "sidehigh",
+          "sidelow",
+          "bangs"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.985,
+        "flatDamageReduction": 3.0,
+        "highDamageTierResistant": true,
+        "protectionTier": 6
+      },
+      "statModifiers": {
+        "walkSpeed": 0.03
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-red-body": {
+      "clothescategory": "armorbody",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-body-red",
+        "categoryCode": "armorbody"
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.985,
+        "flatDamageReduction": 3.0,
+        "highDamageTierResistant": true,
+        "protectionTier": 6
+      },
+      "statModifiers": {
+        "walkSpeed": 0.03
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-red-legs": {
+      "clothescategory": "armorlegs",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-legs-red",
+        "categoryCode": "armorlegs",
+        "disableElements": [
+          "shoeL",
+          "shoeR"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.985,
+        "flatDamageReduction": 3.0,
+        "highDamageTierResistant": true,
+        "protectionTier": 6
+      },
+      "statModifiers": {
+        "walkSpeed": 0.03
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-gem-head": {
+      "clothescategory": "armorhead",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-head-gem",
+        "categoryCode": "armorhead",
+        "disableElements": [
+          "hidehat",
+          "hoodshoulder",
+          "hoodupperover",
+          "Hair tile upper part",
+          "ponytailhigh",
+          "ponytaillow",
+          "Hair",
+          "hair-uncovered",
+          "hidefacialhair",
+          "sidehigh",
+          "sidelow",
+          "bangs"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.99,
+        "flatDamageReduction": 3.6,
+        "highDamageTierResistant": true,
+        "protectionTier": 7
+      },
+      "statModifiers": {
+        "walkSpeed": 0.06,
+        "healingeffectivness": 0.15
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-gem-body": {
+      "clothescategory": "armorbody",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-body-gem",
+        "categoryCode": "armorbody"
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.99,
+        "flatDamageReduction": 3.6,
+        "highDamageTierResistant": true,
+        "protectionTier": 7
+      },
+      "statModifiers": {
+        "walkSpeed": 0.06,
+        "healingeffectivness": 0.15
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    },
+    "*-gem-legs": {
+      "clothescategory": "armorlegs",
+      "attachableToEntity": {
+        "texturePrefixCode": "matterarmor-legs-gem",
+        "categoryCode": "armorlegs",
+        "disableElements": [
+          "shoeL",
+          "shoeR"
+        ]
+      },
+      "protectionModifiers": {
+        "relativeProtection": 0.99,
+        "flatDamageReduction": 3.6,
+        "highDamageTierResistant": true,
+        "protectionTier": 7
+      },
+      "statModifiers": {
+        "walkSpeed": 0.06,
+        "healingeffectivness": 0.15
+      },
+      "defaultProtLoss": {
+        "perTierRelativeProtectionLoss": [
+          0.03,
+          0.15
+        ]
+      },
+      "footStepSound": "game:wearable/plate*"
+    }
+  },
+  "guiTransformByType": {
+    "*-head": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -26,
+        "y": -46,
+        "z": -180
+      },
+      "origin": {
+        "x": 0.6,
+        "y": 1.72,
+        "z": 0.5
+      },
+      "scale": 2
+    },
+    "*-body": {
+      "translation": {
+        "x": 3,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -26,
+        "y": -46,
+        "z": -180
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 1.11,
+        "z": 0.5
+      },
+      "scale": 1.37
+    },
+    "*-legs": {
+      "translation": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -26,
+        "y": -46,
+        "z": -180
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0.6,
+        "z": 0.5
+      },
+      "scale": 1.25
+    }
+  },
+  "tpHandTransformByType": {
+    "*-head": {
+      "translation": {
+        "x": -0.82,
+        "y": -2.2,
+        "z": -0.5
+      },
+      "rotation": {
+        "x": 18,
+        "y": 169,
+        "z": 30
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 1.7,
+        "z": 0.5
+      },
+      "scale": 0.64
+    },
+    "*-body": {
+      "translation": {
+        "x": -1,
+        "y": -1.9,
+        "z": -0.5
+      },
+      "rotation": {
+        "x": 97,
+        "y": -168,
+        "z": 94
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 1.5,
+        "z": 0.5
+      },
+      "scale": 0.67
+    },
+    "*-legs": {
+      "translation": {
+        "x": -0.7,
+        "y": -0.6,
+        "z": -0.4
+      },
+      "rotation": {
+        "x": 95,
+        "y": -20,
+        "z": -91
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0.7,
+        "z": 0.5
+      },
+      "scale": 0.74
+    }
+  },
+  "groundTransformByType": {
+    "*-head": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.34,
+        "y": 1.71,
+        "z": 0.5
+      },
+      "scale": 3.1
+    },
+    "*-body": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 90
+      },
+      "origin": {
+        "x": 0.34,
+        "y": 1.12,
+        "z": 0.5
+      },
+      "scale": 3.1
+    },
+    "*-legs": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 90
+      },
+      "origin": {
+        "x": 0.34,
+        "y": 1.12,
+        "z": 0.5
+      },
+      "scale": 3.1
+    }
+  },
+  "materialDensity": 9000
+}

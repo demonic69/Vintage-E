@@ -49,6 +49,7 @@ namespace VintageE
         {
             if (stack?.Collectible == null) return 0;
             double v = GetValue(stack.Collectible);
+            if (stack.Collectible is IEmcStorageItem) v += StoredEmc.Get(stack); // Klein stars are worth what they hold
             if (v <= 0 || !DurabilityScales) return v;
 
             int max = stack.Collectible.GetMaxDurability(stack);

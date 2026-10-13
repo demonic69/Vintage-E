@@ -1,0 +1,62 @@
+{
+  "code": "novaexplosive",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageENovaExplosive",
+  "variantgroups": [
+    {
+      "code": "type",
+      "states": [
+        "catalyst",
+        "cataclysm"
+      ]
+    }
+  ],
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "blockmaterial": "Stone",
+  "drawtype": "cube",
+  "textures": {
+    "up": {
+      "base": "block/novaexplosive-{type}-top"
+    },
+    "down": {
+      "base": "block/novaexplosive-{type}-top"
+    },
+    "north": {
+      "base": "block/novaexplosive-{type}-side"
+    },
+    "east": {
+      "base": "block/novaexplosive-{type}-side"
+    },
+    "south": {
+      "base": "block/novaexplosive-{type}-side"
+    },
+    "west": {
+      "base": "block/novaexplosive-{type}-side"
+    }
+  },
+  "attributesByType": {
+    "*-catalyst": {
+      "radius": 6,
+      "fuseSeconds": 4,
+      "sneakInteractionHelp": "vintagee:blockhelp-nova"
+    },
+    "*-cataclysm": {
+      "radius": 11,
+      "fuseSeconds": 6,
+      "sneakInteractionHelp": "vintagee:blockhelp-nova"
+    }
+  },
+  "resistance": 1,
+  "sounds": {
+    "place": "game:block/sand",
+    "break": "game:block/sand",
+    "hit": "game:block/sand"
+  }
+}

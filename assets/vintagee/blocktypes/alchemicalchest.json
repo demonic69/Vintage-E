@@ -1,0 +1,45 @@
+{
+  "code": "alchemicalchest",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageEAlchemicalChest",
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "blockmaterial": "Wood",
+  "drawtype": "cube",
+  "textures": {
+    "up": {
+      "base": "block/alchemicalchest-top"
+    },
+    "down": {
+      "base": "block/alchemicalchest-bottom"
+    },
+    "north": {
+      "base": "block/alchemicalchest-side"
+    },
+    "east": {
+      "base": "block/alchemicalchest-side"
+    },
+    "south": {
+      "base": "block/alchemicalchest-side"
+    },
+    "west": {
+      "base": "block/alchemicalchest-side"
+    }
+  },
+  "attributes": {
+    "quantitySlots": 104,
+    "interactionHelp": "vintagee:blockhelp-openchest"
+  },
+  "resistance": 3,
+  "sounds": {
+    "place": "game:block/planks",
+    "break": "game:block/planks",
+    "hit": "game:block/planks"
+  }
+}

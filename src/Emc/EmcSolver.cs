@@ -75,6 +75,10 @@ namespace VintageE
         public Dictionary<T, object> Via { get; } = new Dictionary<T, object>();
         /// <summary>Items in self-cheapening loops that were given up on entirely (rare).</summary>
         public HashSet<T> Unstable { get; } = new HashSet<T>();
+        /// <summary>The first value each item ever got; loop items that can't be settled fall back to it instead of losing their value.</summary>
+        readonly Dictionary<T, double> firstValue = new Dictionary<T, double>();
+        /// <summary>Items that never settled and were given their first value at the end (normally empty).</summary>
+        public HashSet<T> KeptAtFirstValue { get; } = new HashSet<T>();
         /// <summary>Items in self-cheapening loops that keep their first value instead of being lowered.</summary>
         public HashSet<T> Frozen { get; } = new HashSet<T>();
         public int TotalPasses { get; private set; }
@@ -97,6 +101,21 @@ namespace VintageE
                     continue;
                 }
                 if (InferOnce() == 0) break;
+            }
+
+            // Never drop a value outright: anything that wouldn't settle keeps the first value it got, frozen,
+            // and one more pass lets everything made from it pick that up.
+            if (Unstable.Count > 0)
+            {
+                foreach (T item in Unstable)
+                {
+                    if (!firstValue.TryGetValue(item, out double v)) continue;
+                    Values[item] = v;
+                    Frozen.Add(item);
+                    KeptAtFirstValue.Add(item);
+                }
+                Unstable.ExceptWith(KeptAtFirstValue);
+                Forward();
             }
         }
 
@@ -159,6 +178,7 @@ namespace VintageE
                         }
                         Values[e.Output] = per;
                         Via[e.Output] = e;
+                        if (!firstValue.ContainsKey(e.Output)) firstValue[e.Output] = per;
                         changed.Add(e.Output);
                     }
                 }

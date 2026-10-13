@@ -1,0 +1,16 @@
+{
+  "code": "ironband",
+  "maxstacksize": 16,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "texture": {
+    "base": "item/ironband"
+  },
+  "materialDensity": 7800
+}

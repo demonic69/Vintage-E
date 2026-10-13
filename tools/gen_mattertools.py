@@ -10,7 +10,7 @@ import os
 from collections import OrderedDict as O
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "vintagee", "itemtypes", "mattertool.json")
-TOOLS = ["pickaxe", "shovel", "axe", "sword", "hoe", "hammer"]
+TOOLS = ["pickaxe", "shovel", "axe", "sword", "hoe", "hammer", "shears"]
 HEAD = {"dark": "vintagee:item/tool/material/darkmatter", "red": "vintagee:item/tool/material/redmatter"}
 HANDLE = {"dark": "game:block/wood/debarked/ebony", "red": "vintagee:item/tool/material/darkmatter"}
 BAND = {"dark": "vintagee:item/tool/material/redmatter", "red": "vintagee:item/tool/material/darkmatter"}
@@ -44,6 +44,7 @@ SHAPE = {
     "hoe": "game:item/tool/hoe-copper",
     "sword": "game:item/tool/blade/falx",
     "hammer": "vintagee:item/tool/sledgehammer",
+    "shears": "game:item/tool/shears",
 }
 
 
@@ -58,6 +59,8 @@ def textures(tool, mat):
                   ("falxstring", CLEAR), ("thongs", CLEAR), ("woodguard", CLEAR), ("cloth", CLEAR), ("pips", CLEAR)])
     if tool == "hammer":
         return O([("head", head), ("handle", handle), ("band", BAND[mat])])
+    if tool == "shears":
+        return O([("metal", head)])
 
 
 # Vanilla values (survival/itemtypes/tool/*.json, 1.22.7) for the matching metal tools.
@@ -96,11 +99,17 @@ GROUNDSTORAGE = {
     "hoe": xf(trans=(0, 0.04, -0.25), rot=(23, 87, -90), scale=0.88),
     "sword": xf(trans=(0.24, 0.195, -0.06), rot=(24, 61, -87), scale=0.88),
 }
-WALL_OFF_Y = {"pickaxe": 1, "shovel": 2, "axe": 1, "hoe": 1, "sword": 1, "hammer": 1}
-HIT = {"pickaxe": "pickaxe", "shovel": "shoveldig", "axe": "axechop", "hoe": "breaktool", "sword": "falx", "hammer": "pickaxe"}
+WALL_OFF_Y = {"pickaxe": 1, "shovel": 2, "axe": 1, "hoe": 1, "sword": 1, "hammer": 1, "shears": 1, "katar": 1, "morningstar": 1}
+HIT = {"pickaxe": "pickaxe", "shovel": "shoveldig", "axe": "axechop", "hoe": "breaktool", "sword": "falx", "hammer": "pickaxe", "shears": "shears",
+       "katar": "falx", "morningstar": "pickaxe"}
 
 # The sledgehammer model (tools/gen_sledgehammer.py) is built in the vanilla hammer's frame, so these are the
 # vanilla hammer values, re-centred and scaled for a model about twice as long. It swings like a pickaxe.
+GUI["shears"] = xf(trans=(0.5, 0, 0), rot=(-89, 45, 33), origin=(0.85, 0.4, 0.48), scale=2.5)
+TP["shears"] = xf(trans=(-0.95, -0.07, -0.35), rot=(-87, -16, -10), origin=(0.68, 0, 0.42), scale=1)
+GROUND["shears"] = xf(trans=(0, 0, 0), rot=(0, 0, 0), origin=(0.5, 0, 0.5), scale=3.6)
+TOOLRACK["shears"] = O([("translation", O([("y", 0.7)])), ("rotation", O([("y", 180)])), ("scale", 1.5)])
+GROUNDSTORAGE["shears"] = xf(trans=(0, -0.005, 0.005), rot=(26, 88, -87), scale=0.88)
 GUI["hammer"] = xf(trans=(0, 0, 0), rot=(-77, 46, 8), origin=(0.76, 0.5, 0.5), scale=1.55)
 TP["hammer"] = xf(trans=(-0.65, -0.48, -0.52), rot=(90, 1, 0), scale=1)
 GROUND["hammer"] = xf(trans=(0, 0, 0), rot=(0, 0, 0), origin=(0.73, 0.45, 0.5), scale=2.7)
@@ -146,6 +155,8 @@ MINING = {
     ("red", "hoe"): dict(soil=8, plant=8),
     ("dark", "hammer"): dict(stone=8, ore=8, metal=8, ice=8, brick=8, ceramic=8, glass=8),
     ("red", "hammer"): dict(stone=12, ore=12, metal=12, ice=12, brick=12, ceramic=12, glass=12),
+    ("dark", "shears"): dict(leaves=12, plant=8, cloth=8),
+    ("red", "shears"): dict(leaves=18, plant=12, cloth=12),
 }
 
 
@@ -153,8 +164,8 @@ def main():
     d = O()
     d["code"] = "mattertool"
     d["variantgroups"] = [O([("code", "material"), ("states", ["dark", "red"])]), O([("code", "tool"), ("states", TOOLS)])]
-    d["classByType"] = O([("*-axe", "ItemAxe"), ("*-hoe", "ItemHoe")])
-    d["toolByType"] = O([("*-pickaxe", "pickaxe"), ("*-shovel", "shovel"), ("*-axe", "axe"), ("*-sword", "sword"), ("*-hoe", "hoe"), ("*-hammer", "pickaxe")])
+    d["classByType"] = O([("*-axe", "ItemAxe"), ("*-hoe", "ItemHoe"), ("*-shears", "ItemShears")])
+    d["toolByType"] = O([("*-pickaxe", "pickaxe"), ("*-shovel", "shovel"), ("*-axe", "axe"), ("*-sword", "sword"), ("*-hoe", "hoe"), ("*-hammer", "pickaxe"), ("*-shears", "shears")])
     d["behaviorsByType"] = O((f"*-{m}-{tl}", behaviors(m, tl)) for m in ("dark", "red") for tl in TOOLS)
     d["maxstacksize"] = 1
     d["creativeinventory"] = O([("general", ["*"]), ("tools", ["*"]), ("vintagee", ["*"])])
@@ -183,6 +194,49 @@ def main():
         json.dump(d, f, indent=2)
         f.write("\n")
     print("wrote", OUT)
+    red_combo_tools()
+
+
+def red_combo_tools():
+    """Red Matter Katar (sword + axe + shears) and Morning Star (pickaxe + shovel + sledgehammer)."""
+    out = os.path.join(os.path.dirname(OUT), "redmattertool.json")
+    combos = {"katar": "sword", "morningstar": "hammer"}
+    d = O()
+    d["code"] = "redmattertool"
+    d["variantgroups"] = [O([("code", "type"), ("states", list(combos))])]
+    d["classByType"] = O([("*-katar", "ItemAxe")])
+    d["toolByType"] = O([("*-katar", "axe"), ("*-morningstar", "pickaxe")])
+    beh = lambda kind: [ground_storable(kind), O([("name", "VintageEMatterTool"), ("properties", O([("maxAreaRadius", 2), ("defaultAreaRadius", 0 if kind == "katar" else 1)]))]),
+                        O([("name", "AnimationAuthoritative"), ("properties", O([("onlyOnEntity", True)]))])]
+    d["behaviorsByType"] = O((f"*-{k}", beh(k)) for k in combos)
+    d["maxstacksize"] = 1
+    d["creativeinventory"] = O([("general", ["*"]), ("tools", ["*"]), ("vintagee", ["*"])])
+    d["shapeByType"] = O((f"*-{k}", O([("base", SHAPE[t])])) for k, t in combos.items())
+    d["texturesByType"] = O([
+        ("*-katar", O((k, O([("base", v)])) for k, v in textures("sword", "red").items())),
+        ("*-morningstar", O((k, O([("base", v)])) for k, v in O([("head", HEAD["red"]), ("handle", HANDLE["red"]), ("band", "game:block/metal/ingot/gold")]).items())),
+    ])
+    d["heldTpHitAnimationByType"] = O((f"*-{k}", HIT[k]) for k in combos)
+    d["guiTransformByType"] = O((f"*-{k}", GUI[t]) for k, t in combos.items())
+    d["tpHandTransformByType"] = O((f"*-{k}", TP[t]) for k, t in combos.items())
+    d["groundTransformByType"] = O((f"*-{k}", GROUND[t]) for k, t in combos.items())
+    d["attributesByType"] = O((f"*-{k}", O([
+        ("attachableToEntity", O([("categoryCode", "toolholding")])),
+        ("toolrackTransform", TOOLRACK[t]),
+        ("groundStorageTransform", GROUNDSTORAGE[t]),
+    ])) for k, t in combos.items())
+    d["tooltier"] = 6
+    d["miningspeedByType"] = O([
+        ("*-katar", dict(wood=16, plant=14, leaves=14)),
+        ("*-morningstar", dict(stone=14, ore=14, metal=14, ice=14, brick=14, ceramic=14, glass=14, soil=14, sand=14, gravel=14, snow=14)),
+    ])
+    d["attackpowerByType"] = O([("*-katar", 14), ("*-morningstar", 10)])
+    d["attackRangeByType"] = O([("*-katar", 3), ("*", 2.5)])
+    d["materialDensity"] = 9000
+    with open(out, "w") as f:
+        json.dump(d, f, indent=2)
+        f.write("\n")
+    print("wrote", out)
 
 
 if __name__ == "__main__":

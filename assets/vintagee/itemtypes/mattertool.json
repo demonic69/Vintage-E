@@ -16,13 +16,15 @@
         "axe",
         "sword",
         "hoe",
-        "hammer"
+        "hammer",
+        "shears"
       ]
     }
   ],
   "classByType": {
     "*-axe": "ItemAxe",
-    "*-hoe": "ItemHoe"
+    "*-hoe": "ItemHoe",
+    "*-shears": "ItemShears"
   },
   "toolByType": {
     "*-pickaxe": "pickaxe",
@@ -30,7 +32,8 @@
     "*-axe": "axe",
     "*-sword": "sword",
     "*-hoe": "hoe",
-    "*-hammer": "pickaxe"
+    "*-hammer": "pickaxe",
+    "*-shears": "shears"
   },
   "behaviorsByType": {
     "*-dark-pickaxe": [
@@ -235,6 +238,38 @@
         }
       }
     ],
+    "*-dark-shears": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      }
+    ],
     "*-red-pickaxe": [
       {
         "name": "GroundStorable",
@@ -436,6 +471,38 @@
           "defaultAreaRadius": 1
         }
       }
+    ],
+    "*-red-shears": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      }
     ]
   },
   "maxstacksize": 1,
@@ -468,6 +535,9 @@
     },
     "*-hammer": {
       "base": "vintagee:item/tool/sledgehammer"
+    },
+    "*-shears": {
+      "base": "game:item/tool/shears"
     }
   },
   "texturesByType": {
@@ -555,6 +625,11 @@
         "base": "vintagee:item/tool/material/redmatter"
       }
     },
+    "*-dark-shears": {
+      "metal": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      }
+    },
     "*-red-pickaxe": {
       "metal": {
         "base": "vintagee:item/tool/material/redmatter"
@@ -638,6 +713,11 @@
       "band": {
         "base": "vintagee:item/tool/material/darkmatter"
       }
+    },
+    "*-red-shears": {
+      "metal": {
+        "base": "vintagee:item/tool/material/redmatter"
+      }
     }
   },
   "heldTpHitAnimationByType": {
@@ -646,7 +726,8 @@
     "*-axe": "axechop",
     "*-sword": "falx",
     "*-hoe": "breaktool",
-    "*-hammer": "pickaxe"
+    "*-hammer": "pickaxe",
+    "*-shears": "shears"
   },
   "heldTpUseAnimationByType": {
     "*-shovel": "interactStaticLong",
@@ -758,6 +839,24 @@
         "z": 0.5
       },
       "scale": 1.55
+    },
+    "*-shears": {
+      "translation": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -89,
+        "y": 45,
+        "z": 33
+      },
+      "origin": {
+        "x": 0.85,
+        "y": 0.4,
+        "z": 0.48
+      },
+      "scale": 2.5
     }
   },
   "tpHandTransformByType": {
@@ -846,6 +945,24 @@
         "x": 90,
         "y": 1,
         "z": 0
+      },
+      "scale": 1
+    },
+    "*-shears": {
+      "translation": {
+        "x": -0.95,
+        "y": -0.07,
+        "z": -0.35
+      },
+      "rotation": {
+        "x": -87,
+        "y": -16,
+        "z": -10
+      },
+      "origin": {
+        "x": 0.68,
+        "y": 0,
+        "z": 0.42
       },
       "scale": 1
     }
@@ -958,6 +1075,24 @@
         "z": 0.5
       },
       "scale": 2.7
+    },
+    "*-shears": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.6
     }
   },
   "attributesByType": {
@@ -1164,6 +1299,38 @@
         },
         "scale": 0.6
       }
+    },
+    "*-shears": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-shears"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "translation": {
+          "y": 0.7
+        },
+        "rotation": {
+          "y": 180
+        },
+        "scale": 1.5
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": -0.005,
+          "z": 0.005
+        },
+        "rotation": {
+          "x": 26,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.88
+      }
     }
   },
   "tooltierByType": {
@@ -1208,6 +1375,11 @@
       "ceramic": 8,
       "glass": 8
     },
+    "*-dark-shears": {
+      "leaves": 12,
+      "plant": 8,
+      "cloth": 8
+    },
     "*-red-pickaxe": {
       "stone": 14,
       "ore": 14,
@@ -1244,6 +1416,11 @@
       "brick": 12,
       "ceramic": 12,
       "glass": 12
+    },
+    "*-red-shears": {
+      "leaves": 18,
+      "plant": 12,
+      "cloth": 12
     }
   },
   "attackpowerByType": {

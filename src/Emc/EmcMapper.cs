@@ -16,6 +16,8 @@ namespace VintageE
         public int ConversionCount;
         public int SourceCount;
         public int UnstableRemoved;
+        /// <summary>Items whose value never settled and that kept the first value they got.</summary>
+        public int KeptAtFirstValue;
         public int LoopFrozen;
         public int UnmatchedRules;
         public int SkippedRecipes;
@@ -227,6 +229,7 @@ namespace VintageE
             report.Sources = collector.SourceCounts;
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
             report.UnstableRemoved = solver.Unstable.Count;
+            report.KeptAtFirstValue = solver.KeptAtFirstValue.Count;
             report.LoopFrozen = solver.Frozen.Count;
             foreach (CollectibleObject c in report.Values.Keys)
             {

@@ -1,0 +1,26 @@
+{
+  "code": "covalencedust",
+  "variantgroups": [
+    {
+      "code": "tier",
+      "states": [
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  ],
+  "maxstacksize": 64,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "texture": {
+    "base": "item/covalencedust-{tier}"
+  },
+  "materialDensity": 400
+}

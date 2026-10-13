@@ -1,0 +1,45 @@
+{
+  "code": "trinket",
+  "class": "ItemEmcTrinket",
+  "variantgroups": [
+    {
+      "code": "type",
+      "states": [
+        "blackholeband",
+        "swiftwolfsrendinggale",
+        "harvestgoddessband",
+        "ignitionring",
+        "zeroring",
+        "ringofarcana",
+        "bodystone",
+        "soulstone",
+        "lifestone",
+        "repairtalisman",
+        "gemofeternaldensity",
+        "evertideamulet",
+        "volcaniteamulet",
+        "watchofflowingtime"
+      ]
+    }
+  ],
+  "maxstacksize": 1,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "textureByType": {
+    "*": {
+      "base": "item/trinket/{type}"
+    }
+  },
+  "attributesByType": {
+    "*-gemofeternaldensity": {
+      "maxInputValue": 8
+    }
+  },
+  "materialDensity": 5000
+}

@@ -65,7 +65,8 @@ namespace VintageE
 
         public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
         {
-            bool wantsWithdraw = byPlayer.Entity.Controls.Sneak && byPlayer.InventoryManager.ActiveHotbarSlot?.Empty != false;
+            ItemSlot hand = byPlayer.InventoryManager.ActiveHotbarSlot;
+            bool wantsWithdraw = byPlayer.Entity.Controls.Sneak && (hand?.Empty != false || hand.Itemstack.Collectible is IEmcStorageItem);
             if (!wantsWithdraw) return false;
             if (Api.Side == EnumAppSide.Client) return true;
 
@@ -73,8 +74,7 @@ namespace VintageE
             if (!Api.World.Claims.TryAccess(byPlayer, Pos, EnumBlockAccessFlags.Use)) return true;
             if (Stored < 1) return true;
 
-            PlayerEmc.AddEmc(byPlayer, Math.Floor(Stored));
-            Stored -= Math.Floor(Stored);
+            Stored -= EmcTransfer.ToPlayerOrStar(byPlayer, Math.Floor(Stored));
             MarkDirty(false);
             Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/timeswitch"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, null, true, 8, 0.4f);
             return true;

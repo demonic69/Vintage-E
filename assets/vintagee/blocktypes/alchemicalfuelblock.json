@@ -1,0 +1,81 @@
+{
+  "code": "alchemicalfuelblock",
+  "variantgroups": [
+    {
+      "code": "type",
+      "states": [
+        "alchemicalcoal",
+        "mobiusfuel",
+        "aeternalisfuel"
+      ]
+    }
+  ],
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "blockmaterial": "Stone",
+  "drawtype": "cube",
+  "textures": {
+    "up": {
+      "base": "block/alchemicalfuelblock-{type}"
+    },
+    "down": {
+      "base": "block/alchemicalfuelblock-{type}"
+    },
+    "north": {
+      "base": "block/alchemicalfuelblock-{type}"
+    },
+    "east": {
+      "base": "block/alchemicalfuelblock-{type}"
+    },
+    "south": {
+      "base": "block/alchemicalfuelblock-{type}"
+    },
+    "west": {
+      "base": "block/alchemicalfuelblock-{type}"
+    }
+  },
+  "combustiblePropsByType": {
+    "*-alchemicalcoal": {
+      "burnTemperature": 1400,
+      "burnDuration": 1440
+    },
+    "*-mobiusfuel": {
+      "burnTemperature": 1500,
+      "burnDuration": 5760
+    },
+    "*-aeternalisfuel": {
+      "burnTemperature": 1600,
+      "burnDuration": 23040
+    }
+  },
+  "lightHsvByType": {
+    "*-alchemicalcoal": [
+      4,
+      5,
+      3
+    ],
+    "*-mobiusfuel": [
+      8,
+      6,
+      5
+    ],
+    "*-aeternalisfuel": [
+      10,
+      3,
+      8
+    ]
+  },
+  "resistance": 3,
+  "requiredMiningTier": 1,
+  "sounds": {
+    "place": "game:block/rock-hit-pickaxe",
+    "break": "game:block/rock-break-pickaxe",
+    "hit": "game:block/rock-hit-pickaxe"
+  }
+}

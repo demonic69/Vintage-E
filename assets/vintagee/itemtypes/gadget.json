@@ -1,0 +1,33 @@
+{
+  "code": "gadget",
+  "class": "ItemEmcGadget",
+  "variantgroups": [
+    {
+      "code": "type",
+      "states": [
+        "destructioncatalyst",
+        "hyperkineticlens",
+        "catalyticlens",
+        "mercurialeye",
+        "archangelssmite",
+        "tomeofknowledge",
+        "diviningrodlow",
+        "diviningrodmedium",
+        "diviningrodhigh"
+      ]
+    }
+  ],
+  "maxstacksize": 1,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "texture": {
+    "base": "item/gadget/{type}"
+  },
+  "materialDensity": 5000
+}

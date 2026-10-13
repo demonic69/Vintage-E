@@ -54,4 +54,12 @@ namespace VintageE
         [ProtoMember(4)] public string Version;
         [ProtoMember(5)] public string File;
     }
+
+    /// <summary>Client → server: set a block/item's EMC value from the /emc missing window (admins only). Key is "i:code" / "b:code".</summary>
+    [ProtoContract]
+    public class EmcSetValuePacket
+    {
+        [ProtoMember(1)] public string Key;
+        [ProtoMember(2)] public double Value;
+    }
 }

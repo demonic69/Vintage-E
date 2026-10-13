@@ -48,6 +48,20 @@ namespace VintageE
             return true;
         }
 
+        /// <summary>Learns many keys at once; returns how many were new.</summary>
+        public static int LearnMany(IPlayer player, IEnumerable<string> keys)
+        {
+            var attrs = Attrs(player);
+            if (attrs == null) return 0;
+            var set = new HashSet<string>(GetKnown(player));
+            int before = set.Count;
+            foreach (string k in keys) if (!string.IsNullOrEmpty(k)) set.Add(k);
+            if (set.Count == before) return 0;
+            attrs.SetStringArray(KnownKey, set.ToArray());
+            attrs.MarkPathDirty(KnownKey);
+            return set.Count - before;
+        }
+
         public static bool Forget(IPlayer player, string key)
         {
             var attrs = Attrs(player);

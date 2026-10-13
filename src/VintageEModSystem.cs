@@ -34,6 +34,9 @@ namespace VintageE
 
         public TransmutationService Transmutation { get; private set; }
 
+        /// <summary>Runs ring/stone/amulet effects (server only).</summary>
+        public TrinketEffects Trinkets { get; private set; }
+
         /// <summary>Result of the most recent mapping run (server only).</summary>
         public EmcMappingReport LastReport { get; private set; }
         WorldTransmutation worldTransmutation;
@@ -60,12 +63,23 @@ namespace VintageE
             api.RegisterBlockEntityClass("VintageEEnergyCollector", typeof(BEEnergyCollector));
             api.RegisterBlockEntityClass("VintageEEnergyCondenser", typeof(BEEnergyCondenser));
             api.RegisterCollectibleBehaviorClass("VintageEMatterTool", typeof(CollectibleBehaviorMatterTool));
+            api.RegisterItemClass("ItemKleinStar", typeof(ItemKleinStar));
+            api.RegisterItemClass("ItemEmcTrinket", typeof(ItemEmcTrinket));
+            api.RegisterItemClass("ItemEmcGadget", typeof(ItemEmcGadget));
+            api.RegisterBlockEntityClass("VintageEAlchemicalChest", typeof(BEAlchemicalChest));
+            api.RegisterBlockEntityClass("VintageEMatterFurnace", typeof(BEMatterFurnace));
+            api.RegisterBlockEntityClass("VintageEAntimatterRelay", typeof(BEAntimatterRelay));
+            api.RegisterBlockEntityClass("VintageEInterdictionTorch", typeof(BEInterdictionTorch));
+            api.RegisterBlockEntityClass("VintageENovaExplosive", typeof(BENovaExplosive));
+            api.RegisterBlockEntityClass("VintageEPedestal", typeof(BEPedestal));
+            api.RegisterEntityBehaviorClass(EntityBehaviorVintageE.Code, typeof(EntityBehaviorVintageE));
 
             api.Network.RegisterChannel(ChannelName)
                 .RegisterMessageType<EmcTablePacket>()
                 .RegisterMessageType<TransmuteRequestPacket>()
                 .RegisterMessageType<TransmuteResultPacket>()
-                .RegisterMessageType<EmcMissingPacket>();
+                .RegisterMessageType<EmcMissingPacket>()
+                .RegisterMessageType<EmcSetValuePacket>();
         }
 
         #region Server
@@ -82,14 +96,20 @@ namespace VintageE
             Sapi = sapi;
             Config = LoadConfig(sapi);
             Transmutation = new TransmutationService(this, sapi);
+            Trinkets = new TrinketEffects(this, sapi);
 
             serverChannel = sapi.Network.GetChannel(ChannelName);
             serverChannel.SetMessageHandler<TransmuteRequestPacket>(Transmutation.OnRequest);
+            serverChannel.SetMessageHandler<EmcSetValuePacket>(OnSetValueRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start", allowCache: true));
             sapi.Event.PlayerNowPlaying += player =>
             {
+                if (player.Entity != null && player.Entity.GetBehavior<EntityBehaviorVintageE>() == null)
+                {
+                    player.Entity.AddBehavior(new EntityBehaviorVintageE(player.Entity));
+                }
                 SendEmcTable(player);
                 Announce(player, LastReport);
             };
@@ -194,7 +214,7 @@ namespace VintageE
             }
             if (report.LoopFrozen > 0 || report.UnstableRemoved > 0)
             {
-                Mod.Logger.Notification("EMC: {0} items sit in self-cheapening recipe loops and keep their first value; {1} had to be dropped.", report.LoopFrozen, report.UnstableRemoved);
+                Mod.Logger.Notification("EMC: {0} items sit in self-cheapening recipe loops and keep their first value ({1} of them only settled that way at the end); {2} had to be dropped.", report.LoopFrozen, report.KeptAtFirstValue, report.UnstableRemoved);
             }
 
             serverChannel?.BroadcastPacket(Emc.ToPacket());
@@ -315,6 +335,38 @@ namespace VintageE
             serverChannel.SendPacket(result, player);
         }
 
+        /// <summary>
+        /// Pins an item's EMC value (saved to ModConfig FixedValues, like /emc set) and remaps. Returns the config key
+        /// used, or null if the code didn't resolve.
+        /// </summary>
+        public string SetFixedValue(CollectibleObject collectible, double? value)
+        {
+            if (collectible?.Code == null) return null;
+            string key = (collectible.ItemClass == EnumItemClass.Block ? "block:" : "item:") + collectible.Code;
+            if (value.HasValue) Config.FixedValues[key] = value.Value;
+            else Config.FixedValues.Remove(key);
+            SaveConfig();
+            return key;
+        }
+
+        void OnSetValueRequest(IServerPlayer player, EmcSetValuePacket packet)
+        {
+            string lang = player.LanguageCode;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet.Key);
+            if (c == null || double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0) return;
+            SetFixedValue(c, packet.Value);
+            EmcMappingReport report = RecalculateEmc("/emc missing window");
+            string name;
+            try { name = c.GetHeldItemName(new ItemStack(c)); } catch { name = c.Code.ToShortString(); }
+            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:cmd-itemvalue", name, c.Code, EmcFormat.Format(Emc.GetValue(c))), EnumChatType.CommandSuccess);
+            if (report != null) SendMissingList(player, report, null);
+        }
+
         /// <summary>Opens the /emc missing window for a player.</summary>
         public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file)
         {
@@ -377,9 +429,11 @@ namespace VintageE
 
         void OnMissingList(EmcMissingPacket packet)
         {
+            GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() ? missingDialog : null;
+            var dialog = new GuiDialogEmcMissing(Capi, packet, previous, (key, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Key = key, Value = value }));
             missingDialog?.TryClose();
             missingDialog?.Dispose();
-            missingDialog = new GuiDialogEmcMissing(Capi, packet);
+            missingDialog = dialog;
             missingDialog.TryOpen();
         }
 

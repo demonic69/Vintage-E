@@ -1,0 +1,1656 @@
+[
+  {
+    "ingredientPattern": "SSS,SCS,SSS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "game:stone-*"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:charcoal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:covalencedust-low",
+      "quantity": 40
+    },
+    "name": "vintagee:covalencedust-low",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "IS",
+    "ingredients": {
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:saltpeter"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:covalencedust-medium",
+      "quantity": 40
+    },
+    "name": "vintagee:covalencedust-medium",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "DC",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:coke"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:covalencedust-high",
+      "quantity": 40
+    },
+    "name": "vintagee:covalencedust-high",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "III,IAI,III",
+    "ingredients": {
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:ironband"
+    },
+    "name": "vintagee:ironband"
+  },
+  {
+    "ingredientPattern": "_M_,MDM,_M_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      },
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-ein"
+    },
+    "name": "vintagee:kleinstar-ein"
+  },
+  {
+    "ingredientPattern": "SS,SS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "vintagee:kleinstar-ein"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-zwei"
+    },
+    "name": "vintagee:kleinstar-zwei",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "SS,SS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "vintagee:kleinstar-zwei"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-drei"
+    },
+    "name": "vintagee:kleinstar-drei",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "SS,SS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "vintagee:kleinstar-drei"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-vier"
+    },
+    "name": "vintagee:kleinstar-vier",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "SS,SS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "vintagee:kleinstar-vier"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-sphere"
+    },
+    "name": "vintagee:kleinstar-sphere",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "SS,SS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "vintagee:kleinstar-sphere"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:kleinstar-omega"
+    },
+    "name": "vintagee:kleinstar-omega",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "FFF,FFF,FFF",
+    "ingredients": {
+      "F": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:alchemicalfuelblock-alchemicalcoal"
+    },
+    "name": "vintagee:alchemicalfuelblock-alchemicalcoal"
+  },
+  {
+    "ingredientPattern": "B",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "vintagee:alchemicalfuelblock-alchemicalcoal"
+      }
+    },
+    "width": 1,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-alchemicalcoal",
+      "quantity": 9
+    },
+    "name": "vintagee:alchemicalfuel-alchemicalcoal-from-block"
+  },
+  {
+    "ingredientPattern": "FFF,FFF,FFF",
+    "ingredients": {
+      "F": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:alchemicalfuelblock-mobiusfuel"
+    },
+    "name": "vintagee:alchemicalfuelblock-mobiusfuel"
+  },
+  {
+    "ingredientPattern": "B",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "vintagee:alchemicalfuelblock-mobiusfuel"
+      }
+    },
+    "width": 1,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-mobiusfuel",
+      "quantity": 9
+    },
+    "name": "vintagee:alchemicalfuel-mobiusfuel-from-block"
+  },
+  {
+    "ingredientPattern": "FFF,FFF,FFF",
+    "ingredients": {
+      "F": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-aeternalisfuel"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:alchemicalfuelblock-aeternalisfuel"
+    },
+    "name": "vintagee:alchemicalfuelblock-aeternalisfuel"
+  },
+  {
+    "ingredientPattern": "B",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "vintagee:alchemicalfuelblock-aeternalisfuel"
+      }
+    },
+    "width": 1,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-aeternalisfuel",
+      "quantity": 9
+    },
+    "name": "vintagee:alchemicalfuel-aeternalisfuel-from-block"
+  },
+  {
+    "ingredientPattern": "RRR,DID,RRR",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "game:rope"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:ironband"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-blackholeband"
+    },
+    "name": "vintagee:blackholeband"
+  },
+  {
+    "ingredientPattern": "DFD,FIF,DFD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "F": {
+        "type": "item",
+        "code": "game:feather"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:ironband"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-swiftwolfsrendinggale"
+    },
+    "name": "vintagee:swiftwolfsrendinggale"
+  },
+  {
+    "ingredientPattern": "SFS,DID,SFS",
+    "ingredients": {
+      "S": {
+        "type": "block",
+        "code": "game:sapling-*"
+      },
+      "F": {
+        "type": "block",
+        "code": "game:flower-*"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:ironband"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-harvestgoddessband"
+    },
+    "name": "vintagee:harvestgoddessband"
+  },
+  {
+    "ingredientPattern": "AAA,AIA,ADA",
+    "ingredients": {
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:ironband"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-ignitionring"
+    },
+    "name": "vintagee:ignitionring"
+  },
+  {
+    "ingredientPattern": "SSS,SIS,SDS",
+    "ingredients": {
+      "S": {
+        "type": "item",
+        "code": "game:snowball-snow"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:ironband"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-zeroring"
+    },
+    "name": "vintagee:zeroring"
+  },
+  {
+    "ingredientPattern": "ZRI,R_R,HRS",
+    "ingredients": {
+      "Z": {
+        "type": "item",
+        "code": "vintagee:trinket-zeroring"
+      },
+      "I": {
+        "type": "item",
+        "code": "vintagee:trinket-ignitionring"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:trinket-harvestgoddessband"
+      },
+      "S": {
+        "type": "item",
+        "code": "vintagee:trinket-swiftwolfsrendinggale"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-ringofarcana"
+    },
+    "name": "vintagee:ringofarcana"
+  },
+  {
+    "ingredientPattern": "HHH,RPR,HHH",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "game:honeycomb"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-bodystone"
+    },
+    "name": "vintagee:bodystone"
+  },
+  {
+    "ingredientPattern": "QQQ,RPR,QQQ",
+    "ingredients": {
+      "Q": {
+        "type": "item",
+        "code": "game:clearquartz"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-soulstone"
+    },
+    "name": "vintagee:soulstone"
+  },
+  {
+    "ingredientPattern": "BS",
+    "ingredients": {
+      "B": {
+        "type": "item",
+        "code": "vintagee:trinket-bodystone"
+      },
+      "S": {
+        "type": "item",
+        "code": "vintagee:trinket-soulstone"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-lifestone"
+    },
+    "name": "vintagee:lifestone",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "LMH,SPS,HML",
+    "ingredients": {
+      "L": {
+        "type": "item",
+        "code": "vintagee:covalencedust-low"
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:covalencedust-medium"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:flaxtwine"
+      },
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-repairtalisman"
+    },
+    "name": "vintagee:repairtalisman"
+  },
+  {
+    "ingredientPattern": "DOD,OMO,DOD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "O": {
+        "type": "block",
+        "code": "game:rock-obsidian"
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-gemofeternaldensity"
+    },
+    "name": "vintagee:gemofeternaldensity"
+  },
+  {
+    "ingredientPattern": "SSS,DDD,SSS",
+    "ingredients": {
+      "S": {
+        "type": "block",
+        "code": "game:seashell-*"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-evertideamulet"
+    },
+    "name": "vintagee:evertideamulet"
+  },
+  {
+    "ingredientPattern": "OOO,DDD,OOO",
+    "ingredients": {
+      "O": {
+        "type": "block",
+        "code": "game:rock-obsidian"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-volcaniteamulet"
+    },
+    "name": "vintagee:volcaniteamulet"
+  },
+  {
+    "ingredientPattern": "GGG,DTD,GGG",
+    "ingredients": {
+      "G": {
+        "type": "block",
+        "code": "game:glass-*"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "T": {
+        "type": "item",
+        "code": "game:gear-temporal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-watchofflowingtime"
+    },
+    "name": "vintagee:watchofflowingtime"
+  },
+  {
+    "ingredientPattern": "NMN,MDM,NMN",
+    "ingredients": {
+      "N": {
+        "type": "block",
+        "code": "vintagee:novaexplosive-catalyst"
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-destructioncatalyst"
+    },
+    "name": "vintagee:destructioncatalyst"
+  },
+  {
+    "ingredientPattern": "DDD,GNG,DDD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "G": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "N": {
+        "type": "block",
+        "code": "vintagee:novaexplosive-catalyst"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-hyperkineticlens"
+    },
+    "name": "vintagee:hyperkineticlens"
+  },
+  {
+    "ingredientPattern": "DDD,LHC,DDD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "L": {
+        "type": "item",
+        "code": "vintagee:gadget-hyperkineticlens"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "C": {
+        "type": "item",
+        "code": "vintagee:gadget-destructioncatalyst"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-catalyticlens"
+    },
+    "name": "vintagee:catalyticlens"
+  },
+  {
+    "ingredientPattern": "_R_,DKD,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "K": {
+        "type": "item",
+        "code": "vintagee:kleinstar-ein"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-mercurialeye"
+    },
+    "name": "vintagee:mercurialeye"
+  },
+  {
+    "ingredientPattern": "FFF,DBD,FFF",
+    "ingredients": {
+      "F": {
+        "type": "item",
+        "code": "game:feather"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "game:bow-*"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-archangelssmite"
+    },
+    "name": "vintagee:archangelssmite"
+  },
+  {
+    "ingredientPattern": "PKP,RBR,PKP",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "game:paper-parchment"
+      },
+      "K": {
+        "type": "item",
+        "code": "vintagee:kleinstar-vier"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "game:book-normal-*"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-tomeofknowledge"
+    },
+    "name": "vintagee:tomeofknowledge"
+  },
+  {
+    "ingredientPattern": "__L,_S_,S__",
+    "ingredients": {
+      "L": {
+        "type": "item",
+        "code": "vintagee:covalencedust-low"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-diviningrodlow"
+    },
+    "name": "vintagee:diviningrodlow"
+  },
+  {
+    "ingredientPattern": "__M,_R_,M__",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:covalencedust-medium"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:gadget-diviningrodlow"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-diviningrodmedium"
+    },
+    "name": "vintagee:diviningrodmedium"
+  },
+  {
+    "ingredientPattern": "__H,_R_,H__",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:gadget-diviningrodmedium"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:gadget-diviningrodhigh"
+    },
+    "name": "vintagee:diviningrodhigh"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-white"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-white"
+    },
+    "name": "vintagee:alchemicalbag-white"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-plain"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-plain"
+    },
+    "name": "vintagee:alchemicalbag-plain"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-gray"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-gray"
+    },
+    "name": "vintagee:alchemicalbag-gray"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-black"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-black"
+    },
+    "name": "vintagee:alchemicalbag-black"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-brown"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-brown"
+    },
+    "name": "vintagee:alchemicalbag-brown"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-red"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-red"
+    },
+    "name": "vintagee:alchemicalbag-red"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-orange"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-orange"
+    },
+    "name": "vintagee:alchemicalbag-orange"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-yellow"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-yellow"
+    },
+    "name": "vintagee:alchemicalbag-yellow"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-green"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-green"
+    },
+    "name": "vintagee:alchemicalbag-green"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-blue"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-blue"
+    },
+    "name": "vintagee:alchemicalbag-blue"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-purple"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-purple"
+    },
+    "name": "vintagee:alchemicalbag-purple"
+  },
+  {
+    "ingredientPattern": "HHH,CXC,CCC",
+    "ingredients": {
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:alchemicalchest"
+      },
+      "C": {
+        "type": "item",
+        "code": "game:cloth-pink"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbag-pink"
+    },
+    "name": "vintagee:alchemicalbag-pink"
+  },
+  {
+    "ingredientPattern": "DDD,D_D",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-dark-head"
+    },
+    "name": "vintagee:matterarmor-dark-head"
+  },
+  {
+    "ingredientPattern": "D_D,DDD,DDD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-dark-body"
+    },
+    "name": "vintagee:matterarmor-dark-body"
+  },
+  {
+    "ingredientPattern": "DDD,D_D,D_D",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-dark-legs"
+    },
+    "name": "vintagee:matterarmor-dark-legs"
+  },
+  {
+    "ingredientPattern": "RRR,RAR",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-dark-head"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-red-head"
+    },
+    "name": "vintagee:matterarmor-red-head"
+  },
+  {
+    "ingredientPattern": "RAR,RRR,RRR",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-dark-body"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-red-body"
+    },
+    "name": "vintagee:matterarmor-red-body"
+  },
+  {
+    "ingredientPattern": "RRR,RAR,R_R",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-dark-legs"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-red-legs"
+    },
+    "name": "vintagee:matterarmor-red-legs"
+  },
+  {
+    "ingredientPattern": "GKG,GAG",
+    "ingredients": {
+      "G": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "K": {
+        "type": "item",
+        "code": "vintagee:kleinstar-vier"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-red-head"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-gem-head"
+    },
+    "name": "vintagee:matterarmor-gem-head"
+  },
+  {
+    "ingredientPattern": "GAG,GKG,GGG",
+    "ingredients": {
+      "G": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "K": {
+        "type": "item",
+        "code": "vintagee:kleinstar-vier"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-red-body"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-gem-body"
+    },
+    "name": "vintagee:matterarmor-gem-body"
+  },
+  {
+    "ingredientPattern": "GGG,GAG,GKG",
+    "ingredients": {
+      "G": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "K": {
+        "type": "item",
+        "code": "vintagee:kleinstar-vier"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:matterarmor-red-legs"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matterarmor-gem-legs"
+    },
+    "name": "vintagee:matterarmor-gem-legs"
+  },
+  {
+    "ingredientPattern": "_D,D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-shears"
+    },
+    "name": "vintagee:darkmatter-shears"
+  },
+  {
+    "ingredientPattern": "_R,RT",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-shears"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-shears"
+    },
+    "name": "vintagee:redmatter-shears"
+  },
+  {
+    "ingredientPattern": "WAS,HRR",
+    "ingredients": {
+      "W": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-sword"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-axe"
+      },
+      "S": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-shears"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-hoe"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:redmattertool-katar"
+    },
+    "name": "vintagee:redmatter-katar",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PSH,RR_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-pickaxe"
+      },
+      "S": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-shovel"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:mattertool-red-hammer"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:redmattertool-morningstar"
+    },
+    "name": "vintagee:redmatter-morningstar",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "LMH,SDS,III",
+    "ingredients": {
+      "L": {
+        "type": "item",
+        "code": "vintagee:covalencedust-low"
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:covalencedust-medium"
+      },
+      "H": {
+        "type": "item",
+        "code": "vintagee:covalencedust-high"
+      },
+      "S": {
+        "type": "block",
+        "code": "game:rock-*"
+      },
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:alchemicalchest"
+    },
+    "name": "vintagee:alchemicalchest"
+  },
+  {
+    "ingredientPattern": "_D_,QTQ,_A_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      },
+      "Q": {
+        "type": "item",
+        "code": "game:clearquartz"
+      },
+      "T": {
+        "type": "block",
+        "code": "game:torch-basic-lit-up"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:interdictiontorch"
+    },
+    "name": "vintagee:interdictiontorch"
+  },
+  {
+    "ingredientPattern": "BM",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "game:bomb-ore"
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "block",
+      "code": "vintagee:novaexplosive-catalyst"
+    },
+    "name": "vintagee:novacatalyst",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "NA",
+    "ingredients": {
+      "N": {
+        "type": "block",
+        "code": "vintagee:novaexplosive-catalyst"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-aeternalisfuel"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "block",
+      "code": "vintagee:novaexplosive-cataclysm"
+    },
+    "name": "vintagee:novacataclysm",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "OOO,ODO,OGO",
+    "ingredients": {
+      "O": {
+        "type": "block",
+        "code": "game:rock-obsidian"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "G": {
+        "type": "block",
+        "code": "game:glass-*"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:antimatterrelay-mk1"
+    },
+    "name": "vintagee:antimatterrelay-mk1"
+  },
+  {
+    "ingredientPattern": "ODO,DRD,ODO",
+    "ingredients": {
+      "O": {
+        "type": "block",
+        "code": "game:rock-obsidian"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "R": {
+        "type": "block",
+        "code": "vintagee:antimatterrelay-mk1"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:antimatterrelay-mk2"
+    },
+    "name": "vintagee:antimatterrelay-mk2"
+  },
+  {
+    "ingredientPattern": "ORO,RXR,ORO",
+    "ingredients": {
+      "O": {
+        "type": "block",
+        "code": "game:rock-obsidian"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "X": {
+        "type": "block",
+        "code": "vintagee:antimatterrelay-mk2"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:antimatterrelay-mk3"
+    },
+    "name": "vintagee:antimatterrelay-mk3"
+  },
+  {
+    "ingredientPattern": "DDD,DFD,DDD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "F": {
+        "type": "block",
+        "code": "game:forge"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:matterfurnace-dark"
+    },
+    "name": "vintagee:matterfurnace-dark"
+  },
+  {
+    "ingredientPattern": "_R_,RFR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "F": {
+        "type": "block",
+        "code": "vintagee:matterfurnace-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:matterfurnace-red"
+    },
+    "name": "vintagee:matterfurnace-red"
+  },
+  {
+    "ingredientPattern": "R_R,RDR,DDD",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "D": {
+        "type": "block",
+        "code": "vintagee:matterblock-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:pedestal-empty"
+    },
+    "name": "vintagee:pedestal"
+  }
+]

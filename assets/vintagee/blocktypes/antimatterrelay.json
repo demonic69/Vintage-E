@@ -1,0 +1,92 @@
+{
+  "code": "antimatterrelay",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageEAntimatterRelay",
+  "variantgroups": [
+    {
+      "code": "tier",
+      "states": [
+        "mk1",
+        "mk2",
+        "mk3"
+      ]
+    }
+  ],
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "mechanics": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "blockmaterial": "Metal",
+  "drawtype": "cube",
+  "textures": {
+    "up": {
+      "base": "block/antimatterrelay-{tier}-top"
+    },
+    "down": {
+      "base": "block/transmutationtable-bottom"
+    },
+    "north": {
+      "base": "block/antimatterrelay-{tier}-side"
+    },
+    "east": {
+      "base": "block/antimatterrelay-{tier}-side"
+    },
+    "south": {
+      "base": "block/antimatterrelay-{tier}-side"
+    },
+    "west": {
+      "base": "block/antimatterrelay-{tier}-side"
+    }
+  },
+  "attributesByType": {
+    "*-mk1": {
+      "capacity": 100000,
+      "bonusPerSecond": 1,
+      "transferPerSecond": 64,
+      "sneakInteractionHelp": "vintagee:blockhelp-relay-withdraw"
+    },
+    "*-mk2": {
+      "capacity": 1000000,
+      "bonusPerSecond": 3,
+      "transferPerSecond": 192,
+      "sneakInteractionHelp": "vintagee:blockhelp-relay-withdraw"
+    },
+    "*-mk3": {
+      "capacity": 10000000,
+      "bonusPerSecond": 10,
+      "transferPerSecond": 640,
+      "sneakInteractionHelp": "vintagee:blockhelp-relay-withdraw"
+    }
+  },
+  "lightHsvByType": {
+    "*-mk1": [
+      46,
+      3,
+      4
+    ],
+    "*-mk2": [
+      46,
+      4,
+      6
+    ],
+    "*-mk3": [
+      0,
+      5,
+      8
+    ]
+  },
+  "resistance": 6,
+  "requiredMiningTier": 3,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

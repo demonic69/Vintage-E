@@ -1,0 +1,83 @@
+{
+  "code": "pedestal",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageEPedestal",
+  "variantgroups": [
+    {
+      "code": "state",
+      "states": [
+        "empty",
+        "active"
+      ]
+    }
+  ],
+  "creativeinventoryByType": {
+    "*-empty": {
+      "general": [
+        "*"
+      ],
+      "vintagee": [
+        "*"
+      ]
+    }
+  },
+  "blockmaterial": "Metal",
+  "drawtype": "json",
+  "shape": {
+    "base": "block/pedestal"
+  },
+  "textures": {
+    "body": {
+      "base": "item/tool/material/darkmatter"
+    },
+    "top": {
+      "base": "block/matterblock-red"
+    }
+  },
+  "drops": [
+    {
+      "type": "block",
+      "code": "pedestal-empty"
+    }
+  ],
+  "attributes": {
+    "interactionHelp": "vintagee:blockhelp-pedestal"
+  },
+  "lightHsvByType": {
+    "*-active": [
+      48,
+      4,
+      10
+    ]
+  },
+  "sidesolid": {
+    "all": false,
+    "down": true
+  },
+  "sideopaque": {
+    "all": false
+  },
+  "collisionbox": {
+    "x1": 0.125,
+    "y1": 0,
+    "z1": 0.125,
+    "x2": 0.875,
+    "y2": 0.75,
+    "z2": 0.875
+  },
+  "selectionbox": {
+    "x1": 0.125,
+    "y1": 0,
+    "z1": 0.125,
+    "x2": 0.875,
+    "y2": 0.75,
+    "z2": 0.875
+  },
+  "resistance": 12,
+  "requiredMiningTier": 4,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

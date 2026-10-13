@@ -74,7 +74,7 @@ for dp, _, fs in os.walk(SRC):
     for f in fs:
         if f.endswith(".cs"): cs += open(os.path.join(dp, f), encoding="utf-8").read()
 registered = set(re.findall(r'Register(?:Item|Block|BlockEntity|CollectibleBehavior)Class\("(\w+)"', cs))
-vanilla_classes = {"ItemAxe", "ItemHoe", "ItemHammer", "ItemShears", "Item", "Block", "GroundStorable", "AnimationAuthoritative", "Wearable", "GenericTypedContainer", "Container", "HeldBag", "Lockable", "BlockGeneric", "BlockContainer", "Unstable", "HorizontalOrientable", "OmniRotatable"}
+vanilla_classes = {"ItemAxe", "ItemHoe", "ItemHammer", "ItemShears", "Item", "Block", "GroundStorable", "AnimationAuthoritative", "Wearable", "GenericTypedContainer", "Container", "HeldBag", "GroundStoredHeldBag", "Lockable", "BlockGeneric", "BlockContainer", "Unstable", "HorizontalOrientable", "OmniRotatable"}
 for kind in ("itemtypes", "blocktypes"):
     for f in os.listdir(os.path.join(A, kind)):
         obj = load(os.path.join(A, kind, f)) or {}
@@ -102,7 +102,7 @@ for f in sorted(os.listdir(os.path.join(A, "recipes", "grid"))):
 
 lang = load(os.path.join(A, "lang", "en.json")) or {}
 for key in set(re.findall(r'"vintagee:([a-z0-9-]+)"', cs)):
-    if key.endswith("-"): continue
+    if key.endswith("-") or key in codes: continue  # item/block codes, not lang keys
     if key not in lang: errors.append(f"lang: missing key {key}")
 for code in re.findall(r'Fail\(player, "(\w+)"', cs):
     if "error-" + code not in lang: errors.append(f"lang: missing error-{code}")

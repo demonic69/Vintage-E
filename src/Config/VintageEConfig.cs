@@ -96,12 +96,27 @@ namespace VintageE
         /// </summary>
         public bool AnnounceInChat = true;
 
+        /// <summary>
+        /// Creatures the Ignition Ring burns, the Interdiction Torch repels and the Archangel's Smite targets
+        /// (entity codes, wildcards allowed). Livestock and players are never affected.
+        /// </summary>
+        public List<string> HostileCreatures = new List<string>
+        {
+            "game:drifter-*", "game:locust-*", "game:bell-*", "game:shiver-*", "game:bowtorn-*", "game:wolf-*", "game:bear-*",
+            "game:hyena-*", "game:eidolon-*", "game:erel-*"
+        };
+
+        /// <summary>Multiplies the EMC that rings, stones, amulets and gadgets cost to run.</summary>
+        public double TrinketCostMultiplier = 1.0;
+
         public void Normalize()
         {
             BaseValues ??= new Dictionary<string, double>();
             FixedValues ??= new Dictionary<string, double>();
             Blacklist ??= new List<string>();
             TransitionEmcPerDay ??= new Dictionary<string, double>();
+            HostileCreatures ??= new List<string>();
+            if (TrinketCostMultiplier < 0) TrinketCostMultiplier = 0;
             if (MachineSpeedMultiplier <= 0) MachineSpeedMultiplier = 1.0;
             if (MaxMappingPasses < 4) MaxMappingPasses = 4;
             if (TableUseRange < 2) TableUseRange = 2;

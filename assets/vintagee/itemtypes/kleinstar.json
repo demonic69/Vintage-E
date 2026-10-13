@@ -1,0 +1,50 @@
+{
+  "code": "kleinstar",
+  "class": "ItemKleinStar",
+  "variantgroups": [
+    {
+      "code": "tier",
+      "states": [
+        "ein",
+        "zwei",
+        "drei",
+        "vier",
+        "sphere",
+        "omega"
+      ]
+    }
+  ],
+  "maxstacksize": 1,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "texture": {
+    "base": "item/kleinstar-{tier}"
+  },
+  "attributesByType": {
+    "*-ein": {
+      "capacity": 50000
+    },
+    "*-zwei": {
+      "capacity": 200000
+    },
+    "*-drei": {
+      "capacity": 800000
+    },
+    "*-vier": {
+      "capacity": 3200000
+    },
+    "*-sphere": {
+      "capacity": 12800000
+    },
+    "*-omega": {
+      "capacity": 51200000
+    }
+  },
+  "materialDensity": 3000
+}

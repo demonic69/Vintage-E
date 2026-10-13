@@ -1,0 +1,65 @@
+{
+  "code": "interdictiontorch",
+  "entityClass": "VintageEInterdictionTorch",
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "blockmaterial": "Metal",
+  "drawtype": "json",
+  "shape": {
+    "base": "block/interdictiontorch"
+  },
+  "textures": {
+    "rod": {
+      "base": "item/tool/material/darkmatter"
+    },
+    "glow": {
+      "base": "block/interdictiontorch-glow"
+    }
+  },
+  "attributes": {
+    "radius": 8
+  },
+  "lightHsv": [
+    36,
+    3,
+    14
+  ],
+  "sidesolid": {
+    "all": false
+  },
+  "sideopaque": {
+    "all": false
+  },
+  "emitSideAo": {
+    "all": false
+  },
+  "collisionbox": {
+    "x1": 0.375,
+    "y1": 0,
+    "z1": 0.375,
+    "x2": 0.625,
+    "y2": 0.75,
+    "z2": 0.625
+  },
+  "selectionbox": {
+    "x1": 0.375,
+    "y1": 0,
+    "z1": 0.375,
+    "x2": 0.625,
+    "y2": 0.75,
+    "z2": 0.625
+  },
+  "replaceable": 100,
+  "resistance": 2,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

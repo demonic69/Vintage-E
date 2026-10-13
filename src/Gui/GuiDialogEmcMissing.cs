@@ -11,12 +11,13 @@ namespace VintageE
     /// <summary>
     /// Window opened by /emc missing: every block/item that still has no EMC value, as a scrollable list with
     /// icons, a search bar, a mod filter and a blocks/items filter. Click an icon to open its handbook page;
-    /// "Copy codes" puts the filtered list on the clipboard ready to paste into BaseValues.
+    /// "Copy codes" puts the filtered list on the clipboard ready to paste into BaseValues. Admins can click a name,
+    /// type a value and press "Set value" to give it an EMC value on the spot (saved like /emc set; the list refreshes).
     /// </summary>
     public class GuiDialogEmcMissing : GuiDialog
     {
         const double ListWidth = 560;
-        const double ListHeight = 420;
+        const double ListHeight = 360;
         const int PerPage = 40; // keeps the rendered text small; page with the arrows for more
 
         sealed class Entry
@@ -30,6 +31,8 @@ namespace VintageE
         }
 
         readonly EmcMissingPacket packet;
+        readonly Action<string, double> onSetValue;
+        Entry selected;
         readonly List<Entry> all = new List<Entry>();
         List<Entry> shown = new List<Entry>();
         string search = "";
@@ -41,9 +44,17 @@ namespace VintageE
 
         public override string ToggleKeyCombinationCode => null;
 
-        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet) : base(capi)
+        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null, Action<string, double> onSetValue = null) : base(capi)
         {
             this.packet = packet;
+            this.onSetValue = onSetValue;
+            if (previous != null)
+            {
+                search = previous.search;
+                domainFilter = previous.domainFilter;
+                typeFilter = previous.typeFilter;
+                page = previous.page;
+            }
             foreach (string key in packet.Keys ?? Array.Empty<string>())
             {
                 CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
@@ -87,10 +98,15 @@ namespace VintageE
             ElementBounds nextBounds = ElementBounds.Fixed(300, bottom, 36, 30);
             ElementBounds copyBounds = ElementBounds.Fixed(ListWidth - 230, bottom, 130, 30);
             ElementBounds closeBounds = ElementBounds.Fixed(ListWidth - 90, bottom, 90, 30);
+            double editRow = bottom + 40;
+            ElementBounds selectedBounds = ElementBounds.Fixed(0, editRow + 6, 330, 24);
+            ElementBounds valueBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 120, 30);
+            ElementBounds setBounds = ElementBounds.Fixed(ListWidth - 100, editRow, 100, 30);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds);
+            bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds,
+                selectedBounds, valueBounds, setBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
@@ -130,11 +146,16 @@ namespace VintageE
                     .AddSmallButton(">", OnNext, nextBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-copy"), OnCopy, copyBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-close"), () => TryClose(), closeBounds)
+                    .AddDynamicText(Lang.Get("vintagee:missing-select"), CairoFont.WhiteDetailText(), selectedBounds, "selected")
+                    .AddTextInput(valueBounds, null, CairoFont.WhiteSmallText(), "value")
+                    .AddSmallButton(Lang.Get("vintagee:missing-set"), OnSet, setBounds)
                 .EndChildElements()
                 .Compose();
 
             composing = false;
             SingleComposer.GetTextInput("search")?.SetPlaceHolderText(Lang.Get("vintagee:gui-search-missing"));
+            if (search.Length > 0) SingleComposer.GetTextInput("search")?.SetValue(search, false);
+            SingleComposer.GetTextInput("value")?.SetPlaceHolderText(Lang.Get("vintagee:missing-valuehint"));
             Refill();
         }
 
@@ -162,7 +183,8 @@ namespace VintageE
                     catch { /* no icon for this one */ }
                     // Inline icons, one entry per line - the same layout the handbook uses for item lists.
                     if (stack != null) comps.Add(new ItemstackTextComponent(capi, stack, 32, 6, EnumFloat.Inline, OpenHandbook) { VerticalAlign = EnumVerticalAlign.Middle });
-                    comps.Add(new RichTextComponent(capi, e.Name + "  ", nameFont) { VerticalAlign = EnumVerticalAlign.Middle });
+                    Entry entry = e;
+                    comps.Add(new LinkTextComponent(capi, e.Name + "  ", nameFont, _ => Select(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
                     comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont) { VerticalAlign = EnumVerticalAlign.Middle });
                 }
                 if (shown.Count == 0)
@@ -189,6 +211,29 @@ namespace VintageE
             {
                 capi.Logger.Error("Vintage-E: could not fill the missing-EMC list: {0}", ex);
             }
+        }
+
+        void Select(Entry e)
+        {
+            selected = e;
+            SingleComposer?.GetDynamicText("selected")?.SetNewText(Lang.Get("vintagee:missing-selected", e.Name));
+        }
+
+        bool OnSet()
+        {
+            if (SingleComposer == null) return true;
+            var status = SingleComposer.GetDynamicText("selected");
+            if (selected == null) { status?.SetNewText(Lang.Get("vintagee:missing-select")); return true; }
+            string text = (SingleComposer.GetTextInput("value")?.GetText() ?? "").Trim().Replace(',', '.');
+            if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v) || v < 0 || double.IsInfinity(v))
+            {
+                status?.SetNewText(Lang.Get("vintagee:missing-badvalue"));
+                return true;
+            }
+            if (onSetValue == null) return true;
+            onSetValue(selected.Key, v);
+            status?.SetNewText(Lang.Get("vintagee:missing-sending", selected.Name, text));
+            return true;
         }
 
         void OnScroll(float value)

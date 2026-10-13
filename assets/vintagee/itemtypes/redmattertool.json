@@ -1,0 +1,364 @@
+{
+  "code": "redmattertool",
+  "variantgroups": [
+    {
+      "code": "type",
+      "states": [
+        "katar",
+        "morningstar"
+      ]
+    }
+  ],
+  "classByType": {
+    "*-katar": "ItemAxe"
+  },
+  "toolByType": {
+    "*-katar": "axe",
+    "*-morningstar": "pickaxe"
+  },
+  "behaviorsByType": {
+    "*-katar": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2,
+          "defaultAreaRadius": 0
+        }
+      },
+      {
+        "name": "AnimationAuthoritative",
+        "properties": {
+          "onlyOnEntity": true
+        }
+      }
+    ],
+    "*-morningstar": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2,
+          "defaultAreaRadius": 1
+        }
+      },
+      {
+        "name": "AnimationAuthoritative",
+        "properties": {
+          "onlyOnEntity": true
+        }
+      }
+    ]
+  },
+  "maxstacksize": 1,
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "tools": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "shapeByType": {
+    "*-katar": {
+      "base": "game:item/tool/blade/falx"
+    },
+    "*-morningstar": {
+      "base": "vintagee:item/tool/sledgehammer"
+    }
+  },
+  "texturesByType": {
+    "*-katar": {
+      "falxblade": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handguard": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "spinerivet": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "falxstring": {
+        "base": "game:block/transparent"
+      },
+      "thongs": {
+        "base": "game:block/transparent"
+      },
+      "woodguard": {
+        "base": "game:block/transparent"
+      },
+      "cloth": {
+        "base": "game:block/transparent"
+      },
+      "pips": {
+        "base": "game:block/transparent"
+      }
+    },
+    "*-morningstar": {
+      "head": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "band": {
+        "base": "game:block/metal/ingot/gold"
+      }
+    }
+  },
+  "heldTpHitAnimationByType": {
+    "*-katar": "falx",
+    "*-morningstar": "pickaxe"
+  },
+  "guiTransformByType": {
+    "*-katar": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -53,
+        "y": 118,
+        "z": -5
+      },
+      "origin": {
+        "x": 0.65,
+        "y": 0.1,
+        "z": 0.37
+      },
+      "scale": 1.65
+    },
+    "*-morningstar": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -77,
+        "y": 46,
+        "z": 8
+      },
+      "origin": {
+        "x": 0.76,
+        "y": 0.5,
+        "z": 0.5
+      },
+      "scale": 1.55
+    }
+  },
+  "tpHandTransformByType": {
+    "*-katar": {
+      "translation": {
+        "x": -1.03,
+        "y": -0.005,
+        "z": -0.66
+      },
+      "rotation": {
+        "x": 85,
+        "y": 0,
+        "z": 2
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 0.8
+    },
+    "*-morningstar": {
+      "translation": {
+        "x": -0.65,
+        "y": -0.48,
+        "z": -0.52
+      },
+      "rotation": {
+        "x": 90,
+        "y": 1,
+        "z": 0
+      },
+      "scale": 1
+    }
+  },
+  "groundTransformByType": {
+    "*-katar": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.4
+    },
+    "*-morningstar": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.73,
+        "y": 0.45,
+        "z": 0.5
+      },
+      "scale": 2.7
+    }
+  },
+  "attributesByType": {
+    "*-katar": {
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 180,
+          "z": 1
+        },
+        "translation": {
+          "x": -0.1,
+          "y": 0.6
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0.24,
+          "y": 0.195,
+          "z": -0.06
+        },
+        "rotation": {
+          "x": 24,
+          "y": 61,
+          "z": -87
+        },
+        "scale": 0.88
+      }
+    },
+    "*-morningstar": {
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 1,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.2,
+          "y": 0.02
+        },
+        "scale": 0.9
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": -0.16,
+          "z": 0.33
+        },
+        "rotation": {
+          "x": 26,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.6
+      }
+    }
+  },
+  "tooltier": 6,
+  "miningspeedByType": {
+    "*-katar": {
+      "wood": 16,
+      "plant": 14,
+      "leaves": 14
+    },
+    "*-morningstar": {
+      "stone": 14,
+      "ore": 14,
+      "metal": 14,
+      "ice": 14,
+      "brick": 14,
+      "ceramic": 14,
+      "glass": 14,
+      "soil": 14,
+      "sand": 14,
+      "gravel": 14,
+      "snow": 14
+    }
+  },
+  "attackpowerByType": {
+    "*-katar": 14,
+    "*-morningstar": 10
+  },
+  "attackRangeByType": {
+    "*-katar": 3,
+    "*": 2.5
+  },
+  "materialDensity": 9000
+}

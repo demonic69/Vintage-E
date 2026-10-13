@@ -28,6 +28,10 @@ namespace VintageE
                 .WithDescription("Vintage-E: show and manage EMC values")
                 .RequiresPrivilege(Privilege.chat)
                 .HandleWith(args => Info(mod, args))
+                .BeginSubCommand("help")
+                    .WithDescription("List every Vintage-E command")
+                    .HandleWith(args => Help(args))
+                .EndSubCommand()
                 .BeginSubCommand("set")
                     .RequiresPlayer()
                     .WithDescription("Pin the held item's EMC value (0 removes it). Saved to ModConfig/vintagee.json.")
@@ -81,6 +85,35 @@ namespace VintageE
                 .EndSubCommand();
         }
 
+        /// <summary>(usage, lang key of the description, admin only)</summary>
+        static readonly (string usage, string key, bool admin)[] HelpLines =
+        {
+            ("/emc", "cmdhelp-emc", false),
+            ("/emc help", "cmdhelp-help", false),
+            ("/emc missing", "cmdhelp-missing", true),
+            ("/emc set <value>", "cmdhelp-set", true),
+            ("/emc clear", "cmdhelp-clear", true),
+            ("/emc recalc", "cmdhelp-recalc", true),
+            ("/emc dump", "cmdhelp-dump", true),
+            ("/emc give <amount>", "cmdhelp-give", true),
+            ("/emc learn", "cmdhelp-learn", true),
+        };
+
+        static TextCommandResult Help(TextCommandCallingArgs args)
+        {
+            string lang = args.LanguageCode;
+            bool isAdmin = args.Caller.Player == null || args.Caller.HasPrivilege(Privilege.controlserver);
+            var sb = new StringBuilder(Lang.GetL(lang, "vintagee:cmdhelp-title")).Append('\n');
+            foreach (var (usage, key, admin) in HelpLines)
+            {
+                sb.Append("<strong>").Append(usage).Append("</strong>");
+                if (admin) sb.Append(' ').Append(Lang.GetL(lang, "vintagee:cmdhelp-admin"));
+                sb.Append(" - ").Append(Lang.GetL(lang, "vintagee:" + key)).Append('\n');
+            }
+            if (!isAdmin) sb.Append(Lang.GetL(lang, "vintagee:cmdhelp-notadmin"));
+            return TextCommandResult.Success(sb.ToString().TrimEnd());
+        }
+
         static TextCommandResult Info(VintageEModSystem mod, TextCommandCallingArgs args)
         {
             IPlayer player = args.Caller.Player;
@@ -106,13 +139,12 @@ namespace VintageE
             if (value.HasValue)
             {
                 if (value.Value < 0) return TextCommandResult.Error("Value must be 0 or more");
-                mod.Config.FixedValues[key] = value.Value;
             }
-            else if (!mod.Config.FixedValues.Remove(key))
+            else if (!mod.Config.FixedValues.ContainsKey(key))
             {
                 return TextCommandResult.Error(Lang.Get("vintagee:cmd-nopin", key));
             }
-            mod.SaveConfig();
+            mod.SetFixedValue(held.Collectible, value);
             var report = mod.RecalculateEmc("/emc " + (value.HasValue ? "set" : "clear"));
             if (report == null) return TextCommandResult.Error("Mapping failed, see server log");
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-itemvalue", held.GetName(), held.Collectible.Code, EmcFormat.Format(mod.Emc.GetValue(held.Collectible))));
