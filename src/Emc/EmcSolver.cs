@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VintageE
 {
@@ -34,6 +35,8 @@ namespace VintageE
             public bool Reversible;
             /// <summary>Flat EMC added per run on top of the ingredients (time bonuses).</summary>
             public double ExtraCost;
+            /// <summary>Caller data (the conversion this edge came from), reported back through <see cref="Via"/>.</summary>
+            public object Tag;
         }
 
         /// <summary>
@@ -47,6 +50,7 @@ namespace VintageE
             public double InputQuantity = 1;
             public T[] Outputs;
             public double[] OutputQuantities;
+            public object Tag;
         }
 
         public const double MinValue = 1e-6;
@@ -57,9 +61,16 @@ namespace VintageE
         public List<JointEdge> JointEdges = new List<JointEdge>();
         public int MaxPasses = 80;
         public bool InferBackwards = true;
+        /// <summary>
+        /// Also infer from crafting: when every ingredient of a recipe but one has a value and the output already has one,
+        /// the missing ingredient is worth what's left. The highest such value is used, so it never makes anything else cheaper.
+        /// </summary>
+        public bool InferFromCrafting = true;
 
         public Dictionary<T, double> Values { get; private set; }
         public Dictionary<T, double> Inferred { get; } = new Dictionary<T, double>();
+        /// <summary>The edge (or joint edge) that gave each item its current value; for inferred items, the edge that was worked backwards.</summary>
+        public Dictionary<T, object> Via { get; } = new Dictionary<T, object>();
         /// <summary>Items in self-cheapening loops that were given up on entirely (rare).</summary>
         public HashSet<T> Unstable { get; } = new HashSet<T>();
         /// <summary>Items in self-cheapening loops that keep their first value instead of being lowered.</summary>
@@ -80,6 +91,7 @@ namespace VintageE
                     // Loop detected: freeze (or, second time round, drop) the offenders and start over from trusted values.
                     Values = new Dictionary<T, double>(Fixed);
                     foreach (var kv in Inferred) if (!Unstable.Contains(kv.Key)) Values[kv.Key] = kv.Value;
+                    foreach (T k in Via.Keys.Where(k => !Inferred.ContainsKey(k)).ToList()) Via.Remove(k);
                     continue;
                 }
                 if (InferOnce() == 0) break;
@@ -132,6 +144,7 @@ namespace VintageE
                     if (!Values.TryGetValue(e.Output, out double current) || per < current * (1 - 1e-9))
                     {
                         Values[e.Output] = per;
+                        Via[e.Output] = e;
                         changed.Add(e.Output);
                     }
                 }
@@ -186,14 +199,25 @@ namespace VintageE
             return sum > 0 ? sum : double.NaN;
         }
 
-        /// <summary>Gives unvalued inputs of single-input processing steps a value from their output. Returns how many were added.</summary>
+        /// <summary>
+        /// Works values out backwards for items that are still unvalued. Returns how many were added.
+        /// <list type="bullet">
+        /// <item>Joint processing (one input, several outputs): unvalued outputs share what the input is worth beyond the valued outputs;
+        ///   an unvalued input is worth the sum of its outputs.</item>
+        /// <item>Single-input processing steps (ore → nugget, raw → dried): the input is worth its output. Cheapest proposal wins.</item>
+        /// <item>Crafting (when <see cref="InferFromCrafting"/>): a recipe whose output has a value and where exactly one
+        ///   ingredient slot has none values that ingredient at whatever is left. Only used for items processing couldn't
+        ///   value, and the <i>highest</i> proposal wins, so no recipe that already had a value gets cheaper.</item>
+        /// </list>
+        /// </summary>
         int InferOnce()
         {
             var proposals = new Dictionary<T, double>();
-            void Propose(T item, double v)
+            var proposalVia = new Dictionary<T, object>();
+            void Propose(T item, double v, object via)
             {
                 if (v < MinValue || double.IsInfinity(v) || double.IsNaN(v)) return;
-                proposals[item] = proposals.TryGetValue(item, out double prev) ? Math.Min(prev, v) : v;
+                if (!proposals.TryGetValue(item, out double prev) || v < prev) { proposals[item] = v; proposalVia[item] = via; }
             }
             bool Open(T item) => !Values.ContainsKey(item) && !Excluded.Contains(item) && !Unstable.Contains(item) && !Fixed.ContainsKey(item);
 
@@ -212,7 +236,7 @@ namespace VintageE
                     }
                     if (open.Count == 0 || remaining <= MinValue) continue;
                     double share = remaining / open.Count;
-                    foreach (int k in open) Propose(j.Outputs[k], share / j.OutputQuantities[k]);
+                    foreach (int k in open) Propose(j.Outputs[k], share / j.OutputQuantities[k], j);
                 }
                 else if (InferBackwards && Open(j.Input))
                 {
@@ -224,7 +248,7 @@ namespace VintageE
                         if (Values.TryGetValue(j.Outputs[k], out double ov)) sum += ov * j.OutputQuantities[k];
                         else all = false;
                     }
-                    if (all) Propose(j.Input, sum / j.InputQuantity);
+                    if (all) Propose(j.Input, sum / j.InputQuantity, j);
                 }
             }
 
@@ -235,7 +259,52 @@ namespace VintageE
                 T input = e.Choices[0][0];
                 if (Values.ContainsKey(input) || Excluded.Contains(input) || Unstable.Contains(input)) continue;
                 if (!Values.TryGetValue(e.Output, out double outValue)) continue;
-                Propose(input, (outValue * e.OutputQuantity - e.ExtraCost) / e.Quantities[0]);
+                Propose(input, (outValue * e.OutputQuantity - e.ExtraCost) / e.Quantities[0], e);
+            }
+
+            if (InferFromCrafting && proposals.Count == 0)
+            {
+                // Only once processing has nothing more to say, so the more direct evidence always wins.
+                var craftProposals = new Dictionary<T, double>();
+                var craftVia = new Dictionary<T, object>();
+                foreach (Edge e in Edges)
+                {
+                    if (!Values.TryGetValue(e.Output, out double outValue)) continue;
+                    int unknownSlot = -1;
+                    double known = 0;
+                    bool usable = true;
+                    for (int i = 0; i < e.Choices.Length && usable; i++)
+                    {
+                        double best = double.PositiveInfinity;
+                        bool anyOpen = false;
+                        foreach (T c in e.Choices[i])
+                        {
+                            if (Excluded.Contains(c) || Unstable.Contains(c)) continue;
+                            if (Values.TryGetValue(c, out double v)) { if (v < best) best = v; }
+                            else if (Open(c)) anyOpen = true;
+                        }
+                        if (!double.IsPositiveInfinity(best)) known += best * e.Quantities[i];
+                        else if (anyOpen && unknownSlot < 0) unknownSlot = i;
+                        else usable = false; // a second unknown slot, or a slot nothing can fill
+                    }
+                    if (!usable || unknownSlot < 0) continue;
+                    double total = outValue * e.OutputQuantity - e.ExtraCost - known;
+                    if (e.Returned != null)
+                    {
+                        for (int j = 0; j < e.Returned.Length; j++)
+                        {
+                            if (Values.TryGetValue(e.Returned[j], out double rv)) total += rv * e.ReturnedQuantities[j];
+                        }
+                    }
+                    double each = total / e.Quantities[unknownSlot];
+                    if (each < MinValue || double.IsNaN(each) || double.IsInfinity(each)) continue;
+                    foreach (T c in e.Choices[unknownSlot])
+                    {
+                        if (!Open(c)) continue;
+                        if (!craftProposals.TryGetValue(c, out double prev) || each > prev) { craftProposals[c] = each; craftVia[c] = e; }
+                    }
+                }
+                foreach (var kv in craftProposals) { proposals[kv.Key] = kv.Value; proposalVia[kv.Key] = craftVia[kv.Key]; }
             }
 
             apply:
@@ -243,6 +312,7 @@ namespace VintageE
             {
                 Values[kv.Key] = kv.Value;
                 Inferred[kv.Key] = kv.Value;
+                Via[kv.Key] = proposalVia[kv.Key];
             }
             return proposals.Count;
         }

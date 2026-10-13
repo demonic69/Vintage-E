@@ -31,6 +31,8 @@ namespace VintageE
         /// <summary>True when the values were loaded from the on-disk cache instead of being mapped.</summary>
         public bool FromCache;
         public string CachedAt;
+        /// <summary>Why each item has its value ("base value", "grid: 1 game:log-... -> 12", ...). Empty when loaded from cache.</summary>
+        public Dictionary<CollectibleObject, string> Origins = new Dictionary<CollectibleObject, string>();
     }
 
     /// <summary>
@@ -79,7 +81,8 @@ namespace VintageE
                         Input = conv.Inputs[0].Choices[0],
                         InputQuantity = conv.Inputs[0].Quantity,
                         Outputs = conv.JointOutputs.Select(o => o.Key).ToArray(),
-                        OutputQuantities = conv.JointOutputs.Select(o => o.Value).ToArray()
+                        OutputQuantities = conv.JointOutputs.Select(o => o.Value).ToArray(),
+                        Tag = conv
                     });
                     continue;
                 }
@@ -91,7 +94,8 @@ namespace VintageE
                     Choices = conv.Inputs.Select(i => i.Choices).ToArray(),
                     Quantities = conv.Inputs.Select(i => i.Quantity).ToArray(),
                     Reversible = conv.Kind == ConversionKind.Processing,
-                    ExtraCost = conv.ExtraCost
+                    ExtraCost = conv.ExtraCost,
+                    Tag = conv
                 };
                 if (conv.Returned != null)
                 {
@@ -107,12 +111,13 @@ namespace VintageE
             //    The highest sibling value is used, so a guessed value can never be cheaper to create than to burn.
             //    Then, only if the server owner asked for it, a flat fallback value for anything still left.
             var extra = new Dictionary<CollectibleObject, double>();
+            var extraOrigin = new Dictionary<CollectibleObject, string>();
             // Data-driven ratios first (metal bit = 1/20 ingot...), then variant siblings for whatever is left.
-            foreach (var kv in RelativeValues(index, solver.Values, excluded)) extra[kv.Key] = kv.Value;
+            foreach (var kv in RelativeValues(index, solver.Values, excluded, extraOrigin)) extra[kv.Key] = kv.Value;
             report.RelativeCount = extra.Count;
             if (config.InferFromVariantSiblings)
             {
-                foreach (var kv in SiblingValues(index, solver.Values, excluded))
+                foreach (var kv in SiblingValues(index, solver.Values, excluded, extraOrigin))
                 {
                     if (extra.ContainsKey(kv.Key)) continue;
                     extra[kv.Key] = kv.Value;
@@ -126,6 +131,7 @@ namespace VintageE
                     if (IsListed(c) && !excluded.Contains(c) && !solver.Values.ContainsKey(c) && !extra.ContainsKey(c))
                     {
                         extra[c] = config.FallbackValue;
+                        extraOrigin[c] = "FallbackValue from the server config";
                         report.FallbackCount++;
                     }
                 }
@@ -151,6 +157,19 @@ namespace VintageE
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
             report.UnstableRemoved = solver.Unstable.Count;
             report.LoopFrozen = solver.Frozen.Count;
+            foreach (CollectibleObject c in report.Values.Keys)
+            {
+                string origin;
+                if (fixedValues.ContainsKey(c)) origin = "base value";
+                else if (extraOrigin.TryGetValue(c, out string how)) origin = how;
+                else if (solver.Via.TryGetValue(c, out object via))
+                {
+                    origin = (solver.Inferred.ContainsKey(c) ? "worked backwards from " : "") + Describe(via as Conversion);
+                    if (solver.Frozen.Contains(c)) origin += " (recipe loop: kept its first value)";
+                }
+                else origin = "?";
+                report.Origins[c] = origin;
+            }
 
             foreach (var src in collector.SourceCounts)
             {
@@ -175,13 +194,17 @@ namespace VintageE
             {
                 excluded.UnionWith(index.Match(pattern));
             }
+            foreach (string pattern in rules.Allow)
+            {
+                excluded.ExceptWith(index.Match(pattern));
+            }
 
             // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
             fixedValues = new Dictionary<CollectibleObject, double>();
             foreach (EmcValueRule rule in rules.Values)
             {
                 if (config.DisableBuiltInBaseValues && rule.Source.StartsWith(VintageEModSystem.ModId + ":", StringComparison.Ordinal)) continue;
-                if (!Apply(index, rule.Pattern, rule.Value, fixedValues, excluded, overrideBlacklist: false))
+                if (!Apply(index, rule.Pattern, rule.Value, fixedValues, excluded, overrideBlacklist: false, perLitre: rule.PerLitre))
                 {
                     report.UnmatchedRules++;
                     logger.VerboseDebug("EMC rule '{0}' from {1} matched nothing", rule.Pattern, rule.Source);
@@ -238,7 +261,8 @@ namespace VintageE
                 Fixed = fixedValues,
                 Excluded = excluded,
                 MaxPasses = config.MaxMappingPasses,
-                InferBackwards = config.InferValuesFromProcessing
+                InferBackwards = config.InferValuesFromProcessing,
+                InferFromCrafting = config.InferValuesFromProcessing && config.InferValuesFromCrafting
             };
             solver.Edges.AddRange(edges);
             solver.JointEdges.AddRange(joints);
@@ -250,7 +274,22 @@ namespace VintageE
         /// relativeValues rules: an unvalued item matching Code gets Ratio × the value of the item named by Of,
         /// with the '*' part of Code carried over ("game:metalbit-*" of "game:ingot-*" → metalbit-copper from ingot-copper).
         /// </summary>
-        Dictionary<CollectibleObject, double> RelativeValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded)
+        /// <summary>"grid: 1 game:log-placed-oak-ud (+11 more) -> 12" — a short, human-readable description of a conversion.</summary>
+        internal static string Describe(Conversion conv)
+        {
+            if (conv == null) return "?";
+            static string Num(double d) => d.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            static string Choice(CollectibleObject[] choices) => choices.Length == 0 ? "?" : choices[0].Code + (choices.Length > 1 ? $" (or {choices.Length - 1} more)" : "");
+            string inputs = string.Join(" + ", conv.Inputs.Select(i => Num(i.Quantity) + " " + Choice(i.Choices)));
+            string outputs = conv.JointOutputs != null
+                ? string.Join(" + ", conv.JointOutputs.Select(o => Num(o.Value) + " " + o.Key.Code))
+                : Num(conv.OutputQuantity) + " " + conv.Output?.Code;
+            string extra = conv.ExtraCost > 0 ? " (+" + Num(conv.ExtraCost) + " time bonus)" : "";
+            string returned = conv.Returned != null && conv.Returned.Count > 0 ? " (returns " + string.Join(", ", conv.Returned.Select(r => r.Key.Code)) + ")" : "";
+            return $"{conv.Source}: {inputs}{extra} -> {outputs}{returned}";
+        }
+
+        Dictionary<CollectibleObject, double> RelativeValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded, Dictionary<CollectibleObject, string> origin)
         {
             var result = new Dictionary<CollectibleObject, double>();
             foreach (RelativeValueRule rule in rules.Relative)
@@ -275,7 +314,11 @@ namespace VintageE
                     {
                         if (values.TryGetValue(source, out double v) && v > best) best = v;
                     }
-                    if (best > 0) result[c] = best * rule.Ratio;
+                    if (best > 0)
+                    {
+                        result[c] = best * rule.Ratio;
+                        origin[c] = $"relativeValues rule: {rule.Ratio} x {target}";
+                    }
                 }
             }
             return result;
@@ -285,9 +328,9 @@ namespace VintageE
         /// For each unvalued collectible, find valued ones whose code differs in exactly one dash-separated part,
         /// trying the last part first (rock type, colour, orientation...) and never the first (the item family).
         /// </summary>
-        static Dictionary<CollectibleObject, double> SiblingValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded)
+        static Dictionary<CollectibleObject, double> SiblingValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded, Dictionary<CollectibleObject, string> origin)
         {
-            var groups = new Dictionary<string, double>();
+            var groups = new Dictionary<string, (double value, CollectibleObject from)>();
             foreach (var kv in values)
             {
                 if (kv.Value <= 0 || kv.Key.Code == null) continue;
@@ -295,7 +338,7 @@ namespace VintageE
                 for (int k = 1; k < parts.Length; k++)
                 {
                     string key = SiblingKey(kv.Key, parts, k);
-                    groups[key] = groups.TryGetValue(key, out double prev) ? Math.Max(prev, kv.Value) : kv.Value;
+                    if (!groups.TryGetValue(key, out var prev) || kv.Value > prev.value) groups[key] = (kv.Value, kv.Key);
                 }
             }
 
@@ -306,9 +349,10 @@ namespace VintageE
                 string[] parts = c.Code.Path.Split('-');
                 for (int k = parts.Length - 1; k >= 1; k--)
                 {
-                    if (groups.TryGetValue(SiblingKey(c, parts, k), out double v))
+                    if (groups.TryGetValue(SiblingKey(c, parts, k), out var g))
                     {
-                        result[c] = v;
+                        result[c] = g.value;
+                        origin[c] = "same as its variant " + g.from.Code;
                         break;
                     }
                 }
@@ -328,7 +372,7 @@ namespace VintageE
             return sb.ToString();
         }
 
-        static bool Apply(CollectibleIndex index, string pattern, double value, Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, bool overrideBlacklist)
+        static bool Apply(CollectibleIndex index, string pattern, double value, Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, bool overrideBlacklist, bool perLitre = false)
         {
             bool any = false;
             foreach (CollectibleObject c in index.Match(pattern))
@@ -337,7 +381,8 @@ namespace VintageE
                 if (!overrideBlacklist && excluded.Contains(c)) continue; // default files never resurrect blacklisted things
                 if (value > 0)
                 {
-                    fixedValues[c] = value;
+                    double itemsPerLitre = perLitre ? EmcRegistry.ItemsPerLitre(c) : 0;
+                    fixedValues[c] = itemsPerLitre > 0 ? value / itemsPerLitre : value;
                     excluded.Remove(c);
                 }
                 else

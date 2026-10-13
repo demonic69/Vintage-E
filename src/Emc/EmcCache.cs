@@ -37,7 +37,7 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 5; // 2: barrel outputs counted in portions, liquid-container ingredients
+        public const int Format = 6; // 2: barrel outputs counted in portions, liquid-container ingredients
 
         public static string FilePath(ICoreServerAPI sapi)
         {
@@ -70,8 +70,9 @@ namespace VintageE
 
             // Settings and value files
             sb.Append("config=").Append(JsonConvert.SerializeObject(mod.Config)).Append('\n');
-            foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
+            foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append(r.PerLitre ? "/L=" : "=").Append(r.Value.ToString("R")).Append('\n');
             foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
+            foreach (string a in mod.Rules.Allow) sb.Append("allow=").Append(a).Append('\n');
             foreach (RelativeValueRule r in mod.Rules.Relative) sb.Append("rel=").Append(r.Source).Append('|').Append(r.Code).Append('=').Append(r.Of).Append('*').Append(r.Ratio.ToString("R")).Append('\n');
             sb.Append("hoursPerDay=").Append(sapi.World.Calendar?.HoursPerDay).Append('\n');
             Flush();

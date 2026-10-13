@@ -32,6 +32,18 @@ namespace VintageE
 
         public bool HasValue(CollectibleObject collectible) => collectible != null && values.ContainsKey(collectible);
 
+        /// <summary>
+        /// For liquid portion items (water, brine, ale...): how many items make one litre (100 for vanilla liquids).
+        /// 0 for anything that isn't a liquid. Values are stored per item, so a litre is worth value × this.
+        /// </summary>
+        public static double ItemsPerLitre(CollectibleObject c)
+        {
+            JsonObject props = c?.Attributes?["waterTightContainerProps"];
+            if (props == null || !props.Exists) return 0;
+            double perLitre = props["itemsPerLitre"].AsDouble(1);
+            return perLitre > 0 ? perLitre : 1;
+        }
+
         /// <summary>Value of one item of this stack, accounting for wear.</summary>
         public double GetValue(ItemStack stack)
         {
@@ -110,6 +122,28 @@ namespace VintageE
         public static bool HasNestedStacks(ItemStack stack)
         {
             return stack?.Attributes != null && ContainsStack(stack.Attributes, 0);
+        }
+
+        /// <summary>Every stack stored inside this stack's attributes (bucket contents, bag slots, pot ingredients...).</summary>
+        public static List<ItemStack> NestedStacks(ItemStack stack)
+        {
+            var list = new List<ItemStack>();
+            if (stack?.Attributes != null) Collect(stack.Attributes, list, 0);
+            return list;
+        }
+
+        static void Collect(ITreeAttribute tree, List<ItemStack> list, int depth)
+        {
+            if (depth > 8) return;
+            foreach (var kv in tree)
+            {
+                if (kv.Value is ItemstackAttribute isa && isa.value != null) list.Add(isa.value);
+                else if (kv.Value is ITreeAttribute sub) Collect(sub, list, depth + 1);
+                else if (kv.Value is TreeArrayAttribute arr && arr.value != null)
+                {
+                    foreach (TreeAttribute t in arr.value) if (t != null) Collect(t, list, depth + 1);
+                }
+            }
         }
 
         static bool ContainsStack(ITreeAttribute tree, int depth)

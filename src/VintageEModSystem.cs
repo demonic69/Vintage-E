@@ -87,7 +87,11 @@ namespace VintageE
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start", allowCache: true));
-            sapi.Event.PlayerNowPlaying += player => SendEmcTable(player);
+            sapi.Event.PlayerNowPlaying += player =>
+            {
+                SendEmcTable(player);
+                Announce(player, LastReport);
+            };
 
             EmcCommands.Register(this, sapi);
         }
@@ -182,6 +186,11 @@ namespace VintageE
             }
             LogCoverage(report);
             LastReport = report;
+            if (Config.DumpValuesOnStart)
+            {
+                string file = WriteValuesFile(report);
+                if (file != null) Mod.Logger.Notification("EMC values written to {0}", file);
+            }
             if (report.LoopFrozen > 0 || report.UnstableRemoved > 0)
             {
                 Mod.Logger.Notification("EMC: {0} items sit in self-cheapening recipe loops and keep their first value; {1} had to be dropped.", report.LoopFrozen, report.UnstableRemoved);
@@ -189,7 +198,38 @@ namespace VintageE
 
             serverChannel?.BroadcastPacket(Emc.ToPacket());
             OnEmcTableUpdated?.Invoke();
+            // Players joining later get the same line from PlayerNowPlaying.
+            foreach (IPlayer online in Sapi.World.AllOnlinePlayers ?? Array.Empty<IPlayer>())
+            {
+                if (online is IServerPlayer sp && sp.ConnectionState == EnumClientState.Playing) Announce(sp, report);
+            }
             return report;
+        }
+
+        /// <summary>The mod's version as loaded from modinfo.json (falls back to the assembly version).</summary>
+        public string Version => Mod?.Info?.Version
+            ?? typeof(VintageEModSystem).Assembly.GetName().Version?.ToString(3)
+            ?? "?";
+
+        /// <summary>One-line summary of the last mapping, e.g. "Vintage-E version 1.3.0: calculated 4321 EMC values, 12 missing."</summary>
+        public string AnnouncementText(EmcMappingReport report, string languageCode = null)
+        {
+            string key = report.FromCache ? "vintagee:chat-announce-cached" : "vintagee:chat-announce";
+            object[] args = { Version, report.Values.Count, report.Missing.Count, report.CreativeTotal };
+            return string.IsNullOrEmpty(languageCode) ? Lang.Get(key, args) : Lang.GetL(languageCode, key, args);
+        }
+
+        void Announce(IServerPlayer player, EmcMappingReport report)
+        {
+            if (player == null || report == null || !Config.AnnounceInChat) return;
+            try
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, AnnouncementText(report, player.LanguageCode), EnumChatType.Notification);
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Could not send the EMC summary to {0}: {1}", player.PlayerName, e.Message);
+            }
         }
 
         /// <summary>Logs how much real content got a value and writes the leftovers to ModData/vintagee/emc-missing.csv.</summary>
@@ -213,6 +253,35 @@ namespace VintageE
                 .OrderByDescending(kv => kv.Value)
                 .ThenBy(kv => kv.Key, StringComparer.Ordinal);
         }
+
+        /// <summary>Writes every value (and, after a fresh mapping, what it was worked out from) to ModData/vintagee/emc-values.csv.</summary>
+        public string WriteValuesFile(EmcMappingReport report)
+        {
+            try
+            {
+                string file = System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-values.csv");
+                var sb = new System.Text.StringBuilder("type,code,emc,emc_per_litre,via\n");
+                foreach (var kv in Emc.All.OrderBy(k => k.Key.Code.ToString(), StringComparer.Ordinal))
+                {
+                    string via = report == null ? "" : report.FromCache ? "cached - run /emc recalc to see sources" : report.Origins.TryGetValue(kv.Key, out string o) ? o : "";
+                    double perLitre = EmcRegistry.ItemsPerLitre(kv.Key);
+                    sb.Append(kv.Key.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',')
+                      .Append(kv.Key.Code).Append(',')
+                      .Append(kv.Value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                      .Append(perLitre > 0 ? (kv.Value * perLitre).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) : "").Append(',')
+                      .Append(Csv(via)).Append('\n');
+                }
+                System.IO.File.WriteAllText(file, sb.ToString());
+                return file;
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Could not write emc-values.csv: {0}", e.Message);
+                return null;
+            }
+        }
+
+        static string Csv(string s) => string.IsNullOrEmpty(s) ? "" : s.IndexOfAny(new[] { ',', '"', '\n' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
 
         public string WriteMissingFile(EmcMappingReport report)
         {

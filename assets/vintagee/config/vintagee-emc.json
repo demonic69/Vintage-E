@@ -1,9 +1,13 @@
 {
-  "//": "Vintage-E base EMC values. Only raw materials need a value here: everything crafted, smelted, smithed, knapped, ground, cured, alloyed etc. is worked out from recipes when the server starts. Keys are codes or wildcards; prefix with item: or block: to restrict the type. Later entries override earlier ones, so list general patterns first. Other mods can ship their own assets/<modid>/config/vintagee-emc.json (loaded after this one) or JSON-patch this file. A value of 0 means 'no EMC'.",
+  "//": "Vintage-E base EMC values. Only raw materials need a value here: everything crafted, smelted, smithed, knapped, ground, cured, alloyed etc. is worked out from recipes when the server starts. Keys are codes or wildcards; prefix with item: or block: to restrict the type. Later entries override earlier ones, so list general patterns first. Other mods can ship their own assets/<modid>/config/vintagee-emc.json (loaded after this one) or JSON-patch this file. A value of 0 means 'no EMC'. Soil is worth more the more fertile it is (very low 1, low 2, medium 4, compost 8, high/terra preta 16).",
   "values": {
     "game:rock-*": 1,
     "game:stone-*": 1,
     "game:soil-*": 1,
+    "game:soil-low-*": 2,
+    "game:soil-medium-*": 4,
+    "game:soil-compost-*": 8,
+    "game:soil-high-*": 16,
     "game:forestfloor-*": 1,
     "game:sand-*": 1,
     "game:gravel-*": 2,
@@ -64,9 +68,6 @@
     "game:hide-raw-large": 48,
     "game:hide-raw-huge": 80,
     "game:rot": 0.5,
-    "game:waterportion": 0.01,
-    "game:saltwaterportion": 0.01,
-    "game:milkportion": 0.1,
     "game:charcoal": 32,
     "game:coke": 64,
     "game:ore-lignite": 32,
@@ -82,6 +83,8 @@
     "game:oakbark": 4,
     "game:antler-*": 32,
     "game:insect-*": 4,
+    "game:creature-butterfly-*": 16,
+    "game:deadbutterfly-*": 16,
     "game:rawcassava-raw": 16,
     "game:potash": 8,
     "game:seashell-*": 4,
@@ -123,6 +126,12 @@
     "game:gear-temporal": 4096,
     "game:agedfirewood": 8,
     "game:compost": 4
+  },
+  "//litreValues": "Liquids, in EMC per litre. The game stores liquids as small portions (100 per litre for vanilla liquids), so these are divided by the liquid's itemsPerLitre: 1 L of water = 1 EMC.",
+  "litreValues": {
+    "game:waterportion": 1,
+    "game:saltwaterportion": 1,
+    "game:milkportion": 10
   },
   "//relativeValues": "Items worth a fixed fraction of another item. '*' in code is carried into 'of'. Only used for items that got no value from recipes. A metal bit is 5 of an ingot's 100 metal units.",
   "relativeValues": [
@@ -174,6 +183,10 @@
     "block:game:saltwater-*",
     "block:game:boilingwater-*",
     "block:game:lava-*"
+  ],
+  "//allow": "Exceptions to the blacklist: live butterflies are caught with a bug net, unlike other creature items (spawners).",
+  "allow": [
+    "game:creature-butterfly-*"
   ],
   "worldTransmutation": {
     "swaps": [

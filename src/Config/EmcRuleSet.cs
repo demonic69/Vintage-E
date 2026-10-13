@@ -11,6 +11,8 @@ namespace VintageE
         public string Pattern;
         public double Value;
         public string Source;
+        /// <summary>From "litreValues": Value is per litre of liquid and gets divided by the liquid's itemsPerLitre.</summary>
+        public bool PerLitre;
     }
 
     /// <summary>"game:metalbit-*" is worth 0.05 × "game:ingot-*" (the '*' part is carried over).</summary>
@@ -51,6 +53,8 @@ namespace VintageE
         public List<EmcValueRule> Values = new List<EmcValueRule>();
         public List<RelativeValueRule> Relative = new List<RelativeValueRule>();
         public List<string> Blacklist = new List<string>();
+        /// <summary>Exceptions to the blacklist ("allow": ["game:creature-butterfly-*"]), applied after it.</summary>
+        public List<string> Allow = new List<string>();
         public WorldTransmutationRules WorldTransmutation = new WorldTransmutationRules();
         public List<string> LoadedFiles = new List<string>();
 
@@ -104,6 +108,16 @@ namespace VintageE
                     }
                 }
             }
+            if (root["litreValues"] is JObject litres)
+            {
+                foreach (JProperty prop in litres.Properties())
+                {
+                    if (prop.Value.Type == JTokenType.Integer || prop.Value.Type == JTokenType.Float)
+                    {
+                        Values.Add(new EmcValueRule { Pattern = prop.Name, Value = prop.Value.Value<double>(), Source = source, PerLitre = true });
+                    }
+                }
+            }
             if (root["relativeValues"] is JArray rel)
             {
                 foreach (JToken tok in rel)
@@ -119,6 +133,10 @@ namespace VintageE
             if (root["blacklist"] is JArray bl)
             {
                 Blacklist.AddRange(bl.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["allow"] is JArray allow)
+            {
+                Allow.AddRange(allow.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
             }
             if (root["worldTransmutation"] is JObject wt)
             {

@@ -24,6 +24,13 @@ namespace VintageE
         /// <summary>When an ore, raw food etc. has no value but what it smelts/grinds/crushes/dries into does, work the input value out backwards.</summary>
         public bool InferValuesFromProcessing = true;
 
+        /// <summary>
+        /// Also work values out backwards from crafting: if a recipe's result has a value and only one of its ingredients
+        /// doesn't, that ingredient is worth what's left over (e.g. a loot-only part used in a recipe). Uses the highest
+        /// such value so nothing already valued gets cheaper. Needs InferValuesFromProcessing.
+        /// </summary>
+        public bool InferValuesFromCrafting = true;
+
         /// <summary>As a last resort, give anything still unvalued the value of its closest variant (e.g. the same ore in a different rock). Uses the highest sibling value, so it can't be exploited.</summary>
         public bool InferFromVariantSiblings = true;
 
@@ -56,6 +63,12 @@ namespace VintageE
         /// <summary>Write every mapped value to the log at startup (verbose).</summary>
         public bool LogAllValues = false;
 
+        /// <summary>
+        /// Write ModData/vintagee/emc-values.csv (every value and what it was worked out from) after each mapping,
+        /// like /emc dump does. Handy for modpack authors checking values.
+        /// </summary>
+        public bool DumpValuesOnStart = false;
+
         /// <summary>How close (in blocks) a player must stay to the transmutation table they opened.</summary>
         public double TableUseRange = 8;
 
@@ -70,6 +83,12 @@ namespace VintageE
 
         /// <summary>Refuse to burn bags, pots and other containers that still hold something.</summary>
         public bool ProtectContainersWithContents = true;
+
+        /// <summary>
+        /// Post a chat line with the mod version and how many EMC values were calculated / are missing,
+        /// to each player when they join and to everyone after /emc recalc, set or clear.
+        /// </summary>
+        public bool AnnounceInChat = true;
 
         public void Normalize()
         {

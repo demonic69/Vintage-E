@@ -1,0 +1,98 @@
+name: Test on a real server
+
+# Downloads the real Vintage Story server, compiles the mod against the game's own DLLs, starts a fresh world
+# with the mod installed and records what the EMC mapper did (every value and where it came from, everything
+# still missing, the server log). Results are pushed to the "ci-analysis" branch, alongside small summaries of
+# vanilla tool/board data used while developing the mod. Run it from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      gameVersion:
+        description: Vintage Story version
+        default: "1.22.7"
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VS_VERSION: ${{ inputs.gameVersion }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download the game server
+        run: |
+          set -e
+          for name in "vs_server_linux-x64_${VS_VERSION}.tar.gz" "vs_server_${VS_VERSION}.tar.gz"; do
+            if curl -fsSL -o server.tar.gz "https://cdn.vintagestory.at/gamefiles/stable/$name"; then echo "got $name"; break; fi
+          done
+          mkdir -p vs && tar -xzf server.tar.gz -C vs
+          vsdir=$(dirname "$(find "$PWD/vs" -name VintagestoryServer.dll | head -1)")
+          echo "VSDIR=$vsdir" >> "$GITHUB_ENV"
+          ls "$vsdir" | head -60
+          ls "$vsdir/Lib" | head -80 || true
+
+      - name: Get client libraries if the server lacks them
+        run: |
+          if [ ! -f "$VSDIR/Lib/cairo-sharp.dll" ]; then
+            curl -fsSL -o client.tar.gz "https://cdn.vintagestory.at/gamefiles/stable/vs_client_linux-x64_${VS_VERSION}.tar.gz"
+            mkdir -p vsclient && tar -xzf client.tar.gz -C vsclient
+            find vsclient -name 'cairo-sharp.dll' | head -1 | xargs -I{} cp {} "$VSDIR/Lib/"
+          fi
+          ls -la "$VSDIR/Lib/cairo-sharp.dll" "$VSDIR/VintagestoryAPI.dll" "$VSDIR/Lib/Newtonsoft.Json.dll" "$VSDIR/Lib/protobuf-net.dll"
+
+      - name: Compile against the real game
+        run: |
+          export VINTAGE_STORY="$VSDIR"
+          dotnet build VintageE.csproj -c Release 2>&1 | tee build.log
+          ls -la bin/Release/Mods/vintagee
+
+      - name: Run a server with the mod
+        run: |
+          set +e
+          data="$PWD/data"
+          mkdir -p "$data/Mods" "$data/ModConfig"
+          cp -r bin/Release/Mods/vintagee "$data/Mods/"
+          echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false }' > "$data/ModConfig/vintagee.json"
+          cd "$VSDIR"
+          dotnet VintagestoryServer.dll --dataPath "$data" > "$GITHUB_WORKSPACE/server-console.log" 2>&1 &
+          pid=$!
+          for i in $(seq 1 240); do
+            if [ -n "$(find "$data" -name emc-values.csv 2>/dev/null | head -1)" ]; then echo "values written after $((i*5))s"; sleep 10; break; fi
+            if ! kill -0 $pid 2>/dev/null; then echo "server exited early"; break; fi
+            sleep 5
+          done
+          kill -INT $pid 2>/dev/null; sleep 15; kill -9 $pid 2>/dev/null
+          cd "$GITHUB_WORKSPACE"
+          tail -40 server-console.log
+
+      - name: Collect results
+        if: always()
+        run: |
+          pip install json5 >/dev/null
+          mkdir -p analysis
+          find data -name 'emc-*.csv' -exec cp {} analysis/ \;
+          cp server-console.log build.log analysis/ || true
+          cp data/Logs/*crash* analysis/ 2>/dev/null || true
+          for f in data/Logs/server-main.log data/Logs/server-debug.log; do [ -f "$f" ] && grep -iE "vintagee|vintage-e|EMC|error|exception" "$f" | head -3000 > "analysis/$(basename "$f" .log)-filtered.log"; done
+          [ -n "$VSDIR" ] && python3 tools/ci_extract.py "$VSDIR/assets" analysis || echo "no game assets" > analysis/extract-errors.txt
+          echo "game=${VS_VERSION} commit=${GITHUB_SHA} run=${GITHUB_RUN_ID}" > analysis/README.txt
+          ls -la analysis
+
+      - name: Push results to the ci-analysis branch
+        if: always()
+        run: |
+          cd analysis
+          git init -q -b ci-analysis
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Server test results for ${GITHUB_SHA} on Vintage Story ${VS_VERSION}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-analysis

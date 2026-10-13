@@ -140,16 +140,8 @@ namespace VintageE
 
         static TextCommandResult Dump(VintageEModSystem mod, ICoreServerAPI sapi)
         {
-            string dir = sapi.GetOrCreateDataPath("vintagee");
-            string file = Path.Combine(dir, "emc-values.csv");
-            var sb = new StringBuilder("type,code,emc\n");
-            foreach (var kv in mod.Emc.All.OrderBy(k => k.Key.Code.ToString(), StringComparer.Ordinal))
-            {
-                sb.Append(kv.Key.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',')
-                  .Append(kv.Key.Code).Append(',')
-                  .Append(kv.Value.ToString("0.####", CultureInfo.InvariantCulture)).Append('\n');
-            }
-            File.WriteAllText(file, sb.ToString());
+            string file = mod.WriteValuesFile(mod.LastReport);
+            if (file == null) return TextCommandResult.Error("Could not write the file, see server log");
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-dumped", mod.Emc.Count, file));
         }
     }

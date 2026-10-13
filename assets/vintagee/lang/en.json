@@ -1,5 +1,5 @@
 {
-  "tabname-vintagee": "Vintage-E",
+  "game:tabname-vintagee": "Vintage-E",
   "item-philosophersstone": "Philosopher's Stone",
   "itemdesc-philosophersstone": "Right-click a block to transmute it (stone types, wood types, sand and gravel...). Sneak to go the other way. Change the area with the tool-mode key. Never used up in crafting recipes.",
   "item-transmutationtablet": "Transmutation Tablet",
@@ -54,6 +54,9 @@
   "block-matterblock-red": "Red Matter Block",
   "tooltip-emc": "EMC: {0}",
   "tooltip-emc-stack": "Stack EMC: {0}",
+  "tooltip-emc-litre": "EMC: {0} per litre",
+  "tooltip-emc-litres": "{0} L here: {1} EMC",
+  "tooltip-emc-contents": "Contents EMC: {0}",
   "gui-table-title": "Transmutation Table",
   "gui-tablet-title": "Transmutation Tablet",
   "gui-emc": "EMC: {0}   ·   Known: {1}",
@@ -93,5 +96,7 @@
   "cmd-recalc": "Mapped {0} EMC values in {1} ms from {2} conversions.",
   "cmd-dumped": "Wrote {0} values to {1}",
   "cmd-missing": "{0} of {1} blocks/items have no EMC value. Biggest groups: {2}. Full list: {3}",
-  "cmd-missing-none": "All {0} blocks/items in the creative inventory have an EMC value."
+  "cmd-missing-none": "All {0} blocks/items in the creative inventory have an EMC value.",
+  "chat-announce": "Vintage-E version {0}: calculated {1} EMC values, {2} missing.",
+  "chat-announce-cached": "Vintage-E version {0}: {1} EMC values (calculated earlier, nothing has changed), {2} missing."
 }
