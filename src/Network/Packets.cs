@@ -62,4 +62,11 @@ namespace VintageE
         [ProtoMember(1)] public string Key;
         [ProtoMember(2)] public double Value;
     }
+
+    /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>
+    [ProtoContract]
+    public class WatchSpeedPacket
+    {
+        [ProtoMember(1)] public float Modifier;
+    }
 }

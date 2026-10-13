@@ -21,6 +21,7 @@ namespace VintageE
         public const string ModeKey = "vintageeMode";
 
         public static readonly string[] ArcanaModes = { "zero", "ignition", "harvest", "swiftwolf" };
+        public static readonly string[] WatchModes = { "faster", "slower" };
         public static readonly string[] DensityTargets = { "game:ingot-iron", "game:ingot-gold", "game:gem-diamond-rough", "vintagee:matter-dark", "vintagee:matter-red" };
 
         SkillItem[] modes;
@@ -45,6 +46,15 @@ namespace VintageE
                     {
                         modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "arcana-" + ArcanaModes[i]), Name = Lang.Get("vintagee:arcana-" + ArcanaModes[i]) }
                             .WithLetterIcon(capi, Lang.Get("vintagee:arcana-" + ArcanaModes[i]).Substring(0, 1));
+                    }
+                }
+                else if (Kind == "watchofflowingtime")
+                {
+                    modes = new SkillItem[WatchModes.Length];
+                    for (int i = 0; i < modes.Length; i++)
+                    {
+                        modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "watch-" + WatchModes[i]), Name = Lang.Get("vintagee:watch-" + WatchModes[i]) }
+                            .WithLetterIcon(capi, i == 0 ? "+" : "-");
                     }
                 }
                 else if (Kind == "gemofeternaldensity")
@@ -118,6 +128,10 @@ namespace VintageE
             if (Kind == "ringofarcana")
             {
                 dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:arcana-" + ArcanaModes[GameMath.Clamp(GetMode(stack), 0, ArcanaModes.Length - 1)])));
+            }
+            else if (Kind == "watchofflowingtime")
+            {
+                dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:watch-" + WatchModes[GameMath.Clamp(GetMode(stack), 0, WatchModes.Length - 1)])));
             }
             else if (Kind == "gemofeternaldensity")
             {

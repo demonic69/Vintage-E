@@ -2,6 +2,14 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.4.1 — 2026-10-13
+
+### Fixed
+- The **Watch of Flowing Time** now actually changes the flow of time, like ProjectE's. While it's on, time runs 10× faster for the whole world (crops, cooking, curing, drying, day and night), the way it does when everyone sleeps, and crops right around you get an extra boost. Switch it to **slow down time** with the tool-mode key: days last 3× longer and hostile creatures near you are slowed. It costs EMC every second it's on and stops when you run out. Before, it only grew nearby crops.
+
+### Added
+- Settings: `WatchChangesWorldTime` (turn off to keep the watch's effect local, e.g. on busy servers), `WatchSpeedUp` (default 10) and `WatchSlowDown` (default 3).
+
 ## 1.4.0 — 2026-10-13
 
 ### Added — the rest of ProjectE

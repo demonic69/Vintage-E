@@ -106,6 +106,18 @@ namespace VintageE
             "game:hyena-*", "game:eidolon-*", "game:erel-*"
         };
 
+        /// <summary>
+        /// The Watch of Flowing Time speeds up (or slows down) time for the whole world while someone has one switched on,
+        /// the way sleeping does. Set to false to make it only affect the area around its owner (crops, creatures).
+        /// </summary>
+        public bool WatchChangesWorldTime = true;
+
+        /// <summary>How many times faster time runs while a Watch of Flowing Time is on in "faster" mode.</summary>
+        public double WatchSpeedUp = 10;
+
+        /// <summary>How many times slower time runs while a Watch of Flowing Time is on in "slower" mode.</summary>
+        public double WatchSlowDown = 3;
+
         /// <summary>Multiplies the EMC that rings, stones, amulets and gadgets cost to run.</summary>
         public double TrinketCostMultiplier = 1.0;
 
@@ -117,6 +129,8 @@ namespace VintageE
             TransitionEmcPerDay ??= new Dictionary<string, double>();
             HostileCreatures ??= new List<string>();
             if (TrinketCostMultiplier < 0) TrinketCostMultiplier = 0;
+            if (WatchSpeedUp < 1) WatchSpeedUp = 1;
+            if (WatchSlowDown < 1) WatchSlowDown = 1;
             if (MachineSpeedMultiplier <= 0) MachineSpeedMultiplier = 1.0;
             if (MaxMappingPasses < 4) MaxMappingPasses = 4;
             if (TableUseRange < 2) TableUseRange = 2;

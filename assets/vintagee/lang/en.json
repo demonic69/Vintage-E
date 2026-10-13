@@ -187,7 +187,7 @@
   "itemdesc-trinket-gemofeternaldensity": "While on: turns cheap junk you carry (stone, soil, sand, gravel, sticks... anything worth 8 EMC or less) into the target material. Pick the target with the tool-mode key.",
   "itemdesc-trinket-evertideamulet": "Right-click a block to place a water source next to it. Free.",
   "itemdesc-trinket-volcaniteamulet": "Right-click a block to place a lava source next to it. Costs EMC.",
-  "itemdesc-trinket-watchofflowingtime": "While on: crops in a wide area around you grow much faster (costs EMC per growth stage).",
+  "itemdesc-trinket-watchofflowingtime": "While on: time runs 10x faster for the whole world - crops, cooking, curing, drying and day and night (or 3x slower, which also slows hostile creatures near you; pick with the tool-mode key). Costs EMC every second it is on.",
   "itemdesc-gadget-destructioncatalyst": "Right-click a block to break a 3x3 tunnel into it (3, 6 or 9 deep with the tool-mode key). Costs EMC per block.",
   "itemdesc-gadget-hyperkineticlens": "Right-click to blow up the spot you're looking at, up to 64 blocks away. Costs EMC.",
   "itemdesc-gadget-catalyticlens": "A bigger explosion, or the destruction catalyst's tunnel (tool-mode key). Costs EMC.",
@@ -321,5 +321,7 @@
   "blockhelp-relay-withdraw": "Take stored EMC (empty hand or Klein star)",
   "blockhelp-nova": "Light the fuse (empty hand)",
   "blockhelp-pedestal": "Place or take a ring/stone/amulet",
-  "alchemicalbagcontents": "Alchemical Bag"
+  "alchemicalbagcontents": "Alchemical Bag",
+  "watch-faster": "Speed up time",
+  "watch-slower": "Slow down time"
 }

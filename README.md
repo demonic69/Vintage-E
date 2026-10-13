@@ -26,7 +26,7 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
-When you join, chat shows a summary such as `Vintage-E version 1.4.0: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
+When you join, chat shows a summary such as `Vintage-E version 1.4.1: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
 
 ## How EMC values are calculated
 
@@ -162,7 +162,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 See [CHANGELOG.md](CHANGELOG.md) (also shown on each [release](https://github.com/demonic69/Vintage-E/releases)) for what changed in each version.
 
-Download [`dist/vintagee_1.4.0.zip`](dist/vintagee_1.4.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.4.1.zip`](dist/vintagee_1.4.1.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

@@ -27,6 +27,12 @@ namespace VintageE
         readonly Random rand = new Random();
         AssetLocation[] hostile;
 
+        /// <summary>Name of this mod's time speed modifier on the world calendar (the Watch of Flowing Time).</summary>
+        public const string TimeModifierName = "vintageewatch";
+        /// <summary>The calendar modifier currently applied (0 = none). Mirrored to clients.</summary>
+        public float WatchTimeModifier { get; private set; }
+        int watchFaster, watchSlower; // players with an active watch this tick, by mode
+
         public TrinketEffects(VintageEModSystem mod, ICoreServerAPI sapi)
         {
             this.mod = mod;
@@ -65,12 +71,40 @@ namespace VintageE
 
         void OnTick(float dt)
         {
+            watchFaster = watchSlower = 0;
             foreach (IPlayer p in sapi.World.AllOnlinePlayers)
             {
                 if (!(p is IServerPlayer player) || player.ConnectionState != EnumClientState.Playing || player.Entity == null || !player.Entity.Alive) continue;
                 try { TickPlayer(player); }
                 catch (Exception e) { sapi.Logger.Warning("Vintage-E trinkets for {0}: {1}", player.PlayerName, e.Message); }
             }
+            UpdateWorldTime();
+        }
+
+        /// <summary>
+        /// The Watch of Flowing Time changes how fast time passes for the whole world (like sleeping does), as long as
+        /// someone has one switched on and can pay for it. Speeding up wins over slowing down.
+        /// </summary>
+        void UpdateWorldTime()
+        {
+            float want = 0;
+            if (mod.Config.WatchChangesWorldTime)
+            {
+                // The game's base is 60 "time speed"; the modifier is added to it.
+                if (watchFaster > 0) want = 60f * Math.Max(0, (float)mod.Config.WatchSpeedUp - 1);
+                else if (watchSlower > 0) want = -60f * (1 - 1 / Math.Max(1, (float)mod.Config.WatchSlowDown));
+            }
+            if (Math.Abs(want - WatchTimeModifier) < 0.01f) return;
+            WatchTimeModifier = want;
+            ApplyTimeModifier(sapi.World.Calendar, want);
+            mod.BroadcastWatchSpeed(want);
+        }
+
+        public static void ApplyTimeModifier(IGameCalendar calendar, float value)
+        {
+            if (calendar == null) return;
+            if (Math.Abs(value) < 0.01f) calendar.RemoveTimeSpeedModifier(TimeModifierName);
+            else calendar.SetTimeSpeedModifier(TimeModifierName, value);
         }
 
         public static IEnumerable<(ItemSlot slot, ItemEmcTrinket trinket)> ActiveTrinkets(IPlayer player)
@@ -121,7 +155,18 @@ namespace VintageE
                         if (Every(uid, effect, 1)) Grow(entity.ServerPos.AsBlockPos, 5, 6, player, Cost(4));
                         break;
                     case "watchofflowingtime":
-                        if (Every(uid, effect, 1)) Grow(entity.ServerPos.AsBlockPos, 8, 16, player, Cost(4));
+                        bool faster = ItemEmcTrinket.GetMode(slot.Itemstack) == 0;
+                        if (!EmcWallet.TryPay(player, Cost((faster ? 8 : 4) * Interval))) break;
+                        if (faster)
+                        {
+                            watchFaster++;
+                            if (Every(uid, effect, 1)) Grow(entity.ServerPos.AsBlockPos, 6, 4, null, 0);
+                        }
+                        else
+                        {
+                            watchSlower++;
+                            Slow(entity.ServerPos.XYZ, 10);
+                        }
                         break;
                     case "ignitionring":
                         if (Every(uid, effect, 1)) Burn(entity.ServerPos.XYZ, 5, entity, player, Cost(4));
@@ -252,6 +297,15 @@ namespace VintageE
                 }
             }
             return frozen;
+        }
+
+        /// <summary>Damps the movement of hostile creatures around <paramref name="center"/> (watch in slow mode).</summary>
+        public void Slow(Vec3d center, float radius)
+        {
+            foreach (Entity e in sapi.World.GetEntitiesAround(center, radius, radius / 2, IsHostile))
+            {
+                e.ServerPos.Motion.Mul(0.4, 1, 0.4);
+            }
         }
 
         /// <summary>Pushes hostile creatures away from <paramref name="center"/> (interdiction torch).</summary>

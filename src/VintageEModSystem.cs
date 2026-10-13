@@ -79,7 +79,8 @@ namespace VintageE
                 .RegisterMessageType<TransmuteRequestPacket>()
                 .RegisterMessageType<TransmuteResultPacket>()
                 .RegisterMessageType<EmcMissingPacket>()
-                .RegisterMessageType<EmcSetValuePacket>();
+                .RegisterMessageType<EmcSetValuePacket>()
+                .RegisterMessageType<WatchSpeedPacket>();
         }
 
         #region Server
@@ -111,6 +112,7 @@ namespace VintageE
                     player.Entity.AddBehavior(new EntityBehaviorVintageE(player.Entity));
                 }
                 SendEmcTable(player);
+                if (Trinkets != null && Trinkets.WatchTimeModifier != 0) serverChannel.SendPacket(new WatchSpeedPacket { Modifier = Trinkets.WatchTimeModifier }, player);
                 Announce(player, LastReport);
             };
 
@@ -367,6 +369,9 @@ namespace VintageE
             if (report != null) SendMissingList(player, report, null);
         }
 
+        /// <summary>Tells every client about a change to the watch's time speed, so their clocks and skies keep up.</summary>
+        public void BroadcastWatchSpeed(float modifier) => serverChannel?.BroadcastPacket(new WatchSpeedPacket { Modifier = modifier });
+
         /// <summary>Opens the /emc missing window for a player.</summary>
         public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file)
         {
@@ -391,6 +396,7 @@ namespace VintageE
             clientChannel.SetMessageHandler<EmcTablePacket>(OnEmcTableReceived);
             clientChannel.SetMessageHandler<TransmuteResultPacket>(OnTransmuteResult);
             clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
+            clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
 
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>
@@ -461,6 +467,8 @@ namespace VintageE
         {
             transmutationDialog?.Dispose();
             missingDialog?.Dispose();
+            try { (Sapi?.World ?? (IWorldAccessor)Capi?.World)?.Calendar?.RemoveTimeSpeedModifier(TrinketEffects.TimeModifierName); }
+            catch { /* world already gone */ }
             base.Dispose();
         }
     }
