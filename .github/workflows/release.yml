@@ -2,6 +2,7 @@ name: Release
 
 # Publishes dist/vintagee_<version>.zip as a GitHub release, either when a tag like v1.0.0 is pushed
 # or when you press "Run workflow" on the Actions tab (it then uses the version in modinfo.json).
+# The release notes are that version's section of CHANGELOG.md.
 # (The mod can't be compiled in CI without the game's DLLs, so the zip is built locally with
 # build/package.sh and committed to dist/ first.)
 on:
@@ -39,6 +40,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python3 tools/release_notes.py "${{ steps.zip.outputs.version }}" > notes.md
           gh release create "v${{ steps.zip.outputs.version }}" "${{ steps.zip.outputs.file }}" --target "$GITHUB_SHA" \
             --title "Vintage-E ${{ steps.zip.outputs.version }}" \
-            --notes "For Vintage Story 1.22.x. Drop the zip (still zipped) into your Mods folder on the server and every client. After the first server start, the server log line starting with 'EMC coverage:' (or /emc missing in game) shows any blocks/items that still have no EMC value."
+            --notes-file notes.md
