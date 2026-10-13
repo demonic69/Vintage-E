@@ -27,6 +27,9 @@ namespace VintageE
         public int CreativeTotal;
         /// <summary>Of those, the ones that still have no value.</summary>
         public List<CollectibleObject> Missing = new List<CollectibleObject>();
+        /// <summary>True when the values were loaded from the on-disk cache instead of being mapped.</summary>
+        public bool FromCache;
+        public string CachedAt;
     }
 
     /// <summary>
@@ -56,38 +59,7 @@ namespace VintageE
             var report = new EmcMappingReport();
             var index = new CollectibleIndex(sapi.World.Collectibles);
 
-            // 1. Things that must never have a value (creative/debug blocks etc.).
-            var excluded = new HashSet<CollectibleObject>();
-            foreach (string pattern in rules.Blacklist.Concat(config.Blacklist))
-            {
-                excluded.UnionWith(index.Match(pattern));
-            }
-
-            // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
-            var fixedValues = new Dictionary<CollectibleObject, double>();
-            foreach (EmcValueRule rule in rules.Values)
-            {
-                if (config.DisableBuiltInBaseValues && rule.Source.StartsWith(VintageEModSystem.ModId + ":", StringComparison.Ordinal)) continue;
-                if (!Apply(index, rule.Pattern, rule.Value, fixedValues, excluded, overrideBlacklist: false))
-                {
-                    report.UnmatchedRules++;
-                    logger.VerboseDebug("EMC rule '{0}' from {1} matched nothing", rule.Pattern, rule.Source);
-                }
-            }
-            foreach (CollectibleObject c in index.All)
-            {
-                // Any mod can give its items a value with  "attributes": { "emcValue": 128 }  (0 = no EMC).
-                JsonObject attr = c.Attributes?["emcValue"];
-                if (attr != null && attr.Exists)
-                {
-                    double v = attr.AsDouble(-1);
-                    if (v > 0) fixedValues[c] = v;
-                    else if (v == 0) { excluded.Add(c); fixedValues.Remove(c); }
-                }
-            }
-            foreach (var kv in config.BaseValues) Apply(index, kv.Key, kv.Value, fixedValues, excluded, overrideBlacklist: true);
-            foreach (var kv in config.FixedValues) Apply(index, kv.Key, kv.Value, fixedValues, excluded, overrideBlacklist: true);
-            foreach (CollectibleObject c in excluded) fixedValues.Remove(c);
+            Seed(index, report, out Dictionary<CollectibleObject, double> fixedValues, out HashSet<CollectibleObject> excluded);
 
             // 3. Every way of making things.
             var collector = new ConversionCollector(sapi, index, logger);
@@ -153,12 +125,7 @@ namespace VintageE
             report.InferredCount = solver.Inferred.Keys.Count(k => report.Values.ContainsKey(k));
             report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount;
             report.ConversionCount = solver.Edges.Count;
-            foreach (CollectibleObject c in index.All)
-            {
-                if (!IsListed(c) || excluded.Contains(c)) continue;
-                report.CreativeTotal++;
-                if (!report.Values.ContainsKey(c)) report.Missing.Add(c);
-            }
+            FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
             report.UnstableRemoved = solver.Unstable.Count;
@@ -176,6 +143,68 @@ namespace VintageE
                 }
             }
             return report;
+        }
+
+        /// <summary>Blacklist and base values: asset files (ours, then other mods') → item attributes → server config.</summary>
+        void Seed(CollectibleIndex index, EmcMappingReport report, out Dictionary<CollectibleObject, double> fixedValues, out HashSet<CollectibleObject> excluded)
+        {
+            // 1. Things that must never have a value (creative/debug blocks etc.).
+            excluded = new HashSet<CollectibleObject>();
+            foreach (string pattern in rules.Blacklist.Concat(config.Blacklist))
+            {
+                excluded.UnionWith(index.Match(pattern));
+            }
+
+            // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
+            fixedValues = new Dictionary<CollectibleObject, double>();
+            foreach (EmcValueRule rule in rules.Values)
+            {
+                if (config.DisableBuiltInBaseValues && rule.Source.StartsWith(VintageEModSystem.ModId + ":", StringComparison.Ordinal)) continue;
+                if (!Apply(index, rule.Pattern, rule.Value, fixedValues, excluded, overrideBlacklist: false))
+                {
+                    report.UnmatchedRules++;
+                    logger.VerboseDebug("EMC rule '{0}' from {1} matched nothing", rule.Pattern, rule.Source);
+                }
+            }
+            foreach (CollectibleObject c in index.All)
+            {
+                // Any mod can give its items a value with  "attributes": { "emcValue": 128 }  (0 = no EMC).
+                JsonObject attr = c.Attributes?["emcValue"];
+                if (attr != null && attr.Exists)
+                {
+                    double v = attr.AsDouble(-1);
+                    if (v > 0) fixedValues[c] = v;
+                    else if (v == 0) { excluded.Add(c); fixedValues.Remove(c); }
+                }
+            }
+            foreach (var kv in config.BaseValues) Apply(index, kv.Key, kv.Value, fixedValues, excluded, overrideBlacklist: true);
+            foreach (var kv in config.FixedValues) Apply(index, kv.Key, kv.Value, fixedValues, excluded, overrideBlacklist: true);
+            foreach (CollectibleObject c in excluded) fixedValues.Remove(c);
+
+        }
+
+        /// <summary>
+        /// Builds a report around values that came from the cache: re-applies the (cheap) blacklist/seeding
+        /// so coverage numbers are exact, without collecting recipes or solving anything.
+        /// </summary>
+        public EmcMappingReport FromValues(Dictionary<CollectibleObject, double> values)
+        {
+            var report = new EmcMappingReport { FromCache = true, Values = values };
+            var index = new CollectibleIndex(sapi.World.Collectibles);
+            Seed(index, report, out _, out HashSet<CollectibleObject> excluded);
+            foreach (CollectibleObject c in excluded) values.Remove(c);
+            FillCoverage(index, report, excluded);
+            return report;
+        }
+
+        static void FillCoverage(CollectibleIndex index, EmcMappingReport report, HashSet<CollectibleObject> excluded)
+        {
+            foreach (CollectibleObject c in index.All)
+            {
+                if (!IsListed(c) || excluded.Contains(c)) continue;
+                report.CreativeTotal++;
+                if (!report.Values.ContainsKey(c)) report.Missing.Add(c);
+            }
         }
 
         /// <summary>Real, obtainable content: anything shown in a creative inventory tab.</summary>

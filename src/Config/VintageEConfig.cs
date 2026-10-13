@@ -34,6 +34,12 @@ namespace VintageE
         /// </summary>
         public double FallbackValue = 0;
 
+        /// <summary>
+        /// Save mapped values per world (ModData/vintagee/cache) and reuse them on the next start when the game version,
+        /// mods, config, value files and all recipe/item data are unchanged. /emc recalc always remaps.
+        /// </summary>
+        public bool CacheEmcValues = true;
+
         /// <summary>Upper bound on relaxation passes over the recipe graph. Values still falling after this are recipe loops and get dropped.</summary>
         public int MaxMappingPasses = 120;
 

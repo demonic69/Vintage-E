@@ -86,7 +86,7 @@ namespace VintageE
             serverChannel.SetMessageHandler<TransmuteRequestPacket>(Transmutation.OnRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
-            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start"));
+            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start", allowCache: true));
             sapi.Event.PlayerNowPlaying += player => SendEmcTable(player);
 
             EmcCommands.Register(this, sapi);
@@ -117,8 +117,11 @@ namespace VintageE
             catch (Exception e) { Mod.Logger.Warning("Could not write ModConfig/{0}: {1}", ConfigFile, e.Message); }
         }
 
-        /// <summary>Runs the recipe-graph mapper and pushes the result to every connected player.</summary>
-        public EmcMappingReport RecalculateEmc(string reason)
+        /// <summary>
+        /// Runs the recipe-graph mapper (or, with <paramref name="allowCache"/>, reuses the saved values if nothing that
+        /// affects them has changed) and pushes the result to every connected player.
+        /// </summary>
+        public EmcMappingReport RecalculateEmc(string reason, bool allowCache = false)
         {
             var sw = Stopwatch.StartNew();
             if (Rules.LoadedFiles.Count == 0)
@@ -127,21 +130,48 @@ namespace VintageE
                 worldTransmutation = null;
             }
             var mapper = new EmcMapper(Sapi, Config, Rules, Mod.Logger);
-            EmcMappingReport report;
-            try
+            EmcMappingReport report = null;
+            string fingerprint = null;
+            if (Config.CacheEmcValues)
             {
-                report = mapper.Run();
+                try
+                {
+                    fingerprint = EmcCache.Fingerprint(Sapi, this, Mod.Logger);
+                    if (allowCache && EmcCache.TryLoad(Sapi, fingerprint, Mod.Logger, out EmcCacheFile cached, out var cachedValues))
+                    {
+                        report = mapper.FromValues(cachedValues);
+                        EmcCache.CopyCounts(cached, report);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Mod.Logger.Warning("EMC cache check failed, remapping: {0}", e.Message);
+                    fingerprint = null;
+                }
             }
-            catch (Exception e)
+            if (report == null)
             {
-                Mod.Logger.Error("EMC mapping failed ({0}): {1}", reason, e);
-                return null;
+                try
+                {
+                    report = mapper.Run();
+                }
+                catch (Exception e)
+                {
+                    Mod.Logger.Error("EMC mapping failed ({0}): {1}", reason, e);
+                    return null;
+                }
+                if (Config.CacheEmcValues && fingerprint != null) EmcCache.Save(Sapi, fingerprint, report, Mod.Logger);
             }
             Emc.Replace(report.Values);
             Emc.DurabilityScales = Config.DurabilityScalesEmc;
             sw.Stop();
             report.Milliseconds = sw.ElapsedMilliseconds;
-            Mod.Logger.Notification(
+            if (report.FromCache)
+            {
+                Mod.Logger.Notification("EMC values loaded from cache ({0}) in {1} ms: {2} valued collectibles. Nothing that affects them has changed since they were mapped ({3}); /emc recalc forces a fresh mapping.",
+                    reason, report.Milliseconds, report.Values.Count, report.CachedAt);
+            }
+            else Mod.Logger.Notification(
                 "EMC mapped ({0}) in {1} ms: {2} valued collectibles ({3} base, {4} from recipes/processing, {5} inferred backwards), {6} conversions from {7} sources.",
                 reason, report.Milliseconds, report.Values.Count, report.BaseCount, report.DerivedCount, report.InferredCount,
                 report.ConversionCount, report.SourceCount);

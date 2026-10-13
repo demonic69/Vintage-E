@@ -39,6 +39,10 @@ Nothing is hard-coded per item. When the server reaches the "run game" phase (af
 
 The finished table is sent to every client.
 
+### Caching
+
+Mapped values are saved per world in `VintagestoryData/ModData/vintagee/cache/` and reused on the next start, so the mapping only runs when something that affects values has changed. That's decided by a fingerprint over every input: the game version, the loaded mods and their versions, this mod's own code, `ModConfig/vintagee.json`, the merged value files, every block/item with its smelting/grinding/crushing/transition/drop/baking/press/still data and `emcValue`, every crafting-grid recipe and every recipe/alloy list any mod holds. Change any of those (add a mod, update one, edit a recipe or the config) and the next start remaps and refreshes the cache. The server log says which happened (`EMC values loaded from cache…` or `EMC mapped…`). `/emc recalc`, `/emc set` and `/emc clear` always remap; set `CacheEmcValues` to `false` to never use the cache.
+
 ### Checking that everything has a value
 
 Every time values are mapped, the server log reports coverage in this form:
@@ -59,7 +63,7 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `InferValuesFromProcessing`, `InferFromVariantSiblings`, `FallbackValue`, `DurabilityScalesEmc`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`.
+4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `InferValuesFromProcessing`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DurabilityScalesEmc`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`.
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
@@ -126,7 +130,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 ## Installing
 
-Download [`dist/vintagee_1.0.0.zip`](dist/vintagee_1.0.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.1.0.zip`](dist/vintagee_1.1.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

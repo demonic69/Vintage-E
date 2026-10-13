@@ -66,6 +66,26 @@ namespace VintageE
 
         void CollectFromModSystems()
         {
+            foreach (DiscoveredRecipeList found in DiscoverRecipeLists(sapi, logger))
+            {
+                if (found.Alloy != null) CollectAlloys(found.Recipes, found.Alloy, found.Label);
+                else CollectRecipeList(found.Recipes, found.Label);
+            }
+        }
+
+        /// <summary>A recipe list found on some mod system: either IRecipeBase recipes or alloy-shaped ones.</summary>
+        public sealed class DiscoveredRecipeList
+        {
+            public string Label;
+            public IEnumerable Recipes;
+            internal AlloyShape Alloy;
+        }
+
+        /// <summary>Every recipe list held by any loaded mod system (fields, properties, recipe registries), found by type.</summary>
+        public static List<DiscoveredRecipeList> DiscoverRecipeLists(ICoreServerAPI sapi, ILogger logger)
+        {
+            var result = new List<DiscoveredRecipeList>();
+            var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
             foreach (ModSystem system in sapi.ModLoader.Systems)
             {
@@ -74,18 +94,19 @@ namespace VintageE
                 {
                     foreach (FieldInfo field in t.GetFields(flags))
                     {
-                        TryCollect(field.FieldType, () => field.GetValue(system), $"{system.GetType().Name}.{field.Name}");
+                        Discover(field.FieldType, () => field.GetValue(system), $"{system.GetType().Name}.{field.Name}", result, seen, logger);
                     }
                     foreach (PropertyInfo prop in t.GetProperties(flags))
                     {
                         if (!prop.CanRead || prop.GetIndexParameters().Length > 0) continue;
-                        TryCollect(prop.PropertyType, () => prop.GetValue(system), $"{system.GetType().Name}.{prop.Name}");
+                        Discover(prop.PropertyType, () => prop.GetValue(system), $"{system.GetType().Name}.{prop.Name}", result, seen, logger);
                     }
                 }
             }
+            return result;
         }
 
-        void TryCollect(Type declaredType, Func<object> getter, string label)
+        static void Discover(Type declaredType, Func<object> getter, string label, List<DiscoveredRecipeList> result, HashSet<object> seen, ILogger logger)
         {
             try
             {
@@ -93,21 +114,17 @@ namespace VintageE
                 {
                     object registry = getter();
                     FieldInfo recipesField = registry?.GetType().GetField("Recipes");
-                    if (recipesField != null) TryCollect(recipesField.FieldType, () => recipesField.GetValue(registry), label);
+                    if (recipesField != null) Discover(recipesField.FieldType, () => recipesField.GetValue(registry), label, result, seen, logger);
                     return;
                 }
 
                 Type element = EnumerableElementType(declaredType);
                 if (element == null) return;
 
-                if (typeof(IRecipeBase).IsAssignableFrom(element))
-                {
-                    CollectRecipeList(getter() as IEnumerable, label);
-                }
-                else if (AlloyShape.TryCreate(element, out AlloyShape shape))
-                {
-                    CollectAlloys(getter() as IEnumerable, shape, label);
-                }
+                AlloyShape shape = null;
+                if (!typeof(IRecipeBase).IsAssignableFrom(element) && !AlloyShape.TryCreate(element, out shape)) return;
+                if (!(getter() is IEnumerable list) || !seen.Add(list)) return;
+                result.Add(new DiscoveredRecipeList { Label = label, Recipes = list, Alloy = shape });
             }
             catch (Exception e)
             {
@@ -252,7 +269,7 @@ namespace VintageE
 
         #region Alloys (matched by shape so the survival mod is not a compile-time dependency)
 
-        sealed class AlloyShape
+        internal sealed class AlloyShape
         {
             public FieldInfo Ingredients, Output, Enabled, MinRatio, MaxRatio;
 

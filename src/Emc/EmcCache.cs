@@ -1,0 +1,291 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using Newtonsoft.Json;
+using Vintagestory.API.Common;
+using Vintagestory.API.Config;
+using Vintagestory.API.Server;
+
+namespace VintageE
+{
+    /// <summary>What is written to ModData/vintagee/cache/emc-&lt;world&gt;.json.</summary>
+    public class EmcCacheFile
+    {
+        public int Format;
+        public string Fingerprint;
+        public string CreatedUtc;
+        public string GameVersion;
+        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount;
+        public int ConversionCount, SourceCount, LoopFrozen, UnstableRemoved;
+        /// <summary>Knowledge-style keys ("i:game:ingot-gold", "b:game:rock-granite") → EMC.</summary>
+        public SortedDictionary<string, double> Values = new SortedDictionary<string, double>(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Saves mapped EMC values per world and reuses them on the next start when nothing that affects them has changed.
+    ///
+    /// "Nothing changed" is decided by a fingerprint (SHA-256) over every input the mapper reads: game version,
+    /// loaded mods and their versions, this mod's code, the server config, the merged value files, every block and
+    /// item code with its processing data (smelting, grinding, crushing, transitions, drops, baking/press/still
+    /// attributes, emcValue), every grid recipe and every recipe/alloy list found on any mod system. Building it walks
+    /// the data once but skips the expensive parts (expanding wildcard/tag ingredients and solving the graph).
+    /// Anything different → full remap and a fresh cache. <c>/emc recalc</c> always remaps.
+    /// </summary>
+    public static class EmcCache
+    {
+        public const int Format = 1;
+
+        public static string FilePath(ICoreServerAPI sapi)
+        {
+            string dir = Path.Combine(sapi.GetOrCreateDataPath(VintageEModSystem.ModId), "cache");
+            Directory.CreateDirectory(dir);
+            string world = sapi.World.SavegameIdentifier ?? "default";
+            foreach (char ch in Path.GetInvalidFileNameChars()) world = world.Replace(ch, '_');
+            return Path.Combine(dir, "emc-" + world + ".json");
+        }
+
+        public static string Fingerprint(ICoreServerAPI sapi, VintageEModSystem mod, ILogger logger)
+        {
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var sb = new StringBuilder(4096);
+            void Flush()
+            {
+                if (sb.Length == 0) return;
+                hash.AppendData(Encoding.UTF8.GetBytes(sb.ToString()));
+                sb.Clear();
+            }
+
+            // Code and versions
+            sb.Append("fmt=").Append(Format).Append('\n');
+            sb.Append("game=").Append(GameVersion.LongGameVersion).Append('\n');
+            sb.Append("self=").Append(mod.Mod?.Info?.Version).Append('|').Append(typeof(EmcCache).Assembly.ManifestModule.ModuleVersionId).Append('\n');
+            foreach (Mod m in sapi.ModLoader.Mods.OrderBy(m => m.Info?.ModID, StringComparer.Ordinal))
+            {
+                sb.Append("mod=").Append(m.Info?.ModID).Append('@').Append(m.Info?.Version).Append('\n');
+            }
+
+            // Settings and value files
+            sb.Append("config=").Append(JsonConvert.SerializeObject(mod.Config)).Append('\n');
+            foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
+            foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
+            Flush();
+
+            // Every block/item with the per-item data the mapper reads
+            foreach (CollectibleObject c in sapi.World.Collectibles)
+            {
+                if (c?.Code == null) continue;
+                sb.Append(c.ItemClass == EnumItemClass.Block ? "b:" : "i:").Append(c.Code);
+                AppendStack(sb, "smelt", c.CombustibleProps?.SmeltedStack?.ResolvedItemstack, c.CombustibleProps?.SmeltedRatio ?? 0);
+                AppendStack(sb, "grind", c.GrindingProps?.GroundStack?.ResolvedItemstack, 1);
+                AppendStack(sb, "crush", c.CrushingProps?.CrushedStack?.ResolvedItemstack, c.CrushingProps?.Quantity?.avg ?? 0);
+                if (c.TransitionableProps != null)
+                {
+                    foreach (TransitionableProperties tp in c.TransitionableProps)
+                    {
+                        if (tp != null) AppendStack(sb, "tr" + (int)tp.Type, tp.TransitionedStack?.ResolvedItemstack, tp.TransitionRatio);
+                    }
+                }
+                if (c is Block block && block.Drops != null)
+                {
+                    sb.Append("|be=").Append(block.EntityClass);
+                    foreach (BlockDropItemStack drop in block.Drops) AppendStack(sb, "drop", drop?.ResolvedItemstack, drop?.Quantity?.avg ?? 0);
+                }
+                if (c.Attributes != null)
+                {
+                    foreach (string key in new[] { "emcValue", "bakingProperties", "juiceableProperties", "distillationProps" })
+                    {
+                        var a = c.Attributes[key];
+                        if (a != null && a.Exists) sb.Append('|').Append(key).Append('=').Append(a.Token?.ToString(Formatting.None));
+                    }
+                }
+                sb.Append('\n');
+                if (sb.Length > 1 << 16) Flush();
+            }
+            Flush();
+
+            // Recipes: the crafting grid plus every recipe list any mod system holds
+            int n = 0;
+            foreach (GridRecipe r in sapi.World.GridRecipes) AppendRecipe(sb, r, ref n, hash);
+            foreach (ConversionCollector.DiscoveredRecipeList list in ConversionCollector.DiscoverRecipeLists(sapi, logger))
+            {
+                sb.Append("list=").Append(list.Label).Append('\n');
+                foreach (object recipe in list.Recipes)
+                {
+                    if (recipe is IRecipeBase rb) AppendRecipe(sb, rb, ref n, hash);
+                    else AppendObjectFields(sb, recipe);
+                    if (sb.Length > 1 << 16) { hash.AppendData(Encoding.UTF8.GetBytes(sb.ToString())); sb.Clear(); }
+                }
+            }
+            Flush();
+
+            return Convert.ToHexString(hash.GetHashAndReset());
+        }
+
+        static void AppendStack(StringBuilder sb, string tag, ItemStack stack, double qty)
+        {
+            if (stack?.Collectible == null) return;
+            sb.Append('|').Append(tag).Append('=').Append(stack.Collectible.Code).Append('*').Append(stack.StackSize).Append('x').Append(qty.ToString("R"));
+        }
+
+        static void AppendRecipe(StringBuilder sb, IRecipeBase recipe, ref int n, IncrementalHash hash)
+        {
+            try
+            {
+                sb.Append("r=").Append(recipe.Enabled ? '1' : '0').Append(recipe.Name);
+                ItemStack output = recipe.RecipeOutput?.ResolvedItemStack;
+                if (output != null) sb.Append("->").Append(output.Collectible?.Code).Append('*').Append(output.StackSize);
+                foreach (IRecipeIngredient ing in recipe.RecipeIngredients)
+                {
+                    if (ing == null) { sb.Append("|_"); continue; }
+                    RecipeIngredientConsumeProperties cp = ing.ConsumeProperties;
+                    sb.Append('|').Append(ing.Type).Append(':').Append(ing.Code).Append('*').Append(ing.Quantity)
+                      .Append(cp.Consume ? "" : "(tool)")
+                      .Append('[').Append(ing.Tags).Append(']')
+                      .Append(ing.AllowedVariants == null ? "" : string.Join(",", ing.AllowedVariants))
+                      .Append('/').Append(ing.SkipVariants == null ? "" : string.Join(",", ing.SkipVariants));
+                    ItemStack ret = ing.ReturnedStack?.ResolvedItemstack;
+                    if (ret != null) sb.Append("ret=").Append(ret.Collectible?.Code);
+                }
+                if (recipe is LayeredVoxelRecipe voxel && voxel.Voxels != null)
+                {
+                    int count = 0;
+                    foreach (bool v in voxel.Voxels) if (v) count++;
+                    sb.Append("|vox=").Append(count);
+                }
+            }
+            catch (Exception e)
+            {
+                sb.Append("|err=").Append(e.GetType().Name);
+            }
+            sb.Append('\n');
+            if (++n % 512 == 0)
+            {
+                hash.AppendData(Encoding.UTF8.GetBytes(sb.ToString()));
+                sb.Clear();
+            }
+        }
+
+        /// <summary>Alloy-shaped recipes and other non-IRecipeBase entries: hash their public fields' resolved stacks and numbers.</summary>
+        static void AppendObjectFields(StringBuilder sb, object obj)
+        {
+            if (obj == null) return;
+            sb.Append("o=");
+            foreach (var field in obj.GetType().GetFields())
+            {
+                object v = field.GetValue(obj);
+                sb.Append(field.Name).Append('=');
+                AppendValue(sb, v);
+                sb.Append(';');
+            }
+            sb.Append('\n');
+        }
+
+        static void AppendValue(StringBuilder sb, object v)
+        {
+            switch (v)
+            {
+                case null: break;
+                case JsonItemStack js:
+                    sb.Append(js.ResolvedItemstack?.Collectible?.Code).Append('*').Append(js.ResolvedItemstack?.StackSize);
+                    foreach (var f in js.GetType().GetFields().Where(f => f.DeclaringType != typeof(JsonItemStack) && (f.FieldType == typeof(float) || f.FieldType == typeof(double) || f.FieldType == typeof(int))))
+                    {
+                        sb.Append(',').Append(f.Name).Append(':').Append(f.GetValue(js));
+                    }
+                    break;
+                case string s: sb.Append(s); break;
+                case IEnumerable e:
+                    sb.Append('[');
+                    foreach (object item in e) { AppendValue(sb, item); sb.Append(','); }
+                    sb.Append(']');
+                    break;
+                default: sb.Append(v); break;
+            }
+        }
+
+        public static bool TryLoad(ICoreServerAPI sapi, string fingerprint, ILogger logger, out EmcCacheFile file, out Dictionary<CollectibleObject, double> values)
+        {
+            file = null;
+            values = null;
+            string path = FilePath(sapi);
+            if (!File.Exists(path)) return false;
+            try
+            {
+                file = JsonConvert.DeserializeObject<EmcCacheFile>(File.ReadAllText(path));
+            }
+            catch (Exception e)
+            {
+                logger.Warning("EMC cache {0} is unreadable, remapping: {1}", path, e.Message);
+                return false;
+            }
+            if (file == null || file.Format != Format || file.Fingerprint != fingerprint || file.Values == null) return false;
+
+            values = new Dictionary<CollectibleObject, double>();
+            foreach (var kv in file.Values)
+            {
+                CollectibleObject c = PlayerEmc.Resolve(sapi.World, kv.Key);
+                if (c == null)
+                {
+                    logger.Notification("EMC cache refers to {0}, which no longer exists; remapping.", kv.Key);
+                    values = null;
+                    return false;
+                }
+                values[c] = kv.Value;
+            }
+            return true;
+        }
+
+        public static void Save(ICoreServerAPI sapi, string fingerprint, EmcMappingReport report, ILogger logger)
+        {
+            try
+            {
+                var file = new EmcCacheFile
+                {
+                    Format = Format,
+                    Fingerprint = fingerprint,
+                    CreatedUtc = DateTime.UtcNow.ToString("u"),
+                    GameVersion = GameVersion.LongGameVersion,
+                    BaseCount = report.BaseCount,
+                    DerivedCount = report.DerivedCount,
+                    InferredCount = report.InferredCount,
+                    SiblingCount = report.SiblingCount,
+                    FallbackCount = report.FallbackCount,
+                    ConversionCount = report.ConversionCount,
+                    SourceCount = report.SourceCount,
+                    LoopFrozen = report.LoopFrozen,
+                    UnstableRemoved = report.UnstableRemoved
+                };
+                foreach (var kv in report.Values)
+                {
+                    string key = PlayerEmc.KeyOf(kv.Key);
+                    if (key != null) file.Values[key] = kv.Value;
+                }
+                string path = FilePath(sapi);
+                string tmp = path + ".tmp";
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(file, Formatting.Indented));
+                File.Move(tmp, path, true);
+            }
+            catch (Exception e)
+            {
+                logger.Warning("Could not write the EMC cache: {0}", e.Message);
+            }
+        }
+
+        public static void CopyCounts(EmcCacheFile from, EmcMappingReport to)
+        {
+            to.BaseCount = from.BaseCount;
+            to.DerivedCount = from.DerivedCount;
+            to.InferredCount = from.InferredCount;
+            to.SiblingCount = from.SiblingCount;
+            to.FallbackCount = from.FallbackCount;
+            to.ConversionCount = from.ConversionCount;
+            to.SourceCount = from.SourceCount;
+            to.LoopFrozen = from.LoopFrozen;
+            to.UnstableRemoved = from.UnstableRemoved;
+            to.CachedAt = from.CreatedUtc;
+        }
+    }
+}
