@@ -60,6 +60,8 @@ namespace VintageE
         public List<Edge> Edges = new List<Edge>();
         public List<JointEdge> JointEdges = new List<JointEdge>();
         public int MaxPasses = 80;
+        /// <summary>Forward/infer rounds; each round of backward inference can enable the next.</summary>
+        public int MaxRounds = 400;
         public bool InferBackwards = true;
         /// <summary>
         /// Also infer from crafting: when every ingredient of a recipe but one has a value and the output already has one,
@@ -84,7 +86,7 @@ namespace VintageE
             BuildDependencyIndex();
             Values = new Dictionary<T, double>(Fixed);
 
-            for (int round = 0; round < 32; round++)
+            for (int round = 0; round < MaxRounds; round++)
             {
                 if (!Forward())
                 {

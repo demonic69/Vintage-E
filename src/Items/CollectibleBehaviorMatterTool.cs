@@ -9,11 +9,13 @@ namespace VintageE
     /// Dark/red matter tools: never wear out, and (when <c>maxAreaRadius</c> &gt; 0) can mine a 3x3 or 5x5
     /// area facing the player — picked with the tool-mode key. Works on top of vanilla tool classes
     /// (ItemAxe keeps tree felling, ItemHoe keeps tilling, and so on).
-    /// <code>"behaviors": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ]</code>
+    /// <code>"behaviors": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1, "defaultAreaRadius": 1 } } ]</code>
+    /// defaultAreaRadius is the mode a fresh tool starts in (sledgehammers start at 3x3).
     /// </summary>
     public class CollectibleBehaviorMatterTool : CollectibleBehavior
     {
         int maxRadius;
+        int defaultRadius;
         SkillItem[] toolModes;
 
         public CollectibleBehaviorMatterTool(CollectibleObject collObj) : base(collObj) { }
@@ -22,6 +24,7 @@ namespace VintageE
         {
             base.Initialize(properties);
             maxRadius = properties?["maxAreaRadius"].AsInt(0) ?? 0;
+            defaultRadius = System.Math.Clamp(properties?["defaultAreaRadius"].AsInt(0) ?? 0, 0, maxRadius);
         }
 
         public override void OnLoaded(ICoreAPI api)
@@ -38,7 +41,7 @@ namespace VintageE
 
         public override SkillItem[] GetToolModes(ItemSlot slot, IClientPlayer forPlayer, BlockSelection blockSel) => toolModes;
 
-        public override int GetToolMode(ItemSlot slot, IPlayer byPlayer, BlockSelection blockSelection) => maxRadius > 0 ? AreaToolModes.GetRadius(slot) : 0;
+        public override int GetToolMode(ItemSlot slot, IPlayer byPlayer, BlockSelection blockSelection) => maxRadius > 0 ? AreaToolModes.GetRadius(slot, defaultRadius) : 0;
 
         public override void SetToolMode(ItemSlot slot, IPlayer byPlayer, BlockSelection blockSelection, int toolMode)
         {
@@ -55,7 +58,7 @@ namespace VintageE
         {
             // Runs before the targeted block breaks; we only add the surrounding ones and let the normal break continue.
             if (world.Side != EnumAppSide.Server || maxRadius <= 0 || blockSel == null) return true;
-            int radius = System.Math.Min(AreaToolModes.GetRadius(itemslot), maxRadius);
+            int radius = System.Math.Min(AreaToolModes.GetRadius(itemslot, defaultRadius), maxRadius);
             if (radius <= 0) return true;
 
             IPlayer player = (byEntity as EntityPlayer)?.Player;

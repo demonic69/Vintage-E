@@ -73,6 +73,7 @@ namespace VintageE
             foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append(r.PerLitre ? "/L=" : "=").Append(r.Value.ToString("R")).Append('\n');
             foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
             foreach (string a in mod.Rules.Allow) sb.Append("allow=").Append(a).Append('\n');
+            foreach (string a in mod.Rules.TraderCurrency) sb.Append("currency=").Append(a).Append('\n');
             foreach (EmcValueRule r in mod.Rules.Defaults) sb.Append("default=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
             foreach (RelativeValueRule r in mod.Rules.Relative) sb.Append("rel=").Append(r.Source).Append('|').Append(r.Code).Append('=').Append(r.Of).Append('*').Append(r.Ratio.ToString("R")).Append('\n');
             sb.Append("hoursPerDay=").Append(sapi.World.Calendar?.HoursPerDay).Append('\n');

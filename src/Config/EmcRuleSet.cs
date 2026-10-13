@@ -57,6 +57,8 @@ namespace VintageE
         public List<string> Blacklist = new List<string>();
         /// <summary>Exceptions to the blacklist ("allow": ["game:creature-butterfly-*"]), applied after it.</summary>
         public List<string> Allow = new List<string>();
+        /// <summary>"traderCurrency": items worth exactly the measured EMC per unit of trader currency (rusty gears).</summary>
+        public List<string> TraderCurrency = new List<string>();
         public WorldTransmutationRules WorldTransmutation = new WorldTransmutationRules();
         public List<string> LoadedFiles = new List<string>();
 
@@ -145,6 +147,10 @@ namespace VintageE
             if (root["blacklist"] is JArray bl)
             {
                 Blacklist.AddRange(bl.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["traderCurrency"] is JArray currency)
+            {
+                TraderCurrency.AddRange(currency.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
             }
             if (root["allow"] is JArray allow)
             {

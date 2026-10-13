@@ -35,6 +35,13 @@ def by_type(obj, key, code):
 def subst(s, variant):
     return re.sub(r"\{(\w+)\}", lambda m: variant.get(m.group(1), m.group(0)), s)
 
+def local(path):
+    """Path inside this mod for an asset reference, or None for another domain (game assets can't be checked here)."""
+    if ":" in path:
+        dom, path = path.split(":", 1)
+        if dom != "vintagee": return None
+    return path
+
 codes = {}
 for kind in ("itemtypes", "blocktypes"):
     for f in sorted(os.listdir(os.path.join(A, kind))):
@@ -48,11 +55,12 @@ for kind in ("itemtypes", "blocktypes"):
             ts = by_type(obj, "textures", code) or {}
             texs += [v["base"] for v in ts.values()]
             for tex in texs:
-                p = os.path.join(A, "textures", subst(tex, variant) + ".png")
+                if local(tex) is None: continue
+                p = os.path.join(A, "textures", subst(local(tex), variant) + ".png")
                 if not os.path.exists(p): errors.append(f"{code}: missing texture {p}")
             sh = by_type(obj, "shape", code)
-            if sh:
-                p = os.path.join(A, "shapes", subst(sh["base"], variant) + ".json")
+            if sh and local(sh["base"]) is not None:
+                p = os.path.join(A, "shapes", subst(local(sh["base"]), variant) + ".json")
                 if not os.path.exists(p): errors.append(f"{code}: missing shape {p}")
                 else:
                     shape = load(p)
@@ -66,7 +74,7 @@ for dp, _, fs in os.walk(SRC):
     for f in fs:
         if f.endswith(".cs"): cs += open(os.path.join(dp, f), encoding="utf-8").read()
 registered = set(re.findall(r'Register(?:Item|Block|BlockEntity|CollectibleBehavior)Class\("(\w+)"', cs))
-vanilla_classes = {"ItemAxe", "ItemHoe", "ItemHammer", "Item", "Block"}
+vanilla_classes = {"ItemAxe", "ItemHoe", "ItemHammer", "ItemShears", "Item", "Block", "GroundStorable", "AnimationAuthoritative", "Wearable", "GenericTypedContainer", "Container", "HeldBag", "Lockable", "BlockGeneric", "BlockContainer", "Unstable", "HorizontalOrientable", "OmniRotatable"}
 for kind in ("itemtypes", "blocktypes"):
     for f in os.listdir(os.path.join(A, kind)):
         obj = load(os.path.join(A, kind, f)) or {}

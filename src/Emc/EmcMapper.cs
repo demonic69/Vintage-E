@@ -132,6 +132,17 @@ namespace VintageE
                         traders.TraderCount, traders.PricePerItem.Count, samples, rate);
                     if (rate > 0)
                     {
+                        // The currency itself (rusty gears) is worth what it buys, so selling things for gears and
+                        // burning the gears can never come out ahead.
+                        foreach (string pattern in rules.TraderCurrency)
+                        {
+                            foreach (CollectibleObject c in index.Match(pattern))
+                            {
+                                if (excluded.Contains(c) || PinnedByConfig(index, c)) continue;
+                                extra[c] = rate;
+                                extraOrigin[c] = string.Format(System.Globalization.CultureInfo.InvariantCulture, "trader currency: {0:0.##} EMC per gear, measured on {1} traded items", rate, samples);
+                            }
+                        }
                         foreach (var kv in traders.PricePerItem)
                         {
                             CollectibleObject c = kv.Key;
@@ -186,11 +197,21 @@ namespace VintageE
                     }
                 }
             }
+            EmcSolver<CollectibleObject> firstSolver = solver;
             if (extra.Count > 0)
             {
                 var seeded = new Dictionary<CollectibleObject, double>(fixedValues);
                 foreach (var kv in extra) seeded[kv.Key] = kv.Value;
                 solver = Solve(seeded, excluded, edges, joints);
+                // Backward inference depends on what's known when it runs, so the second solve can occasionally
+                // miss something the first one valued. Keep those first values.
+                foreach (var kv in firstSolver.Values)
+                {
+                    if (solver.Values.ContainsKey(kv.Key) || excluded.Contains(kv.Key) || solver.Unstable.Contains(kv.Key)) continue;
+                    solver.Values[kv.Key] = kv.Value;
+                    if (firstSolver.Via.TryGetValue(kv.Key, out object via)) solver.Via[kv.Key] = via;
+                    if (firstSolver.Inferred.ContainsKey(kv.Key)) solver.Inferred[kv.Key] = kv.Value;
+                }
             }
 
             report.Values = new Dictionary<CollectibleObject, double>();
@@ -210,8 +231,8 @@ namespace VintageE
             foreach (CollectibleObject c in report.Values.Keys)
             {
                 string origin;
-                if (fixedValues.ContainsKey(c)) origin = "base value";
-                else if (extraOrigin.TryGetValue(c, out string how)) origin = how;
+                if (extraOrigin.TryGetValue(c, out string how)) origin = how;
+                else if (fixedValues.ContainsKey(c)) origin = "base value";
                 else if (solver.Via.TryGetValue(c, out object via))
                 {
                     object tag = via is EmcSolver<CollectibleObject>.Edge ed ? ed.Tag : via is EmcSolver<CollectibleObject>.JointEdge je ? je.Tag : via;
@@ -325,6 +346,16 @@ namespace VintageE
         /// relativeValues rules: an unvalued item matching Code gets Ratio × the value of the item named by Of,
         /// with the '*' part of Code carried over ("game:metalbit-*" of "game:ingot-*" → metalbit-copper from ingot-copper).
         /// </summary>
+        /// <summary>True if the server owner set this item's value by hand (ModConfig BaseValues/FixedValues).</summary>
+        bool PinnedByConfig(CollectibleIndex index, CollectibleObject c)
+        {
+            foreach (string key in config.FixedValues.Keys.Concat(config.BaseValues.Keys))
+            {
+                if (index.Match(key).Contains(c)) return true;
+            }
+            return false;
+        }
+
         /// <summary>"grid: 1 game:log-placed-oak-ud (+11 more) -> 12" — a short, human-readable description of a conversion.</summary>
         internal static string Describe(Conversion conv)
         {

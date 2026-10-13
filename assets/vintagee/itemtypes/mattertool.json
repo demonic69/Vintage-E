@@ -1,13 +1,28 @@
 {
   "code": "mattertool",
   "variantgroups": [
-    { "code": "material", "states": [ "dark", "red" ] },
-    { "code": "tool", "states": [ "pickaxe", "shovel", "axe", "sword", "hoe", "hammer" ] }
+    {
+      "code": "material",
+      "states": [
+        "dark",
+        "red"
+      ]
+    },
+    {
+      "code": "tool",
+      "states": [
+        "pickaxe",
+        "shovel",
+        "axe",
+        "sword",
+        "hoe",
+        "hammer"
+      ]
+    }
   ],
   "classByType": {
     "*-axe": "ItemAxe",
-    "*-hoe": "ItemHoe",
-    "*-hammer": "ItemHammer"
+    "*-hoe": "ItemHoe"
   },
   "toolByType": {
     "*-pickaxe": "pickaxe",
@@ -15,43 +30,1229 @@
     "*-axe": "axe",
     "*-sword": "sword",
     "*-hoe": "hoe",
-    "*-hammer": "hammer"
+    "*-hammer": "pickaxe"
   },
   "behaviorsByType": {
-    "*-dark-pickaxe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
-    "*-dark-shovel": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
-    "*-dark-axe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
-    "*-red-pickaxe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
-    "*-red-shovel": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
-    "*-red-axe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
-    "*": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 0 } } ]
+    "*-dark-pickaxe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 1
+        }
+      }
+    ],
+    "*-dark-shovel": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 2,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 1
+        }
+      }
+    ],
+    "*-dark-axe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 1
+        }
+      },
+      {
+        "name": "AnimationAuthoritative",
+        "properties": {
+          "onlyOnEntity": true
+        }
+      }
+    ],
+    "*-dark-sword": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      },
+      {
+        "name": "AnimationAuthoritative"
+      }
+    ],
+    "*-dark-hoe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      }
+    ],
+    "*-dark-hammer": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 1,
+          "defaultAreaRadius": 1
+        }
+      }
+    ],
+    "*-red-pickaxe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2
+        }
+      }
+    ],
+    "*-red-shovel": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 2,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2
+        }
+      }
+    ],
+    "*-red-axe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2
+        }
+      },
+      {
+        "name": "AnimationAuthoritative",
+        "properties": {
+          "onlyOnEntity": true
+        }
+      }
+    ],
+    "*-red-sword": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      },
+      {
+        "name": "AnimationAuthoritative"
+      }
+    ],
+    "*-red-hoe": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 0
+        }
+      }
+    ],
+    "*-red-hammer": [
+      {
+        "name": "GroundStorable",
+        "properties": {
+          "layout": "WallHalves",
+          "wallOffY": 1,
+          "ctrlKey": true,
+          "selectionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 1,
+            "y2": 0.1,
+            "z2": 1
+          },
+          "collisionBox": {
+            "x1": 0,
+            "y1": 0,
+            "z1": 0,
+            "x2": 0,
+            "y2": 0,
+            "z2": 0
+          }
+        }
+      },
+      {
+        "name": "VintageEMatterTool",
+        "properties": {
+          "maxAreaRadius": 2,
+          "defaultAreaRadius": 1
+        }
+      }
+    ]
   },
   "maxstacksize": 1,
-  "creativeinventory": { "general": [ "*" ], "tools": [ "*" ], "vintagee": [ "*" ] },
-  "texture": { "base": "item/tool/{material}matter-{tool}" },
+  "creativeinventory": {
+    "general": [
+      "*"
+    ],
+    "tools": [
+      "*"
+    ],
+    "vintagee": [
+      "*"
+    ]
+  },
+  "shapeByType": {
+    "*-pickaxe": {
+      "base": "game:item/tool/pickaxe-iron"
+    },
+    "*-shovel": {
+      "base": "game:item/tool/shovel-copper"
+    },
+    "*-axe": {
+      "base": "game:item/tool/axe/iron"
+    },
+    "*-sword": {
+      "base": "game:item/tool/blade/falx"
+    },
+    "*-hoe": {
+      "base": "game:item/tool/hoe-copper"
+    },
+    "*-hammer": {
+      "base": "vintagee:item/tool/sledgehammer"
+    }
+  },
+  "texturesByType": {
+    "*-dark-pickaxe": {
+      "metal": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-dark-shovel": {
+      "material": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-dark-axe": {
+      "material": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-dark-sword": {
+      "falxblade": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handguard": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "spinerivet": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "falxstring": {
+        "base": "game:block/transparent"
+      },
+      "thongs": {
+        "base": "game:block/transparent"
+      },
+      "woodguard": {
+        "base": "game:block/transparent"
+      },
+      "cloth": {
+        "base": "game:block/transparent"
+      },
+      "pips": {
+        "base": "game:block/transparent"
+      }
+    },
+    "*-dark-hoe": {
+      "material": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-dark-hammer": {
+      "head": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "handle": {
+        "base": "game:block/wood/debarked/ebony"
+      },
+      "band": {
+        "base": "vintagee:item/tool/material/redmatter"
+      }
+    },
+    "*-red-pickaxe": {
+      "metal": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-red-shovel": {
+      "material": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-red-axe": {
+      "material": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-red-sword": {
+      "falxblade": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handguard": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "spinerivet": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "falxstring": {
+        "base": "game:block/transparent"
+      },
+      "thongs": {
+        "base": "game:block/transparent"
+      },
+      "woodguard": {
+        "base": "game:block/transparent"
+      },
+      "cloth": {
+        "base": "game:block/transparent"
+      },
+      "pips": {
+        "base": "game:block/transparent"
+      }
+    },
+    "*-red-hoe": {
+      "material": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "string": {
+        "base": "game:item/resource/string"
+      }
+    },
+    "*-red-hammer": {
+      "head": {
+        "base": "vintagee:item/tool/material/redmatter"
+      },
+      "handle": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      },
+      "band": {
+        "base": "vintagee:item/tool/material/darkmatter"
+      }
+    }
+  },
+  "heldTpHitAnimationByType": {
+    "*-pickaxe": "pickaxe",
+    "*-shovel": "shoveldig",
+    "*-axe": "axechop",
+    "*-sword": "falx",
+    "*-hoe": "breaktool",
+    "*-hammer": "pickaxe"
+  },
+  "heldTpUseAnimationByType": {
+    "*-shovel": "interactStaticLong",
+    "*-hoe": "hoe",
+    "*": "interactstatic"
+  },
+  "heldTpIdleAnimationByType": {
+    "*-shovel": "shovelidle"
+  },
+  "heldRightReadyAnimationByType": {
+    "*-shovel": "shovelready",
+    "*": "helditemready"
+  },
+  "guiTransformByType": {
+    "*-pickaxe": {
+      "rotation": {
+        "x": -89,
+        "y": 47,
+        "z": 33
+      },
+      "origin": {
+        "x": 0.65,
+        "y": 0,
+        "z": 0.47
+      },
+      "scale": 1.49
+    },
+    "*-shovel": {
+      "rotation": {
+        "x": -115,
+        "y": -28,
+        "z": 139
+      },
+      "origin": {
+        "x": 0.7,
+        "y": 0,
+        "z": 0.55
+      }
+    },
+    "*-axe": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -63,
+        "y": -123,
+        "z": -180
+      },
+      "origin": {
+        "x": 0.61,
+        "y": 0,
+        "z": 0.47
+      },
+      "scale": 1.58
+    },
+    "*-sword": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -53,
+        "y": 118,
+        "z": -5
+      },
+      "origin": {
+        "x": 0.65,
+        "y": 0.1,
+        "z": 0.37
+      },
+      "scale": 1.65
+    },
+    "*-hoe": {
+      "rotate": false,
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -56,
+        "y": -127,
+        "z": -180
+      },
+      "origin": {
+        "x": 0.35,
+        "y": 0,
+        "z": 0.55
+      },
+      "scale": 1.43
+    },
+    "*-hammer": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": -77,
+        "y": 46,
+        "z": 8
+      },
+      "origin": {
+        "x": 0.76,
+        "y": 0.5,
+        "z": 0.5
+      },
+      "scale": 1.55
+    }
+  },
+  "tpHandTransformByType": {
+    "*-pickaxe": {
+      "translation": {
+        "x": -0.87,
+        "y": -0.01,
+        "z": -0.56
+      },
+      "rotation": {
+        "x": -90,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 0.8
+    },
+    "*-shovel": {
+      "translation": {
+        "x": -1.69,
+        "y": -0.29,
+        "z": -0.6
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": -10
+      },
+      "scale": 0.8
+    },
+    "*-axe": {
+      "translation": {
+        "x": -0.43,
+        "y": -0.52,
+        "z": -0.07
+      },
+      "rotation": {
+        "x": 90,
+        "y": 0,
+        "z": 0
+      },
+      "scale": 0.95
+    },
+    "*-sword": {
+      "translation": {
+        "x": -1.03,
+        "y": -0.005,
+        "z": -0.66
+      },
+      "rotation": {
+        "x": 85,
+        "y": 0,
+        "z": 2
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 0.8
+    },
+    "*-hoe": {
+      "translation": {
+        "x": -1,
+        "y": -0.5,
+        "z": -0.08
+      },
+      "rotation": {
+        "x": 90,
+        "y": 0,
+        "z": -5
+      },
+      "scale": 1
+    },
+    "*-hammer": {
+      "translation": {
+        "x": -0.65,
+        "y": -0.48,
+        "z": -0.52
+      },
+      "rotation": {
+        "x": 90,
+        "y": 1,
+        "z": 0
+      },
+      "scale": 1
+    }
+  },
+  "groundTransformByType": {
+    "*-pickaxe": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.4
+    },
+    "*-shovel": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.6
+    },
+    "*-axe": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.6
+    },
+    "*-sword": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.4
+    },
+    "*-hoe": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0.5
+      },
+      "scale": 3.6
+    },
+    "*-hammer": {
+      "translation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "origin": {
+        "x": 0.73,
+        "y": 0.45,
+        "z": 0.5
+      },
+      "scale": 2.7
+    }
+  },
+  "attributesByType": {
+    "*-pickaxe": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-pickaxe"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 2.5,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.1,
+          "y": 0.59
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": 0.1,
+          "z": -0.105
+        },
+        "rotation": {
+          "x": 20,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.88
+      }
+    },
+    "*-shovel": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-shovel"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 1,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.47,
+          "y": 0.6
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": 0.59,
+          "z": -0.15
+        },
+        "rotation": {
+          "x": 13,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.88
+      }
+    },
+    "*-axe": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-axe"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 1,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.3,
+          "y": 0.6
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": 0.1,
+          "z": -0.105
+        },
+        "rotation": {
+          "x": 20,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.88
+      }
+    },
+    "*-sword": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-sword"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 180,
+          "z": 1
+        },
+        "translation": {
+          "x": -0.1,
+          "y": 0.6
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0.24,
+          "y": 0.195,
+          "z": -0.06
+        },
+        "rotation": {
+          "x": 24,
+          "y": 61,
+          "z": -87
+        },
+        "scale": 0.88
+      }
+    },
+    "*-hoe": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-hoe"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 1,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.25,
+          "y": 0.6
+        },
+        "scale": 1.25
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": 0.04,
+          "z": -0.25
+        },
+        "rotation": {
+          "x": 23,
+          "y": 87,
+          "z": -90
+        },
+        "scale": 0.88
+      }
+    },
+    "*-hammer": {
+      "handbook": {
+        "groupBy": [
+          "mattertool-*-hammer"
+        ]
+      },
+      "attachableToEntity": {
+        "categoryCode": "toolholding"
+      },
+      "toolrackTransform": {
+        "rotation": {
+          "y": 1,
+          "z": -1
+        },
+        "translation": {
+          "x": -0.2,
+          "y": 0.02
+        },
+        "scale": 0.9
+      },
+      "groundStorageTransform": {
+        "translation": {
+          "x": 0,
+          "y": -0.16,
+          "z": 0.33
+        },
+        "rotation": {
+          "x": 26,
+          "y": 88,
+          "z": -87
+        },
+        "scale": 0.6
+      }
+    }
+  },
   "tooltierByType": {
     "*-dark-*": 5,
     "*-red-*": 6
   },
   "miningspeedByType": {
-    "*-dark-pickaxe": { "stone": 9, "ore": 9, "metal": 9, "ice": 9, "brick": 9, "ceramic": 9, "glass": 9 },
-    "*-red-pickaxe": { "stone": 14, "ore": 14, "metal": 14, "ice": 14, "brick": 14, "ceramic": 14, "glass": 14 },
-    "*-dark-shovel": { "soil": 9, "sand": 9, "gravel": 9, "snow": 9 },
-    "*-red-shovel": { "soil": 14, "sand": 14, "gravel": 14, "snow": 14 },
-    "*-dark-axe": { "wood": 9, "plant": 6, "leaves": 6 },
-    "*-red-axe": { "wood": 14, "plant": 9, "leaves": 9 },
-    "*-dark-sword": { "plant": 4, "leaves": 4 },
-    "*-red-sword": { "plant": 6, "leaves": 6 },
-    "*-dark-hoe": { "soil": 5, "plant": 5 },
-    "*-red-hoe": { "soil": 8, "plant": 8 },
-    "*-dark-hammer": { "stone": 4, "ore": 4, "metal": 4 },
-    "*-red-hammer": { "stone": 6, "ore": 6, "metal": 6 }
+    "*-dark-pickaxe": {
+      "stone": 9,
+      "ore": 9,
+      "metal": 9,
+      "ice": 9,
+      "brick": 9,
+      "ceramic": 9,
+      "glass": 9
+    },
+    "*-dark-shovel": {
+      "soil": 9,
+      "sand": 9,
+      "gravel": 9,
+      "snow": 9
+    },
+    "*-dark-axe": {
+      "wood": 9,
+      "plant": 6,
+      "leaves": 6
+    },
+    "*-dark-sword": {
+      "plant": 4,
+      "leaves": 4
+    },
+    "*-dark-hoe": {
+      "soil": 5,
+      "plant": 5
+    },
+    "*-dark-hammer": {
+      "stone": 8,
+      "ore": 8,
+      "metal": 8,
+      "ice": 8,
+      "brick": 8,
+      "ceramic": 8,
+      "glass": 8
+    },
+    "*-red-pickaxe": {
+      "stone": 14,
+      "ore": 14,
+      "metal": 14,
+      "ice": 14,
+      "brick": 14,
+      "ceramic": 14,
+      "glass": 14
+    },
+    "*-red-shovel": {
+      "soil": 14,
+      "sand": 14,
+      "gravel": 14,
+      "snow": 14
+    },
+    "*-red-axe": {
+      "wood": 14,
+      "plant": 9,
+      "leaves": 9
+    },
+    "*-red-sword": {
+      "plant": 6,
+      "leaves": 6
+    },
+    "*-red-hoe": {
+      "soil": 8,
+      "plant": 8
+    },
+    "*-red-hammer": {
+      "stone": 12,
+      "ore": 12,
+      "metal": 12,
+      "ice": 12,
+      "brick": 12,
+      "ceramic": 12,
+      "glass": 12
+    }
   },
   "attackpowerByType": {
     "*-dark-sword": 8,
     "*-red-sword": 11,
     "*-dark-axe": 5,
     "*-red-axe": 7,
+    "*-dark-hammer": 5,
+    "*-red-hammer": 7,
     "*-dark-*": 3.5,
     "*-red-*": 4.5
   },

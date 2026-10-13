@@ -1,5 +1,5 @@
 {
-  "//": "Vintage-E base EMC values. Only raw materials need a value here: everything crafted, smelted, smithed, knapped, ground, cured, alloyed etc. is worked out from recipes when the server starts. Keys are codes or wildcards; prefix with item: or block: to restrict the type. Later entries override earlier ones, so list general patterns first. Other mods can ship their own assets/<modid>/config/vintagee-emc.json (loaded after this one) or JSON-patch this file. A value of 0 means 'no EMC'. Rusty gears are 46: what traders pay/charge per gear for things that have a value (logged at start) - higher would let you sell goods for gears and burn the gears at a profit. Soil is worth more the more fertile it is (very low 1, low 2, medium 4, compost 8, high/terra preta 16).",
+  "//": "Vintage-E base EMC values. Only raw materials need a value here: everything crafted, smelted, smithed, knapped, ground, cured, alloyed etc. is worked out from recipes when the server starts. Keys are codes or wildcards; prefix with item: or block: to restrict the type. Later entries override earlier ones, so list general patterns first. Other mods can ship their own assets/<modid>/config/vintagee-emc.json (loaded after this one) or JSON-patch this file. A value of 0 means 'no EMC'. Rusty gears follow trader prices (see traderCurrency) so selling goods for gears and burning the gears can't make EMC. Soil is worth more the more fertile it is (very low 1, low 2, medium 4, compost 8, high/terra preta 16).",
   "values": {
     "game:rock-*": 1,
     "game:stone-*": 1,
@@ -166,7 +166,7 @@
     },
     {
       "code": "game:metalblock-corroded-plain-*",
-      "of": "game:metalblock-new-plain-*",
+      "of": "game:metalblock-new-riveted-*",
       "ratio": 1
     },
     {
@@ -263,6 +263,7 @@
     "game:diamond-*": 4,
     "game:agedwallpaperplanks-*": 16,
     "game:clayshattered-*": 4,
+    "game:clutter*": 32,
     "game:clutteredbookshelf*": 64,
     "game:bookshelves-*": 64,
     "game:cage-*": 32,
@@ -271,7 +272,6 @@
     "game:paperlantern-*": 16,
     "game:armorstand-*": 64,
     "game:quiver": 32,
-    "game:clutter*": 32,
     "game:blade-*-ruined": 64,
     "game:axe-*-ruined": 64,
     "game:knife-*-ruined": 48,
@@ -294,8 +294,18 @@
     "game:riftward": 256,
     "game:firepit-*": 16,
     "game:acid-*": 64,
-    "game:clothes-*": 32
+    "game:clothes-*": 32,
+    "game:metalblock-*": 512,
+    "game:metalsheet-*": 256,
+    "game:polishedrockold-*": 2,
+    "game:dirtyclaypot-*": 26,
+    "game:supportbeam-*": 128,
+    "game:rocktyped-*": 1
   },
+  "//traderCurrency": "Worth exactly the EMC one unit of trader currency buys, measured each start from traders' prices (the 'values' entry is only used if trader prices are off).",
+  "traderCurrency": [
+    "game:gear-rusty"
+  ],
   "blacklist": [
     "game:creative*",
     "game:*-creative*",

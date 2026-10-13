@@ -44,7 +44,7 @@ namespace VintageE
             ctx.Fill();
         }
 
-        public static int GetRadius(ItemSlot slot) => slot?.Itemstack?.Attributes?.GetInt(AttributeKey, 0) ?? 0;
+        public static int GetRadius(ItemSlot slot, int defaultRadius = 0) => slot?.Itemstack?.Attributes?.GetInt(AttributeKey, defaultRadius) ?? defaultRadius;
 
         public static void SetRadius(ItemSlot slot, int radius)
         {
