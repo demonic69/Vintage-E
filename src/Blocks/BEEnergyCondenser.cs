@@ -1,0 +1,365 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using Vintagestory.API.Client;
+using Vintagestory.API.Common;
+using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+
+namespace VintageE
+{
+    /// <summary>
+    /// Put an item in the target slot and the condenser makes copies of it: it burns everything else
+    /// in its storage into EMC (and takes EMC from neighbouring collectors), then spends that EMC on
+    /// copies of the target. Works with hoppers and chutes like any container.
+    /// Rates come from block attributes: <c>itemsPerSecond</c>, <c>outputsPerSecond</c>, <c>capacity</c>, <c>storageSlots</c>.
+    /// </summary>
+    public class BEEnergyCondenser : BlockEntity, IBlockEntityContainer, IEmcAcceptor, IEmcInteractable
+    {
+        public const int TargetSlot = 0;
+
+        CondenserInventory inventory;
+        GuiDialogCondenser dialog;
+
+        public double Stored;
+        double capacity = 1000000;
+        double itemsPerSecond = 4;
+        double outputsPerSecond = 1;
+        double burnBudget, makeBudget;
+
+        public IInventory Inventory => inventory;
+        public string InventoryClassName => "vintageecondenser";
+
+        public BEEnergyCondenser()
+        {
+            inventory = new CondenserInventory(41);
+        }
+
+        public override void Initialize(ICoreAPI api)
+        {
+            base.Initialize(api);
+
+            JsonObject attrs = Block?.Attributes ?? api.World.BlockAccessor.GetBlock(Pos)?.Attributes;
+            int storage = attrs?["storageSlots"].AsInt(40) ?? 40;
+            if (storage + 1 != inventory.Count)
+            {
+                var resized = new CondenserInventory(storage + 1);
+                for (int i = 0; i < Math.Min(resized.Count, inventory.Count); i++) resized[i].Itemstack = inventory[i].Itemstack;
+                inventory = resized;
+            }
+            capacity = attrs?["capacity"].AsDouble(1000000) ?? 1000000;
+            itemsPerSecond = attrs?["itemsPerSecond"].AsDouble(4) ?? 4;
+            outputsPerSecond = attrs?["outputsPerSecond"].AsDouble(1) ?? 1;
+
+            inventory.LateInitialize(InventoryClassName + "-" + Pos.X + "/" + Pos.Y + "/" + Pos.Z, api);
+            inventory.Pos = Pos;
+            inventory.ResolveBlocksOrItems();
+            inventory.SlotModified += OnSlotModified;
+
+            if (api.Side == EnumAppSide.Server)
+            {
+                RegisterGameTickListener(OnServerTick, 500);
+            }
+        }
+
+        VintageEModSystem Mod => Api.ModLoader.GetModSystem<VintageEModSystem>();
+
+        void OnSlotModified(int slotId)
+        {
+            if (Api?.Side == EnumAppSide.Server)
+            {
+                MarkDirty(false);
+                Api.World.BlockAccessor.GetChunkAtBlockPos(Pos)?.MarkModified();
+            }
+        }
+
+        public double TargetValue
+        {
+            get
+            {
+                ItemStack target = inventory[TargetSlot].Itemstack;
+                return target == null ? 0 : (Mod?.Emc.GetValue(target.Collectible) ?? 0);
+            }
+        }
+
+        void OnServerTick(float dt)
+        {
+            var mod = Mod;
+            if (mod == null) return;
+            double speed = mod.Config.MachineSpeedMultiplier;
+            ItemStack target = inventory[TargetSlot].Itemstack;
+            double targetValue = target == null ? 0 : mod.Emc.GetValue(target.Collectible);
+            bool changed = false;
+
+            // 1. Burn storage (anything that isn't the target) into EMC, while there's room for it.
+            burnBudget = Math.Min(burnBudget + itemsPerSecond * speed * dt, itemsPerSecond * speed * 2 + 1);
+            for (int i = 1; i < inventory.Count && burnBudget >= 1; i++)
+            {
+                ItemSlot slot = inventory[i];
+                ItemStack stack = slot.Itemstack;
+                if (stack == null) continue;
+                if (target != null && stack.Collectible == target.Collectible) continue;
+                if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack)) continue;
+                double value = mod.Emc.GetValue(stack);
+                if (value <= 0 || Stored + value > capacity) continue;
+
+                int n = (int)Math.Min(Math.Floor(burnBudget), Math.Min(stack.StackSize, Math.Floor((capacity - Stored) / value)));
+                if (n <= 0) continue;
+                slot.TakeOut(n);
+                slot.MarkDirty();
+                Stored += value * n;
+                burnBudget -= n;
+                changed = true;
+            }
+
+            // 2. Spend EMC on copies of the target.
+            if (targetValue > 0)
+            {
+                makeBudget = Math.Min(makeBudget + outputsPerSecond * speed * dt, outputsPerSecond * speed * 2 + 1);
+                while (makeBudget >= 1 && Stored >= targetValue)
+                {
+                    if (!Insert(new ItemStack(target.Collectible, 1))) break;
+                    Stored -= targetValue;
+                    makeBudget -= 1;
+                    changed = true;
+                }
+            }
+            else
+            {
+                makeBudget = 0;
+            }
+
+            if (changed) MarkDirty(false);
+        }
+
+        bool Insert(ItemStack stack)
+        {
+            // Prefer topping up an existing stack, then the first empty slot.
+            for (int pass = 0; pass < 2; pass++)
+            {
+                for (int i = 1; i < inventory.Count; i++)
+                {
+                    ItemSlot slot = inventory[i];
+                    if (pass == 0)
+                    {
+                        if (slot.Itemstack == null || slot.Itemstack.Collectible != stack.Collectible) continue;
+                        if (!slot.Itemstack.Equals(Api.World, stack, GlobalConstants.IgnoredStackAttributes)) continue;
+                        if (slot.StackSize + stack.StackSize > slot.Itemstack.Collectible.MaxStackSize) continue;
+                        slot.Itemstack.StackSize += stack.StackSize;
+                        slot.MarkDirty();
+                        return true;
+                    }
+                    if (slot.Itemstack == null)
+                    {
+                        slot.Itemstack = stack;
+                        slot.MarkDirty();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public double AcceptEmc(double amount)
+        {
+            if (amount <= 0) return 0;
+            double take = Math.Min(amount, capacity - Stored);
+            if (take <= 0) return 0;
+            Stored += take;
+            return take;
+        }
+
+        #region GUI and networking (same protocol as vanilla containers)
+
+        public void DropContents(Vec3d atPos)
+        {
+            inventory.DropAll(atPos);
+        }
+
+        public void CheckInventoryClearedMidTick() { }
+
+        public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
+        {
+            if (Api.Side == EnumAppSide.Client) ToggleDialog(byPlayer);
+            return true;
+        }
+
+        void ToggleDialog(IPlayer byPlayer)
+        {
+            var capi = (ICoreClientAPI)Api;
+            if (dialog == null)
+            {
+                string title = Block.GetPlacedBlockName(Api.World, Pos);
+                dialog = new GuiDialogCondenser(title, inventory, Pos, capi, this);
+                dialog.OnClosed += () => { dialog?.Dispose(); dialog = null; };
+                dialog.TryOpen();
+                capi.Network.SendPacketClient(inventory.Open(byPlayer));
+                capi.Network.SendBlockEntityPacket(Pos, (int)EnumBlockEntityPacketId.Open);
+            }
+            else
+            {
+                dialog.TryClose();
+            }
+        }
+
+        public override void OnReceivedClientPacket(IPlayer player, int packetid, byte[] data)
+        {
+            if (packetid == (int)EnumBlockEntityPacketId.Close)
+            {
+                player.InventoryManager?.CloseInventory(inventory);
+                return;
+            }
+            bool allowed = Api.World.Claims.TryAccess(player, Pos, EnumBlockAccessFlags.Use);
+            if (packetid == (int)EnumBlockEntityPacketId.Open)
+            {
+                if (allowed)
+                {
+                    player.InventoryManager?.OpenInventory(inventory);
+                }
+                return;
+            }
+            if (packetid < 1000)
+            {
+                if (!allowed)
+                {
+                    inventory.InvNetworkUtil.SendInventoryRollback((IServerPlayer)player, packetid, data);
+                    return;
+                }
+                inventory.InvNetworkUtil.HandleClientPacket(player, packetid, data);
+                Api.World.BlockAccessor.GetChunkAtBlockPos(Pos)?.MarkModified();
+            }
+        }
+
+        public override void OnReceivedServerPacket(int packetid, byte[] data)
+        {
+            if (packetid == (int)EnumBlockEntityPacketId.Close)
+            {
+                (Api as ICoreClientAPI)?.World.Player.InventoryManager.CloseInventory(inventory);
+                dialog?.TryClose();
+            }
+        }
+
+        #endregion
+
+        #region Lifecycle and persistence
+
+        public override void OnBlockBroken(IPlayer byPlayer = null)
+        {
+            if (Api.Side == EnumAppSide.Server && !inventory.Empty)
+            {
+                inventory.DropAll(Pos.ToVec3d().Add(0.5, 0.5, 0.5));
+            }
+            base.OnBlockBroken(byPlayer);
+        }
+
+        public override void OnBlockRemoved()
+        {
+            base.OnBlockRemoved();
+            dialog?.TryClose();
+        }
+
+        public override void OnBlockUnloaded()
+        {
+            base.OnBlockUnloaded();
+            dialog?.TryClose();
+        }
+
+        public override void ToTreeAttributes(ITreeAttribute tree)
+        {
+            base.ToTreeAttributes(tree);
+            var invTree = new TreeAttribute();
+            inventory.ToTreeAttributes(invTree);
+            tree["inventory"] = invTree;
+            tree.SetDouble("emc", Stored);
+        }
+
+        public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
+        {
+            base.FromTreeAttributes(tree, worldAccessForResolve);
+            ITreeAttribute invTree = tree.GetTreeAttribute("inventory");
+            if (invTree != null)
+            {
+                inventory.FromTreeAttributes(invTree);
+                if (Api != null) inventory.AfterBlocksLoaded(Api.World);
+            }
+            Stored = tree.GetDouble("emc");
+            dialog?.UpdateInfo();
+        }
+
+        public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
+        {
+            foreach (ItemSlot slot in inventory)
+            {
+                slot.Itemstack?.Collectible.OnStoreCollectibleMappings(Api.World, slot, blockIdMapping, itemIdMapping);
+            }
+        }
+
+        public override void OnLoadCollectibleMappings(IWorldAccessor worldForResolve, Dictionary<int, AssetLocation> oldBlockIdMapping, Dictionary<int, AssetLocation> oldItemIdMapping, int schematicSeed, bool resolveImports)
+        {
+            foreach (ItemSlot slot in inventory)
+            {
+                if (slot.Itemstack == null) continue;
+                if (!slot.Itemstack.FixMapping(oldBlockIdMapping, oldItemIdMapping, worldForResolve)) slot.Itemstack = null;
+            }
+        }
+
+        public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+        {
+            base.GetBlockInfo(forPlayer, dsc);
+            dsc.AppendLine(Lang.Get("vintagee:condenser-stored", EmcFormat.Format(Stored)));
+            ItemStack target = inventory[TargetSlot].Itemstack;
+            if (target != null)
+            {
+                dsc.AppendLine(Lang.Get("vintagee:condenser-target", target.GetName(), EmcFormat.Format(TargetValue)));
+            }
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Slot 0 is the target. Hoppers/chutes and shift-clicks only ever fill storage, and automation only
+    /// pulls finished copies of the target back out, so inputs are never extracted before they are burned.
+    /// </summary>
+    public class CondenserInventory : InventoryGeneric
+    {
+        public CondenserInventory(int slots) : base(slots, null, null, null, (id, inv) => new ItemSlotSurvival(inv)) { }
+
+        public override float GetSuitability(ItemSlot sourceSlot, ItemSlot targetSlot, bool isMerge)
+        {
+            if (targetSlot == this[BEEnergyCondenser.TargetSlot]) return 0;
+            return base.GetSuitability(sourceSlot, targetSlot, isMerge);
+        }
+
+        public override ItemSlot GetAutoPushIntoSlot(BlockFacing atBlockFace, ItemSlot fromSlot)
+        {
+            ItemStack incoming = fromSlot?.Itemstack;
+            if (incoming == null) return null;
+            ItemSlot firstEmpty = null;
+            for (int i = 1; i < Count; i++)
+            {
+                ItemSlot slot = this[i];
+                if (slot.Empty) { firstEmpty ??= slot; continue; }
+                if (slot.Itemstack.Collectible == incoming.Collectible && slot.StackSize < slot.Itemstack.Collectible.MaxStackSize
+                    && slot.Itemstack.Equals(Api.World, incoming, GlobalConstants.IgnoredStackAttributes))
+                {
+                    return slot;
+                }
+            }
+            return firstEmpty;
+        }
+
+        public override ItemSlot GetAutoPullFromSlot(BlockFacing atBlockFace)
+        {
+            ItemStack target = this[BEEnergyCondenser.TargetSlot].Itemstack;
+            if (target == null) return null;
+            for (int i = 1; i < Count; i++)
+            {
+                if (this[i].Itemstack?.Collectible == target.Collectible) return this[i];
+            }
+            return null;
+        }
+    }
+}

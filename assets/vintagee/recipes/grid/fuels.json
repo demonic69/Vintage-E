@@ -1,0 +1,159 @@
+[
+  {
+    "ingredientPattern": "PCC,CC_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "C": {
+        "type": "item",
+        "code": "game:charcoal"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-alchemicalcoal"
+    },
+    "name": "vintagee:alchemicalcoal-from-charcoal",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PCC",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "C": {
+        "type": "item",
+        "code": "game:coke"
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-alchemicalcoal"
+    },
+    "name": "vintagee:alchemicalcoal-from-coke",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PAA,AA_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-mobiusfuel"
+    },
+    "name": "vintagee:mobiusfuel",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PMM,MM_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-aeternalisfuel"
+    },
+    "name": "vintagee:aeternalisfuel",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PA",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:charcoal",
+      "quantity": 4
+    },
+    "name": "vintagee:alchemicalcoal-to-charcoal",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PM",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "M": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-mobiusfuel"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-alchemicalcoal",
+      "quantity": 4
+    },
+    "name": "vintagee:mobiusfuel-to-alchemicalcoal",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PE",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "E": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-aeternalisfuel"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalfuel-mobiusfuel",
+      "quantity": 4
+    },
+    "name": "vintagee:aeternalisfuel-to-mobiusfuel",
+    "shapeless": true
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "code": "energycollector",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageEEnergyCollector",
+  "variantgroups": [
+    { "code": "tier", "states": [ "mk1", "mk2", "mk3" ] }
+  ],
+  "creativeinventory": { "general": [ "*" ], "mechanics": [ "*" ], "vintagee": [ "*" ] },
+  "blockmaterial": "Metal",
+  "drawtype": "cube",
+  "textures": {
+    "up": { "base": "block/energycollector-{tier}-top" },
+    "down": { "base": "block/transmutationtable-bottom" },
+    "north": { "base": "block/energycollector-{tier}-side" },
+    "east": { "base": "block/energycollector-{tier}-side" },
+    "south": { "base": "block/energycollector-{tier}-side" },
+    "west": { "base": "block/energycollector-{tier}-side" }
+  },
+  "attributesByType": {
+    "*-mk1": { "emcPerSecond": 4, "capacity": 10000, "interactionHelp": "vintagee:blockhelp-collector", "sneakInteractionHelp": "vintagee:blockhelp-collector-withdraw" },
+    "*-mk2": { "emcPerSecond": 12, "capacity": 30000, "interactionHelp": "vintagee:blockhelp-collector", "sneakInteractionHelp": "vintagee:blockhelp-collector-withdraw" },
+    "*-mk3": { "emcPerSecond": 40, "capacity": 60000, "interactionHelp": "vintagee:blockhelp-collector", "sneakInteractionHelp": "vintagee:blockhelp-collector-withdraw" }
+  },
+  "lightHsvByType": {
+    "*-mk1": [ 8, 4, 6 ],
+    "*-mk2": [ 46, 4, 8 ],
+    "*-mk3": [ 0, 5, 10 ]
+  },
+  "resistance": 4,
+  "requiredMiningTier": 2,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

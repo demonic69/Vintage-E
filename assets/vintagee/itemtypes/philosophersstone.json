@@ -1,0 +1,8 @@
+{
+  "code": "philosophersstone",
+  "class": "ItemPhilosophersStone",
+  "maxstacksize": 1,
+  "creativeinventory": { "general": [ "*" ], "vintagee": [ "*" ] },
+  "texture": { "base": "item/philosophersstone" },
+  "materialDensity": 2500
+}

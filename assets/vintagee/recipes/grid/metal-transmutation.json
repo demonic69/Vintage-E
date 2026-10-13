@@ -1,0 +1,137 @@
+[
+  {
+    "ingredientPattern": "PCC",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "C": {
+        "type": "item",
+        "code": "game:ingot-copper"
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-iron"
+    },
+    "name": "vintagee:copper-to-iron",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PII",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-silver"
+    },
+    "name": "vintagee:iron-to-silver",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PSS,SS_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "S": {
+        "type": "item",
+        "code": "game:ingot-silver"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-gold"
+    },
+    "name": "vintagee:silver-to-gold",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PI",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-copper",
+      "quantity": 2
+    },
+    "name": "vintagee:iron-to-copper",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PS",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "S": {
+        "type": "item",
+        "code": "game:ingot-silver"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-iron",
+      "quantity": 2
+    },
+    "name": "vintagee:silver-to-iron",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PG",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "G": {
+        "type": "item",
+        "code": "game:ingot-gold"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:ingot-silver",
+      "quantity": 4
+    },
+    "name": "vintagee:gold-to-silver",
+    "shapeless": true
+  }
+]

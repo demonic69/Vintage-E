@@ -1,0 +1,30 @@
+{
+  "code": "energycondenser",
+  "class": "BlockEmcMachine",
+  "entityClass": "VintageEEnergyCondenser",
+  "variantgroups": [
+    { "code": "tier", "states": [ "mk1", "mk2" ] }
+  ],
+  "creativeinventory": { "general": [ "*" ], "mechanics": [ "*" ], "vintagee": [ "*" ] },
+  "blockmaterial": "Metal",
+  "drawtype": "cube",
+  "textures": {
+    "up": { "base": "block/energycondenser-{tier}-top" },
+    "down": { "base": "block/transmutationtable-bottom" },
+    "north": { "base": "block/energycondenser-{tier}-side" },
+    "east": { "base": "block/energycondenser-{tier}-side" },
+    "south": { "base": "block/energycondenser-{tier}-side" },
+    "west": { "base": "block/energycondenser-{tier}-side" }
+  },
+  "attributesByType": {
+    "*-mk1": { "itemsPerSecond": 4, "outputsPerSecond": 1, "capacity": 1000000, "storageSlots": 40, "interactionHelp": "vintagee:blockhelp-condenser" },
+    "*-mk2": { "itemsPerSecond": 16, "outputsPerSecond": 4, "capacity": 10000000, "storageSlots": 40, "interactionHelp": "vintagee:blockhelp-condenser" }
+  },
+  "resistance": 5,
+  "requiredMiningTier": 2,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

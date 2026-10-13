@@ -1,0 +1,70 @@
+[
+  {
+    "ingredientPattern": "CGC,GTG,CGC",
+    "ingredients": {
+      "C": {
+        "type": "item",
+        "code": "game:ingot-copper"
+      },
+      "G": {
+        "type": "item",
+        "code": "game:ingot-gold"
+      },
+      "T": {
+        "type": "item",
+        "code": "game:gear-temporal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:philosophersstone"
+    },
+    "name": "vintagee:philosophersstone"
+  },
+  {
+    "ingredientPattern": "RSR,SPS,RSR",
+    "ingredients": {
+      "R": {
+        "type": "block",
+        "code": "game:rock-*"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stone-*"
+      },
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:transmutationtable"
+    },
+    "name": "vintagee:transmutationtable"
+  },
+  {
+    "ingredientPattern": "_D_,DTD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "T": {
+        "type": "block",
+        "code": "vintagee:transmutationtable"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:transmutationtablet"
+    },
+    "name": "vintagee:transmutationtablet"
+  }
+]

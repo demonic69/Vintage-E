@@ -1,0 +1,108 @@
+[
+  {
+    "ingredientPattern": "AAA,ATA,AAA",
+    "ingredients": {
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-aeternalisfuel"
+      },
+      "T": {
+        "type": "item",
+        "code": "game:gear-temporal"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matter-dark"
+    },
+    "name": "vintagee:darkmatter"
+  },
+  {
+    "ingredientPattern": "AAA,DDD,AAA",
+    "ingredients": {
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-aeternalisfuel"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matter-red"
+    },
+    "name": "vintagee:redmatter"
+  },
+  {
+    "ingredientPattern": "DD,DD",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "vintagee:matterblock-dark"
+    },
+    "name": "vintagee:darkmatterblock"
+  },
+  {
+    "ingredientPattern": "RR,RR",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "vintagee:matterblock-red"
+    },
+    "name": "vintagee:redmatterblock"
+  },
+  {
+    "ingredientPattern": "B",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "vintagee:matterblock-dark"
+      }
+    },
+    "width": 1,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matter-dark",
+      "quantity": 4
+    },
+    "name": "vintagee:darkmatterblock-uncraft"
+  },
+  {
+    "ingredientPattern": "B",
+    "ingredients": {
+      "B": {
+        "type": "block",
+        "code": "vintagee:matterblock-red"
+      }
+    },
+    "width": 1,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "vintagee:matter-red",
+      "quantity": 4
+    },
+    "name": "vintagee:redmatterblock-uncraft"
+  }
+]

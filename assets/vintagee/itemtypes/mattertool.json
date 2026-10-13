@@ -1,0 +1,63 @@
+{
+  "code": "mattertool",
+  "variantgroups": [
+    { "code": "material", "states": [ "dark", "red" ] },
+    { "code": "tool", "states": [ "pickaxe", "shovel", "axe", "sword", "hoe", "hammer" ] }
+  ],
+  "classByType": {
+    "*-axe": "ItemAxe",
+    "*-hoe": "ItemHoe",
+    "*-hammer": "ItemHammer"
+  },
+  "toolByType": {
+    "*-pickaxe": "pickaxe",
+    "*-shovel": "shovel",
+    "*-axe": "axe",
+    "*-sword": "sword",
+    "*-hoe": "hoe",
+    "*-hammer": "hammer"
+  },
+  "behaviorsByType": {
+    "*-dark-pickaxe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
+    "*-dark-shovel": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
+    "*-dark-axe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 1 } } ],
+    "*-red-pickaxe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
+    "*-red-shovel": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
+    "*-red-axe": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 2 } } ],
+    "*": [ { "name": "VintageEMatterTool", "properties": { "maxAreaRadius": 0 } } ]
+  },
+  "maxstacksize": 1,
+  "creativeinventory": { "general": [ "*" ], "tools": [ "*" ], "vintagee": [ "*" ] },
+  "texture": { "base": "item/tool/{material}matter-{tool}" },
+  "tooltierByType": {
+    "*-dark-*": 5,
+    "*-red-*": 6
+  },
+  "miningspeedByType": {
+    "*-dark-pickaxe": { "stone": 9, "ore": 9, "metal": 9, "ice": 9, "brick": 9, "ceramic": 9, "glass": 9 },
+    "*-red-pickaxe": { "stone": 14, "ore": 14, "metal": 14, "ice": 14, "brick": 14, "ceramic": 14, "glass": 14 },
+    "*-dark-shovel": { "soil": 9, "sand": 9, "gravel": 9, "snow": 9 },
+    "*-red-shovel": { "soil": 14, "sand": 14, "gravel": 14, "snow": 14 },
+    "*-dark-axe": { "wood": 9, "plant": 6, "leaves": 6 },
+    "*-red-axe": { "wood": 14, "plant": 9, "leaves": 9 },
+    "*-dark-sword": { "plant": 4, "leaves": 4 },
+    "*-red-sword": { "plant": 6, "leaves": 6 },
+    "*-dark-hoe": { "soil": 5, "plant": 5 },
+    "*-red-hoe": { "soil": 8, "plant": 8 },
+    "*-dark-hammer": { "stone": 4, "ore": 4, "metal": 4 },
+    "*-red-hammer": { "stone": 6, "ore": 6, "metal": 6 }
+  },
+  "attackpowerByType": {
+    "*-dark-sword": 8,
+    "*-red-sword": 11,
+    "*-dark-axe": 5,
+    "*-red-axe": 7,
+    "*-dark-*": 3.5,
+    "*-red-*": 4.5
+  },
+  "attackRangeByType": {
+    "*-sword": 2.75,
+    "*": 2.25
+  },
+  "materialDensity": 9000
+}

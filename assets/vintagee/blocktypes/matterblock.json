@@ -1,0 +1,28 @@
+{
+  "code": "matterblock",
+  "variantgroups": [
+    { "code": "type", "states": [ "dark", "red" ] }
+  ],
+  "creativeinventory": { "general": [ "*" ], "construction": [ "*" ], "vintagee": [ "*" ] },
+  "blockmaterial": "Metal",
+  "drawtype": "cube",
+  "textures": {
+    "up": { "base": "block/matterblock-{type}" },
+    "down": { "base": "block/matterblock-{type}" },
+    "north": { "base": "block/matterblock-{type}" },
+    "east": { "base": "block/matterblock-{type}" },
+    "south": { "base": "block/matterblock-{type}" },
+    "west": { "base": "block/matterblock-{type}" }
+  },
+  "lightHsvByType": {
+    "*-dark": [ 48, 4, 5 ],
+    "*-red": [ 0, 5, 6 ]
+  },
+  "resistance": 12,
+  "requiredMiningTier": 4,
+  "sounds": {
+    "place": "game:block/ingot",
+    "break": "game:block/ingot",
+    "hit": "game:block/ingot"
+  }
+}

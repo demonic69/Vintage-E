@@ -1,0 +1,266 @@
+[
+  {
+    "ingredientPattern": "MMM,_S_,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-pickaxe"
+    },
+    "name": "vintagee:darkmatter-pickaxe"
+  },
+  {
+    "ingredientPattern": "RRR,_T_,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-pickaxe"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-pickaxe"
+    },
+    "name": "vintagee:redmatter-pickaxe"
+  },
+  {
+    "ingredientPattern": "_M_,_S_,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-shovel"
+    },
+    "name": "vintagee:darkmatter-shovel"
+  },
+  {
+    "ingredientPattern": "_R_,_T_,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-shovel"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-shovel"
+    },
+    "name": "vintagee:redmatter-shovel"
+  },
+  {
+    "ingredientPattern": "MM_,MS_,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-axe"
+    },
+    "name": "vintagee:darkmatter-axe"
+  },
+  {
+    "ingredientPattern": "RR_,RT_,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-axe"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-axe"
+    },
+    "name": "vintagee:redmatter-axe"
+  },
+  {
+    "ingredientPattern": "_M_,_M_,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-sword"
+    },
+    "name": "vintagee:darkmatter-sword"
+  },
+  {
+    "ingredientPattern": "_R_,_T_,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-sword"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-sword"
+    },
+    "name": "vintagee:redmatter-sword"
+  },
+  {
+    "ingredientPattern": "MM_,_S_,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-hoe"
+    },
+    "name": "vintagee:darkmatter-hoe"
+  },
+  {
+    "ingredientPattern": "RR_,_T_,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-hoe"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-hoe"
+    },
+    "name": "vintagee:redmatter-hoe"
+  },
+  {
+    "ingredientPattern": "MMM,MSM,_S_",
+    "ingredients": {
+      "M": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "S": {
+        "type": "item",
+        "code": "game:stick"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-dark-hammer"
+    },
+    "name": "vintagee:darkmatter-hammer"
+  },
+  {
+    "ingredientPattern": "RRR,RTR,_D_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "T": {
+        "type": "item",
+        "code": "vintagee:mattertool-dark-hammer"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:mattertool-red-hammer"
+    },
+    "name": "vintagee:redmatter-hammer"
+  }
+]

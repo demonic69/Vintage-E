@@ -1,0 +1,126 @@
+[
+  {
+    "ingredientPattern": "GGG,AOA,III",
+    "ingredients": {
+      "G": {
+        "type": "block",
+        "code": "game:glass-*"
+      },
+      "A": {
+        "type": "item",
+        "code": "vintagee:alchemicalfuel-alchemicalcoal"
+      },
+      "O": {
+        "type": "item",
+        "code": "game:ingot-gold"
+      },
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:energycollector-mk1"
+    },
+    "name": "vintagee:collector-mk1"
+  },
+  {
+    "ingredientPattern": "GDG,GCG,GGG",
+    "ingredients": {
+      "G": {
+        "type": "block",
+        "code": "game:glass-*"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "C": {
+        "type": "block",
+        "code": "vintagee:energycollector-mk1"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:energycollector-mk2"
+    },
+    "name": "vintagee:collector-mk2"
+  },
+  {
+    "ingredientPattern": "GRG,GCG,GGG",
+    "ingredients": {
+      "G": {
+        "type": "block",
+        "code": "game:glass-*"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "C": {
+        "type": "block",
+        "code": "vintagee:energycollector-mk2"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:energycollector-mk3"
+    },
+    "name": "vintagee:collector-mk3"
+  },
+  {
+    "ingredientPattern": "IGI,GDG,IGI",
+    "ingredients": {
+      "I": {
+        "type": "item",
+        "code": "game:ingot-iron"
+      },
+      "G": {
+        "type": "item",
+        "code": "game:ingot-gold"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:energycondenser-mk1"
+    },
+    "name": "vintagee:condenser-mk1"
+  },
+  {
+    "ingredientPattern": "RDR,DCD,RDR",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "C": {
+        "type": "block",
+        "code": "vintagee:energycondenser-mk1"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:energycondenser-mk2"
+    },
+    "name": "vintagee:condenser-mk2"
+  }
+]

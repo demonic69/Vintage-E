@@ -1,0 +1,8 @@
+{
+  "code": "transmutationtablet",
+  "class": "ItemTransmutationTablet",
+  "maxstacksize": 1,
+  "creativeinventory": { "general": [ "*" ], "vintagee": [ "*" ] },
+  "texture": { "base": "item/transmutationtablet" },
+  "materialDensity": 2000
+}
