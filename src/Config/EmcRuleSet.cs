@@ -51,6 +51,8 @@ namespace VintageE
         public const string AssetPath = "config/vintagee-emc";
 
         public List<EmcValueRule> Values = new List<EmcValueRule>();
+        /// <summary>"defaultValues": only used for items that nothing else (recipes, traders, variants) could value.</summary>
+        public List<EmcValueRule> Defaults = new List<EmcValueRule>();
         public List<RelativeValueRule> Relative = new List<RelativeValueRule>();
         public List<string> Blacklist = new List<string>();
         /// <summary>Exceptions to the blacklist ("allow": ["game:creature-butterfly-*"]), applied after it.</summary>
@@ -105,6 +107,16 @@ namespace VintageE
                     if (prop.Value.Type == JTokenType.Integer || prop.Value.Type == JTokenType.Float)
                     {
                         Values.Add(new EmcValueRule { Pattern = prop.Name, Value = prop.Value.Value<double>(), Source = source });
+                    }
+                }
+            }
+            if (root["defaultValues"] is JObject defaults)
+            {
+                foreach (JProperty prop in defaults.Properties())
+                {
+                    if (prop.Value.Type == JTokenType.Integer || prop.Value.Type == JTokenType.Float)
+                    {
+                        Defaults.Add(new EmcValueRule { Pattern = prop.Name, Value = prop.Value.Value<double>(), Source = source });
                     }
                 }
             }

@@ -119,8 +119,13 @@ namespace VintageE
         }
 
         /// <summary>Relaxes until nothing changes. Returns false (and fills <see cref="Unstable"/>) if it never settles.</summary>
+        /// <summary>An item lowered more often than this in one run is in a self-cheapening loop (values creep down towards zero).</summary>
+        public int LoopLowerLimit = 48;
+
         bool Forward()
         {
+            var lowered = new Dictionary<T, int>();
+            var suspects = new HashSet<T>();
             var queued = new bool[Edges.Count];
             var work = new List<int>(Edges.Count);
             for (int i = 0; i < Edges.Count; i++) { work.Add(i); queued[i] = true; }
@@ -141,8 +146,15 @@ namespace VintageE
                     double per = cost / e.OutputQuantity;
                     if (per < MinValue || double.IsInfinity(per)) continue;
 
-                    if (!Values.TryGetValue(e.Output, out double current) || per < current * (1 - 1e-9))
+                    bool had = Values.TryGetValue(e.Output, out double current);
+                    if (!had || per < current * (1 - 1e-9))
                     {
+                        if (had)
+                        {
+                            lowered.TryGetValue(e.Output, out int n);
+                            lowered[e.Output] = ++n;
+                            if (n > LoopLowerLimit) suspects.Add(e.Output);
+                        }
                         Values[e.Output] = per;
                         Via[e.Output] = e;
                         changed.Add(e.Output);
@@ -150,6 +162,16 @@ namespace VintageE
                 }
 
                 if (changed.Count == 0) return true;
+
+                // Values that keep creeping down never "fail to converge" once they hit MinValue, so catch them by count.
+                if (suspects.Count > 0)
+                {
+                    bool anyNew = false;
+                    foreach (T item in suspects) anyNew |= Frozen.Add(item);
+                    if (anyNew) return false;
+                    Unstable.UnionWith(suspects);
+                    return false;
+                }
 
                 work = new List<int>();
                 foreach (T item in changed)

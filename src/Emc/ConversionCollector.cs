@@ -183,8 +183,10 @@ namespace VintageE
                 int voxels = 0;
                 foreach (bool v in voxelRecipe.Voxels) if (v) voxels++;
                 string typeName = recipe.GetType().Name;
-                if (typeName.Contains("Smithing")) voxelQuantity = Math.Max(voxels / VoxelsPerIngot, 1.0 / VoxelsPerIngot);
-                else if (typeName.Contains("ClayForming")) voxelQuantity = Math.Max(voxels / VoxelsPerClay, 1.0 / VoxelsPerClay);
+                // Whole ingots/clay: the anvil and clay forming throw away voxels you split off, so making a rod
+                // (27 of an ingot's 42 voxels) still uses up a full ingot - and smelting the rod gives a full ingot back.
+                if (typeName.Contains("Smithing")) voxelQuantity = Math.Max(1, Math.Ceiling(voxels / VoxelsPerIngot - 1e-9));
+                else if (typeName.Contains("ClayForming")) voxelQuantity = Math.Max(1, Math.Ceiling(voxels / VoxelsPerClay - 1e-9));
             }
 
             var conv = new Conversion

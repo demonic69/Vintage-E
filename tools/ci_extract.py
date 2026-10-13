@@ -118,6 +118,11 @@ for path in walk("survival/shapes/item"):
     shapes[p] = {"textureWidth": data.get("textureWidth"), "textureHeight": data.get("textureHeight"),
                  "textures": data.get("textures"), "textureSizes": data.get("textureSizes"),
                  "bounds(approx, unrotated)": [lo, hi], "elements": names}
+    if p.endswith(("tool/hammer.json", "tool/pickaxe.json")):
+        # Which end the head is on, for orienting this mod's own models the same way (boxes only).
+        shapes[p]["boxes"] = [{"name": e.get("name"), "from": e.get("from"), "to": e.get("to"),
+                               "rot": [e.get("rotationX", 0), e.get("rotationY", 0), e.get("rotationZ", 0)],
+                               "origin": e.get("rotationOrigin")} for e in data.get("elements") or []]
 with open(os.path.join(out, "vanilla-tool-shapes.json"), "w") as f:
     json.dump({"referenced": sorted(shape_refs), "shapes": shapes}, f, indent=1)
 

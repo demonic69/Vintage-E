@@ -312,6 +312,23 @@ def matter_block(base, glow, seed):
     return bevel(img, mix(base, glow, 0.6), shade(base, 0.4), 2)
 
 
+def matter_material(base, glow, seed):
+    """Seamless material texture for the heads of the 3D matter tools (no border, tiles cleanly)."""
+    img = noise_fill(base, 0.10, seed)
+    px = img.load()
+    rnd = random.Random(seed + "s")
+    for _ in range(26):
+        x, y = rnd.randrange(S), rnd.randrange(S)
+        px[x, y] = mix(px[x, y], glow, rnd.uniform(0.35, 0.8))
+        px[(x + 1) % S, y] = mix(px[(x + 1) % S, y], glow, 0.25)
+    for _ in range(5):  # faint diagonal sheen, wrapped so the texture still tiles
+        x0, y0 = rnd.randrange(S), rnd.randrange(S)
+        for k in range(6):
+            x, y = (x0 + k) % S, (y0 + k) % S
+            px[x, y] = mix(px[x, y], glow, 0.18)
+    return img
+
+
 def main():
     written = []
     # items
@@ -343,6 +360,8 @@ def main():
         written.append(save(condenser_side(accent, "ks" + tier), f"block/energycondenser-{tier}-side"))
     written.append(save(matter_block(rgba("1e1229"), rgba("8a52d6"), "mbd"), "block/matterblock-dark"))
     written.append(save(matter_block(rgba("5c0d12"), rgba("ff5a48"), "mbr"), "block/matterblock-red"))
+    written.append(save(matter_material(rgba("22132f"), rgba("8a52d6"), "mmd"), "item/tool/material/darkmatter"))
+    written.append(save(matter_material(rgba("62101a"), rgba("ff5a48"), "mmr"), "item/tool/material/redmatter"))
 
     if "--preview" in sys.argv:
         scale = 4

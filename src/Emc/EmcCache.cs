@@ -19,7 +19,7 @@ namespace VintageE
         public string Fingerprint;
         public string CreatedUtc;
         public string GameVersion;
-        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount, RelativeCount, TraderCount;
+        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount, RelativeCount, TraderCount, DefaultCount;
         public int ConversionCount, SourceCount, LoopFrozen, UnstableRemoved;
         /// <summary>Knowledge-style keys ("i:game:ingot-gold", "b:game:rock-granite") → EMC.</summary>
         public SortedDictionary<string, double> Values = new SortedDictionary<string, double>(StringComparer.Ordinal);
@@ -73,6 +73,7 @@ namespace VintageE
             foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append(r.PerLitre ? "/L=" : "=").Append(r.Value.ToString("R")).Append('\n');
             foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
             foreach (string a in mod.Rules.Allow) sb.Append("allow=").Append(a).Append('\n');
+            foreach (EmcValueRule r in mod.Rules.Defaults) sb.Append("default=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
             foreach (RelativeValueRule r in mod.Rules.Relative) sb.Append("rel=").Append(r.Source).Append('|').Append(r.Code).Append('=').Append(r.Of).Append('*').Append(r.Ratio.ToString("R")).Append('\n');
             sb.Append("hoursPerDay=").Append(sapi.World.Calendar?.HoursPerDay).Append('\n');
             Flush();
@@ -276,6 +277,7 @@ namespace VintageE
                     FallbackCount = report.FallbackCount,
                     RelativeCount = report.RelativeCount,
                     TraderCount = report.TraderCount,
+                    DefaultCount = report.DefaultCount,
                     ConversionCount = report.ConversionCount,
                     SourceCount = report.SourceCount,
                     LoopFrozen = report.LoopFrozen,
@@ -306,6 +308,7 @@ namespace VintageE
             to.FallbackCount = from.FallbackCount;
             to.RelativeCount = from.RelativeCount;
             to.TraderCount = from.TraderCount;
+            to.DefaultCount = from.DefaultCount;
             to.ConversionCount = from.ConversionCount;
             to.SourceCount = from.SourceCount;
             to.LoopFrozen = from.LoopFrozen;

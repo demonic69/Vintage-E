@@ -24,6 +24,8 @@ namespace VintageE
         public int FallbackCount;
         /// <summary>Items valued from trader prices, and the measured EMC per unit of trader currency.</summary>
         public int TraderCount;
+        /// <summary>Items valued by "defaultValues" rules (nothing else could value them).</summary>
+        public int DefaultCount;
         public double TraderRate;
         public long Milliseconds;
         public SortedDictionary<string, int> Sources;
@@ -154,6 +156,24 @@ namespace VintageE
                     report.SiblingCount++;
                 }
             }
+            // Family-level guesses from the value files, for things no recipe, trader or variant could value.
+            var defaults = new Dictionary<CollectibleObject, (double value, string pattern)>();
+            foreach (EmcValueRule rule in rules.Defaults)
+            {
+                if (config.DisableBuiltInBaseValues && rule.Source.StartsWith(VintageEModSystem.ModId + ":", StringComparison.Ordinal)) continue;
+                foreach (CollectibleObject c in index.Match(rule.Pattern))
+                {
+                    if (solver.Values.ContainsKey(c) || excluded.Contains(c) || extra.ContainsKey(c)) continue;
+                    if (rule.Value > 0) defaults[c] = (rule.Value, rule.Pattern);
+                    else defaults.Remove(c);
+                }
+            }
+            foreach (var kv in defaults)
+            {
+                extra[kv.Key] = kv.Value.value;
+                extraOrigin[kv.Key] = "default value (" + kv.Value.pattern + ")";
+                report.DefaultCount++;
+            }
             if (config.FallbackValue > 0)
             {
                 foreach (CollectibleObject c in index.All)
@@ -180,7 +200,7 @@ namespace VintageE
             }
             report.BaseCount = fixedValues.Count;
             report.InferredCount = solver.Inferred.Keys.Count(k => report.Values.ContainsKey(k));
-            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount;
+            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount - report.DefaultCount;
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
