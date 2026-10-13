@@ -37,7 +37,7 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 1;
+        public const int Format = 2; // 2: barrel outputs counted in portions, liquid-container ingredients
 
         public static string FilePath(ICoreServerAPI sapi)
         {
@@ -137,7 +137,9 @@ namespace VintageE
             {
                 sb.Append("r=").Append(recipe.Enabled ? '1' : '0').Append(recipe.Name);
                 ItemStack output = recipe.RecipeOutput?.ResolvedItemStack;
-                if (output != null) sb.Append("->").Append(output.Collectible?.Code).Append('*').Append(output.StackSize);
+                if (output != null) sb.Append("->").Append(output.Collectible?.Code).Append('*').Append(ConversionCollector.RecipeOutputQuantity(recipe.RecipeOutput, output));
+                var recipeAttrs = (recipe as RecipeBase)?.Attributes?["liquidContainerProps"];
+                if (recipeAttrs != null && recipeAttrs.Exists) sb.Append("|lcp=").Append(recipeAttrs.Token?.ToString(Formatting.None));
                 foreach (IRecipeIngredient ing in recipe.RecipeIngredients)
                 {
                     if (ing == null) { sb.Append("|_"); continue; }
@@ -149,6 +151,9 @@ namespace VintageE
                       .Append('/').Append(ing.SkipVariants == null ? "" : string.Join(",", ing.SkipVariants));
                     ItemStack ret = ing.ReturnedStack?.ResolvedItemstack;
                     if (ret != null) sb.Append("ret=").Append(ret.Collectible?.Code);
+                    object consumeQty = ing.GetType().GetField("ConsumeQuantity")?.GetValue(ing) ?? ing.GetType().GetProperty("ConsumeQuantity")?.GetValue(ing);
+                    if (consumeQty != null) sb.Append("cq=").Append(consumeQty);
+                    if (ing.RecipeAttributes != null && ing.RecipeAttributes.Exists) sb.Append("ra=").Append(ing.RecipeAttributes.Token?.ToString(Formatting.None));
                 }
                 if (recipe is LayeredVoxelRecipe voxel && voxel.Voxels != null)
                 {

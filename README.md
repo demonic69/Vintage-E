@@ -130,7 +130,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 ## Installing
 
-Download [`dist/vintagee_1.1.0.zip`](dist/vintagee_1.1.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.1.1.zip`](dist/vintagee_1.1.1.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

@@ -186,10 +186,11 @@ namespace VintageE
             var conv = new Conversion
             {
                 Output = output.Collectible,
-                OutputQuantity = output.StackSize,
+                OutputQuantity = RecipeOutputQuantity(recipe.RecipeOutput, output),
                 Kind = ConversionKind.Crafting,
                 Source = label
             };
+            JsonObject recipeAttributes = (recipe as RecipeBase)?.Attributes;
 
             bool first = true;
             foreach (IRecipeIngredient ing in recipe.RecipeIngredients)
@@ -202,6 +203,14 @@ namespace VintageE
 
                 CollectibleObject[] choices = ResolveChoices(ing);
                 if (choices.Length == 0) return; // unresolvable ingredient → recipe unusable
+
+                // A bucket/bowl/jug of liquid in a crafting recipe: the game only takes the liquid out and hands the
+                // container back (unless the recipe says consumeContainer), so cost the liquid, not the container.
+                if (TryLiquidContent(ing, recipeAttributes, choices, out ConversionInput liquid, out bool consumeContainer))
+                {
+                    conv.Inputs.Add(liquid);
+                    if (!consumeContainer) continue;
+                }
 
                 double qty = ing.Quantity;
                 int? consumeQty = ReadOptionalInt(ing, "ConsumeQuantity"); // barrel recipes may only use part of the stack
@@ -220,6 +229,69 @@ namespace VintageE
             }
 
             AddIfSane(conv);
+        }
+
+        /// <summary>
+        /// How many items one craft really makes. Barrel recipes convert litres to portions on the output's own
+        /// StackSize after its ResolvedItemStack was created, so the resolved stack still says 1 while the game
+        /// produces e.g. 100 portions. Read the number the game itself uses.
+        /// </summary>
+        internal static double RecipeOutputQuantity(IRecipeOutput recipeOutput, ItemStack resolved)
+        {
+            // JsonItemStack outputs (barrel, smithing, knapping...) are handed out using their own StackSize;
+            // crafting-grid outputs are cloned from the resolved stack. They only differ for converted liquids.
+            if (recipeOutput is JsonItemStack js && js.StackSize > 0) return js.StackSize;
+            return resolved.StackSize;
+        }
+
+        /// <summary>
+        /// Liquid-container ingredients (vanilla BlockLiquidContainerBase reads "requiresContent"/"requiresLitres"
+        /// from the ingredient's recipeAttributes or the recipe's liquidContainerProps). Returns the liquid as an input,
+        /// in portions: litres × the liquid's itemsPerLitre.
+        /// </summary>
+        bool TryLiquidContent(IRecipeIngredient ing, JsonObject recipeAttributes, CollectibleObject[] choices, out ConversionInput liquid, out bool consumeContainer)
+        {
+            liquid = null;
+            consumeContainer = false;
+            if (!choices.Any(IsLiquidContainer)) return false;
+
+            JsonObject props = ing.RecipeAttributes;
+            if (props?.Exists != true || props["requiresContent"].Exists != true) props = recipeAttributes?["liquidContainerProps"];
+            if (props?.Exists != true || props["requiresContent"].Exists != true) return false;
+
+            string code = props["requiresContent"]["code"].AsString(null);
+            if (code == null) return false;
+            EnumItemClass type = string.Equals(props["requiresContent"]["type"].AsString("item"), "block", StringComparison.OrdinalIgnoreCase) ? EnumItemClass.Block : EnumItemClass.Item;
+            string domain = ing.Code?.Domain ?? "game";
+            string pattern = (type == EnumItemClass.Block ? "block:" : "item:") + AssetLocation.Create(code, domain);
+            CollectibleObject[] contents = index.Match(pattern).ToArray();
+            if (contents.Length == 0) return false;
+
+            double litres = props["requiresLitres"].AsDouble(0);
+            if (litres <= 0) return false;
+            double perLitre = contents[0].Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(1) ?? 1;
+            liquid = new ConversionInput { Choices = contents, Quantity = litres * perLitre };
+            consumeContainer = props.IsTrue("consumeContainer");
+            return true;
+        }
+
+        static readonly Dictionary<Type, bool> liquidContainerTypes = new Dictionary<Type, bool>();
+
+        /// <summary>True for vanilla liquid containers (and modded subclasses), detected by class name so the survival mod isn't a compile-time dependency.</summary>
+        static bool IsLiquidContainer(CollectibleObject c)
+        {
+            Type t = c.GetType();
+            lock (liquidContainerTypes)
+            {
+                if (liquidContainerTypes.TryGetValue(t, out bool known)) return known;
+                bool result = false;
+                for (Type x = t; x != null && x != typeof(object); x = x.BaseType)
+                {
+                    if (x.Name == "BlockLiquidContainerBase") { result = true; break; }
+                }
+                liquidContainerTypes[t] = result;
+                return result;
+            }
         }
 
         static int? ReadOptionalInt(object obj, string member)
@@ -433,7 +505,7 @@ namespace VintageE
                         double litres = juice["litresPerItem"].AsDouble(0);
                         if (liquid != null && litres > 0)
                         {
-                            double perLitre = liquid.Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(100) ?? 100;
+                            double perLitre = liquid.Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(1) ?? 1; // game default is 1
                             if (AddProcessing(c, 1, liquid, litres * perLitre * Math.Max(1, size), "fruit press")) juicing++;
                         }
                     }
