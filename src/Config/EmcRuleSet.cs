@@ -13,6 +13,15 @@ namespace VintageE
         public string Source;
     }
 
+    /// <summary>"game:metalbit-*" is worth 0.05 × "game:ingot-*" (the '*' part is carried over).</summary>
+    public class RelativeValueRule
+    {
+        public string Code;
+        public string Of;
+        public double Ratio;
+        public string Source;
+    }
+
     public class SwapRule
     {
         public string From;
@@ -40,6 +49,7 @@ namespace VintageE
         public const string AssetPath = "config/vintagee-emc";
 
         public List<EmcValueRule> Values = new List<EmcValueRule>();
+        public List<RelativeValueRule> Relative = new List<RelativeValueRule>();
         public List<string> Blacklist = new List<string>();
         public WorldTransmutationRules WorldTransmutation = new WorldTransmutationRules();
         public List<string> LoadedFiles = new List<string>();
@@ -91,6 +101,18 @@ namespace VintageE
                     if (prop.Value.Type == JTokenType.Integer || prop.Value.Type == JTokenType.Float)
                     {
                         Values.Add(new EmcValueRule { Pattern = prop.Name, Value = prop.Value.Value<double>(), Source = source });
+                    }
+                }
+            }
+            if (root["relativeValues"] is JArray rel)
+            {
+                foreach (JToken tok in rel)
+                {
+                    string code = (string)tok["code"], of = (string)tok["of"];
+                    double ratio = tok["ratio"]?.Value<double>() ?? 0;
+                    if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(of) && ratio > 0)
+                    {
+                        Relative.Add(new RelativeValueRule { Code = code, Of = of, Ratio = ratio, Source = source });
                     }
                 }
             }

@@ -19,7 +19,7 @@ namespace VintageE
         public string Fingerprint;
         public string CreatedUtc;
         public string GameVersion;
-        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount;
+        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount, RelativeCount;
         public int ConversionCount, SourceCount, LoopFrozen, UnstableRemoved;
         /// <summary>Knowledge-style keys ("i:game:ingot-gold", "b:game:rock-granite") → EMC.</summary>
         public SortedDictionary<string, double> Values = new SortedDictionary<string, double>(StringComparer.Ordinal);
@@ -37,7 +37,7 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 2; // 2: barrel outputs counted in portions, liquid-container ingredients
+        public const int Format = 5; // 2: barrel outputs counted in portions, liquid-container ingredients
 
         public static string FilePath(ICoreServerAPI sapi)
         {
@@ -72,13 +72,15 @@ namespace VintageE
             sb.Append("config=").Append(JsonConvert.SerializeObject(mod.Config)).Append('\n');
             foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
             foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
+            foreach (RelativeValueRule r in mod.Rules.Relative) sb.Append("rel=").Append(r.Source).Append('|').Append(r.Code).Append('=').Append(r.Of).Append('*').Append(r.Ratio.ToString("R")).Append('\n');
+            sb.Append("hoursPerDay=").Append(sapi.World.Calendar?.HoursPerDay).Append('\n');
             Flush();
 
             // Every block/item with the per-item data the mapper reads
             foreach (CollectibleObject c in sapi.World.Collectibles)
             {
                 if (c?.Code == null) continue;
-                sb.Append(c.ItemClass == EnumItemClass.Block ? "b:" : "i:").Append(c.Code);
+                sb.Append(c.ItemClass == EnumItemClass.Block ? "b:" : "i:").Append(c.Code).Append('#').Append(c.GetType().Name);
                 AppendStack(sb, "smelt", c.CombustibleProps?.SmeltedStack?.ResolvedItemstack, c.CombustibleProps?.SmeltedRatio ?? 0);
                 AppendStack(sb, "grind", c.GrindingProps?.GroundStack?.ResolvedItemstack, 1);
                 AppendStack(sb, "crush", c.CrushingProps?.CrushedStack?.ResolvedItemstack, c.CrushingProps?.Quantity?.avg ?? 0);
@@ -86,7 +88,9 @@ namespace VintageE
                 {
                     foreach (TransitionableProperties tp in c.TransitionableProps)
                     {
-                        if (tp != null) AppendStack(sb, "tr" + (int)tp.Type, tp.TransitionedStack?.ResolvedItemstack, tp.TransitionRatio);
+                        if (tp == null) continue;
+                        AppendStack(sb, "tr" + (int)tp.Type, tp.TransitionedStack?.ResolvedItemstack, tp.TransitionRatio);
+                        sb.Append('@').Append(tp.FreshHours?.avg).Append('+').Append(tp.TransitionHours?.avg);
                     }
                 }
                 if (c is Block block && block.Drops != null)
@@ -94,9 +98,20 @@ namespace VintageE
                     sb.Append("|be=").Append(block.EntityClass);
                     foreach (BlockDropItemStack drop in block.Drops) AppendStack(sb, "drop", drop?.ResolvedItemstack, drop?.Quantity?.avg ?? 0);
                 }
+                if (c.CollectibleBehaviors != null)
+                {
+                    foreach (CollectibleBehavior bh in c.CollectibleBehaviors)
+                    {
+                        string json = bh?.propertiesAtString;
+                        if (json != null && (json.Contains("squeezedLitres") || json.Contains("processedStack") || json.Contains("remainingItem")))
+                        {
+                            sb.Append("|bh=").Append(bh.GetType().Name).Append(json);
+                        }
+                    }
+                }
                 if (c.Attributes != null)
                 {
-                    foreach (string key in new[] { "emcValue", "bakingProperties", "juiceableProperties", "distillationProps" })
+                    foreach (string key in new[] { "emcValue", "bakingProperties", "juiceableProperties", "distillationProps", "waterTightContainerProps", "drop", "drops", "requiredUnits", "breaksWhenFilled" })
                     {
                         var a = c.Attributes[key];
                         if (a != null && a.Exists) sb.Append('|').Append(key).Append('=').Append(a.Token?.ToString(Formatting.None));
@@ -258,6 +273,7 @@ namespace VintageE
                     InferredCount = report.InferredCount,
                     SiblingCount = report.SiblingCount,
                     FallbackCount = report.FallbackCount,
+                    RelativeCount = report.RelativeCount,
                     ConversionCount = report.ConversionCount,
                     SourceCount = report.SourceCount,
                     LoopFrozen = report.LoopFrozen,
@@ -286,6 +302,7 @@ namespace VintageE
             to.InferredCount = from.InferredCount;
             to.SiblingCount = from.SiblingCount;
             to.FallbackCount = from.FallbackCount;
+            to.RelativeCount = from.RelativeCount;
             to.ConversionCount = from.ConversionCount;
             to.SourceCount = from.SourceCount;
             to.LoopFrozen = from.LoopFrozen;

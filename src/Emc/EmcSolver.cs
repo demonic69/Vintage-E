@@ -32,6 +32,21 @@ namespace VintageE
             public double[] ReturnedQuantities;
             /// <summary>Processing edges may be used backwards to infer an unvalued input from its output.</summary>
             public bool Reversible;
+            /// <summary>Flat EMC added per run on top of the ingredients (time bonuses).</summary>
+            public double ExtraCost;
+        }
+
+        /// <summary>
+        /// One input producing several outputs at once. Its value is shared out: outputs that already have a value
+        /// keep it, the remainder is split evenly between the ones that don't. If every output is valued but the
+        /// input isn't, the input is worth the sum of its outputs.
+        /// </summary>
+        public sealed class JointEdge
+        {
+            public T Input;
+            public double InputQuantity = 1;
+            public T[] Outputs;
+            public double[] OutputQuantities;
         }
 
         public const double MinValue = 1e-6;
@@ -39,6 +54,7 @@ namespace VintageE
         public Dictionary<T, double> Fixed = new Dictionary<T, double>();
         public HashSet<T> Excluded = new HashSet<T>();
         public List<Edge> Edges = new List<Edge>();
+        public List<JointEdge> JointEdges = new List<JointEdge>();
         public int MaxPasses = 80;
         public bool InferBackwards = true;
 
@@ -57,7 +73,7 @@ namespace VintageE
             BuildDependencyIndex();
             Values = new Dictionary<T, double>(Fixed);
 
-            for (int round = 0; round < 12; round++)
+            for (int round = 0; round < 32; round++)
             {
                 if (!Forward())
                 {
@@ -66,7 +82,7 @@ namespace VintageE
                     foreach (var kv in Inferred) if (!Unstable.Contains(kv.Key)) Values[kv.Key] = kv.Value;
                     continue;
                 }
-                if (!InferBackwards || InferOnce() == 0) break;
+                if (InferOnce() == 0) break;
             }
         }
 
@@ -159,6 +175,7 @@ namespace VintageE
                 if (double.IsPositiveInfinity(best)) return double.NaN;
                 sum += best * e.Quantities[i];
             }
+            sum += e.ExtraCost;
             if (e.Returned != null)
             {
                 for (int j = 0; j < e.Returned.Length; j++)
@@ -173,16 +190,55 @@ namespace VintageE
         int InferOnce()
         {
             var proposals = new Dictionary<T, double>();
+            void Propose(T item, double v)
+            {
+                if (v < MinValue || double.IsInfinity(v) || double.IsNaN(v)) return;
+                proposals[item] = proposals.TryGetValue(item, out double prev) ? Math.Min(prev, v) : v;
+            }
+            bool Open(T item) => !Values.ContainsKey(item) && !Excluded.Contains(item) && !Unstable.Contains(item) && !Fixed.ContainsKey(item);
+
+            foreach (JointEdge j in JointEdges)
+            {
+                if (Excluded.Contains(j.Input) || Unstable.Contains(j.Input)) continue;
+                if (Values.TryGetValue(j.Input, out double inputValue))
+                {
+                    double remaining = inputValue * j.InputQuantity;
+                    var open = new List<int>();
+                    for (int k = 0; k < j.Outputs.Length; k++)
+                    {
+                        if (Excluded.Contains(j.Outputs[k])) continue;
+                        if (Values.TryGetValue(j.Outputs[k], out double ov)) remaining -= ov * j.OutputQuantities[k];
+                        else if (Open(j.Outputs[k])) open.Add(k);
+                    }
+                    if (open.Count == 0 || remaining <= MinValue) continue;
+                    double share = remaining / open.Count;
+                    foreach (int k in open) Propose(j.Outputs[k], share / j.OutputQuantities[k]);
+                }
+                else if (InferBackwards && Open(j.Input))
+                {
+                    double sum = 0;
+                    bool all = true;
+                    for (int k = 0; k < j.Outputs.Length && all; k++)
+                    {
+                        if (Excluded.Contains(j.Outputs[k])) continue;
+                        if (Values.TryGetValue(j.Outputs[k], out double ov)) sum += ov * j.OutputQuantities[k];
+                        else all = false;
+                    }
+                    if (all) Propose(j.Input, sum / j.InputQuantity);
+                }
+            }
+
+            if (!InferBackwards) goto apply;
             foreach (Edge e in Edges)
             {
                 if (!e.Reversible || e.Choices.Length != 1 || e.Choices[0].Length != 1) continue;
                 T input = e.Choices[0][0];
                 if (Values.ContainsKey(input) || Excluded.Contains(input) || Unstable.Contains(input)) continue;
                 if (!Values.TryGetValue(e.Output, out double outValue)) continue;
-                double v = outValue * e.OutputQuantity / e.Quantities[0];
-                if (v < MinValue || double.IsInfinity(v) || double.IsNaN(v)) continue;
-                proposals[input] = proposals.TryGetValue(input, out double prev) ? Math.Min(prev, v) : v;
+                Propose(input, (outValue * e.OutputQuantity - e.ExtraCost) / e.Quantities[0]);
             }
+
+            apply:
             foreach (var kv in proposals)
             {
                 Values[kv.Key] = kv.Value;

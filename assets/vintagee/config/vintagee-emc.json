@@ -34,14 +34,13 @@
     "game:leavesbranchy-*": 2,
     "game:sapling-*": 32,
     "game:tallgrass-*": 1,
-    "game:drygrass": 1,
     "game:fern-*": 1,
     "game:flower-*": 16,
     "game:mushroom-*": 16,
     "game:cattailtops": 4,
     "game:cattailroot": 4,
     "game:papyrustops": 4,
-    "game:flaxfibers": 8,
+    "game:flaxfibers": 32,
     "game:cotton": 8,
     "game:resin": 16,
     "game:bamboo-*": 8,
@@ -51,7 +50,6 @@
     "game:vegetable-*": 16,
     "game:legume-*": 8,
     "game:honeycomb": 32,
-    "game:honeyportion": 0.25,
     "game:redmeat-raw": 32,
     "game:poultry-raw": 24,
     "game:bushmeat-raw": 16,
@@ -126,6 +124,14 @@
     "game:agedfirewood": 8,
     "game:compost": 4
   },
+  "//relativeValues": "Items worth a fixed fraction of another item. '*' in code is carried into 'of'. Only used for items that got no value from recipes. A metal bit is 5 of an ingot's 100 metal units.",
+  "relativeValues": [
+    {
+      "code": "game:metalbit-*",
+      "of": "game:ingot-*",
+      "ratio": 0.05
+    }
+  ],
   "blacklist": [
     "game:creative*",
     "game:*-creative*",

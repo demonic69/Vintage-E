@@ -31,11 +31,15 @@ Nothing is hard-coded per item. When the server reaches the "run game" phase (af
    - alloy recipes (copper + tin → bronze, by ratio);
    - item properties: smelting/firing/cooking, quern grinding, pulverizer crushing, and drying, curing, ripening, hardening, melting and other transitions;
    - clay-oven baking, the fruit press and the still (read from item attributes, so mods using the same attributes are covered);
+   - **casting**: pouring metal into a tool mold costs the mold's `requiredUnits` of that metal (100 units = 1 ingot), shared among what it drops; the mold itself only costs something if it breaks when filled;
+   - **processes with several outputs**, read from the behaviours' own settings: squeezing (honeycomb → honey + beeswax), ground-storage processing such as sawing logs into boards (`processedStacks` plus any `remainingItem`), and the fruit press (juice + pressed leftovers). The input's value is shared out so the process neither creates nor destroys EMC: outputs that already have a value keep it, the rest is split evenly;
    - **block drops**: a natural block (ore, crop, plant, clay…) is worth what it drops, and a block that drops one kind of item values that item.
    Smithing and clay forming are costed by the voxels the pattern actually uses (42 voxels per ingot, 25 per clay). Tools used in a recipe (saws, the philosopher's stone…) cost nothing; returned items (buckets…) are subtracted.
 3. **Propagates values through that graph**: each item gets the *cheapest* value any recipe produces, so crafting something and burning it can never earn more EMC than its ingredients. When an ingredient accepts several items (wildcards, tags) the cheapest valued one is used. Self-cheapening recipe loops are detected and frozen at their first value.
-4. **Works backwards where it can**: if an ore chunk or a raw food has no value but what it smelts/dries/grinds into does, its value is inferred from the output.
-5. **Fills remaining gaps from variants**: anything still unvalued borrows the value of its closest variant — the same ore in a different rock, the same bread at a different bake level. It takes the *highest* such value, so a guessed value can never be cheaper to create than to burn.
+4. **Adds time**: items that transform on their own over time get a bonus per in-game day it takes (fresh + transition hours). By default drying adds **64 EMC per day** (tall grass that takes a day to dry makes dry grass worth 64 more). Set per transition type with `TransitionEmcPerDay` in the config (`dry`, `cure`, `ripen`, `harden`, `melt`, `convert`).
+5. **Works backwards where it can**: if an ore chunk or a raw food has no value but what it smelts/dries/grinds into does, its value is inferred from the output.
+6. **Applies ratio rules** from the value files (`relativeValues`) to anything still unvalued — e.g. a metal bit is worth 1/20 of the matching ingot (5 of its 100 metal units), whether or not that metal can be smelted.
+7. **Fills remaining gaps from variants**: anything still unvalued borrows the value of its closest variant — the same ore in a different rock, the same bread at a different bake level. It takes the *highest* such value, so a guessed value can never be cheaper to create than to burn.
 
 The finished table is sent to every client.
 
@@ -63,11 +67,11 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `InferValuesFromProcessing`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DurabilityScalesEmc`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`.
+4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DurabilityScalesEmc`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`.
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
-The same value files also hold the philosopher's stone rules (`worldTransmutation`: `swaps` and `variantCycles`) and the `blacklist`.
+Value files can also hold `relativeValues` rules (`{ "code": "game:metalbit-*", "of": "game:ingot-*", "ratio": 0.05 }`, the `*` part carried over). The same value files also hold the philosopher's stone rules (`worldTransmutation`: `swaps` and `variantCycles`) and the `blacklist`.
 
 ### Commands
 
@@ -130,7 +134,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 ## Installing
 
-Download [`dist/vintagee_1.1.1.zip`](dist/vintagee_1.1.1.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.2.0.zip`](dist/vintagee_1.2.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

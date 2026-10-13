@@ -35,6 +35,7 @@ namespace VintageE
         };
 
         readonly ICoreServerAPI sapi;
+        readonly VintageEConfig config;
         readonly CollectibleIndex index;
         readonly ILogger logger;
         readonly Dictionary<string, CollectibleObject[]> choiceCache = new Dictionary<string, CollectibleObject[]>();
@@ -46,9 +47,10 @@ namespace VintageE
         public readonly SortedDictionary<string, int> SourceCounts = new SortedDictionary<string, int>();
         public int SkippedRecipes;
 
-        public ConversionCollector(ICoreServerAPI sapi, CollectibleIndex index, ILogger logger)
+        public ConversionCollector(ICoreServerAPI sapi, CollectibleIndex index, ILogger logger, VintageEConfig config = null)
         {
             this.sapi = sapi;
+            this.config = config ?? new VintageEConfig();
             this.index = index;
             this.logger = logger;
         }
@@ -60,6 +62,8 @@ namespace VintageE
             CollectFromCollectibleProperties();
             CollectFromBlockDrops();
             CollectFromAttributes();
+            CollectFromMolds();
+            CollectFromBehaviors();
         }
 
         #region Recipe lists discovered by reflection
@@ -404,7 +408,7 @@ namespace VintageE
             int smelt = 0, grind = 0, crush = 0, transition = 0;
             foreach (CollectibleObject c in index.All)
             {
-                CombustibleProperties comb = c.CombustibleProps;
+                CombustibleProperties comb = c.CombustibleProps ?? CombustibleFor(c);
                 ItemStack smelted = comb?.SmeltedStack?.ResolvedItemstack;
                 if (smelted?.Collectible != null)
                 {
@@ -428,7 +432,16 @@ namespace VintageE
                         if (tp == null || Array.IndexOf(UsefulTransitions, tp.Type) < 0) continue;
                         ItemStack result = tp.TransitionedStack?.ResolvedItemstack;
                         if (result?.Collectible == null) continue;
-                        if (AddProcessing(c, 1, result.Collectible, result.StackSize * Math.Max(tp.TransitionRatio, 0.0001f), "transitions (" + tp.Type.ToString().ToLowerInvariant() + ")")) transition++;
+                        string type = tp.Type.ToString().ToLowerInvariant();
+                        double bonus = 0;
+                        if (config.TransitionEmcPerDay.TryGetValue(type, out double perDay) && perDay > 0)
+                        {
+                            double hoursPerDay = sapi.World.Calendar?.HoursPerDay ?? 24;
+                            if (hoursPerDay <= 0) hoursPerDay = 24;
+                            double hours = Math.Max(0, tp.FreshHours?.avg ?? 0) + Math.Max(0, tp.TransitionHours?.avg ?? 0);
+                            bonus = perDay * hours / hoursPerDay;
+                        }
+                        if (AddProcessing(c, 1, result.Collectible, result.StackSize * Math.Max(tp.TransitionRatio, 0.0001f), "transitions (" + type + ")", bonus)) transition++;
                     }
                 }
             }
@@ -436,6 +449,183 @@ namespace VintageE
             Count("item properties: quern grinding", grind);
             Count("item properties: pulverizer crushing", crush);
             Count("item properties: drying/curing/ripening/etc.", transition);
+        }
+
+        /// <summary>
+        /// Casting: a tool mold takes requiredUnits of molten metal (100 units = 1 ingot) and drops "drop"/"drops",
+        /// whose code contains {metal} (pickaxehead-{metal}, arrowhead-{metal}...). One conversion per metal that has
+        /// a matching output. The mold is reused, so it only costs something if it breaks when filled.
+        /// </summary>
+        void CollectFromMolds()
+        {
+            const double UnitsPerIngot = 100;
+            var ingotsByDomain = new Dictionary<string, List<CollectibleObject>>();
+            foreach (CollectibleObject c in index.Match("item:*:ingot-*"))
+            {
+                if (!ingotsByDomain.TryGetValue(c.Code.Domain, out var list)) ingotsByDomain[c.Code.Domain] = list = new List<CollectibleObject>();
+                list.Add(c);
+            }
+            List<CollectibleObject> allIngots = ingotsByDomain.Values.SelectMany(l => l).ToList();
+
+            int casts = 0;
+            foreach (CollectibleObject c in index.All)
+            {
+                if (!(c is Block mold) || mold.Attributes == null || !IsToolMold(mold)) continue;
+                // Only fired/burned molds can take metal (same rule as the game); skip raw duplicates.
+                if (mold.Variant != null && mold.Variant.TryGetValue("materialtype", out string mt) && mt != "fired" && !mold.Code.Path.Contains("burned")) continue;
+
+                var drops = new List<JsonObject>();
+                if (mold.Attributes["drop"].Exists) drops.Add(mold.Attributes["drop"]);
+                else if (mold.Attributes["drops"].Exists) drops.AddRange(mold.Attributes["drops"].AsArray() ?? Array.Empty<JsonObject>());
+                if (drops.Count == 0) continue;
+
+                double units = mold.Attributes["requiredUnits"].AsDouble(100);
+                bool breaks = mold.Attributes["breaksWhenFilled"].AsBool(false);
+                bool perMetal = drops.Any(d => (d["code"].AsString("") ?? "").Contains("{metal}"));
+                IEnumerable<CollectibleObject> metals = perMetal ? allIngots : new CollectibleObject[] { null };
+
+                foreach (CollectibleObject ingot in metals)
+                {
+                    string metal = ingot?.Code.Path.Substring(ingot.Code.Path.LastIndexOf('-') + 1);
+                    var outputs = new List<(CollectibleObject item, int size)>();
+                    foreach (JsonObject d in drops)
+                    {
+                        string code = d["code"].AsString(null);
+                        if (code == null) continue;
+                        if (metal != null) code = code.Replace("{metal}", metal);
+                        var (item, size) = ResolveStack(new JsonObject(MakeDropSpec(d, code)), mold.Code.Domain);
+                        if (item != null) outputs.Add((item, Math.Max(1, size)));
+                    }
+                    if (outputs.Count == 0) continue;
+                    int total = outputs.Sum(o => o.size);
+
+                    foreach (var (item, size) in outputs.GroupBy(o => o.item).Select(g => (g.Key, g.Sum(o => o.size))))
+                    {
+                        var conv = new Conversion { Output = item, OutputQuantity = total, Kind = ConversionKind.Crafting, Source = "casting (tool molds)" };
+                        CollectibleObject[] metalChoices = ingot != null ? new[] { ingot } : allIngots.ToArray();
+                        if (metalChoices.Length == 0) continue;
+                        conv.Inputs.Add(new ConversionInput { Choices = metalChoices, Quantity = units / UnitsPerIngot });
+                        if (breaks) conv.Inputs.Add(new ConversionInput { Choices = new CollectibleObject[] { mold }, Quantity = 1 });
+                        if (AddIfSane(conv)) casts++;
+                    }
+                }
+            }
+            Count("casting (tool molds)", casts);
+        }
+
+        static Newtonsoft.Json.Linq.JToken MakeDropSpec(JsonObject original, string resolvedCode)
+        {
+            var copy = original.Token.DeepClone();
+            copy["code"] = resolvedCode;
+            return copy;
+        }
+
+        /// <summary>Vanilla BlockToolMold (and modded subclasses), detected by class name like the liquid containers.</summary>
+        static bool IsToolMold(CollectibleObject c)
+        {
+            for (Type x = c.GetType(); x != null && x != typeof(object); x = x.BaseType)
+            {
+                if (x.Name == "BlockToolMold") return true;
+            }
+            return false;
+        }
+
+        static double PortionsPerLitre(CollectibleObject liquid)
+            => liquid.Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(1) ?? 1; // game default is 1
+
+        /// <summary>
+        /// Processes defined by collectible behaviours, read from each behaviour's own JSON settings so any mod
+        /// using the same behaviours is covered:
+        /// squeezing ("Squeezable": squeezedLitres of liquidItemCode, plus returnStacks such as beeswax) and
+        /// ground-storage processing ("GroundStoredProcessable": processedStacks, plus a remainingItem left behind;
+        /// e.g. sawing into boards). Tools used are not consumed.
+        /// </summary>
+        void CollectFromBehaviors()
+        {
+            int squeeze = 0, ground = 0;
+            foreach (CollectibleObject c in index.All)
+            {
+                if (c.CollectibleBehaviors == null) continue;
+                foreach (CollectibleBehavior bh in c.CollectibleBehaviors)
+                {
+                    string json = bh?.propertiesAtString;
+                    if (string.IsNullOrEmpty(json) || json.Length < 10) continue;
+                    if (!json.Contains("squeezedLitres") && !json.Contains("processedStack") && !json.Contains("remainingItem")) continue;
+                    Newtonsoft.Json.Linq.JObject props;
+                    try { props = Newtonsoft.Json.Linq.JObject.Parse(json); }
+                    catch { continue; }
+                    var p = new JsonObject(props);
+                    try
+                    {
+                        if (p["squeezedLitres"].Exists && p["liquidItemCode"].Exists)
+                        {
+                            var outputs = new List<KeyValuePair<CollectibleObject, double>>();
+                            CollectibleObject liquid = ResolveCode(p["liquidItemCode"].AsString(null), c.Code.Domain, EnumItemClass.Item);
+                            double litres = p["squeezedLitres"].AsDouble(0);
+                            if (liquid != null && litres > 0) outputs.Add(new(liquid, litres * PortionsPerLitre(liquid)));
+                            foreach (JsonObject ret in p["returnStacks"].AsArray() ?? Array.Empty<JsonObject>())
+                            {
+                                var (item, size) = ResolveStack(ret, c.Code.Domain);
+                                if (item != null) outputs.Add(new(item, Math.Max(1, size)));
+                            }
+                            if (AddJoint(c, 1, outputs, "squeezing")) squeeze++;
+                        }
+                        else
+                        {
+                            var outputs = new List<KeyValuePair<CollectibleObject, double>>();
+                            var stacks = new List<JsonObject>();
+                            if (p["processedStacks"].Exists) stacks.AddRange(p["processedStacks"].AsArray() ?? Array.Empty<JsonObject>());
+                            if (p["processedStack"].Exists) stacks.Add(p["processedStack"]);
+                            foreach (JsonObject st in stacks)
+                            {
+                                var (item, size) = ResolveStack(st, c.Code.Domain);
+                                double qty = Quantity(st["quantity"], 1) * Math.Max(1, st["stacksize"].AsInt(1));
+                                if (item != null && qty > 0) outputs.Add(new(item, qty));
+                            }
+                            var (remaining, remSize) = ResolveStack(p["remainingItem"], c.Code.Domain);
+                            if (remaining != null) outputs.Add(new(remaining, Math.Max(1, remSize)));
+                            if (AddJoint(c, 1, outputs, "ground-storage processing")) ground++;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        logger.VerboseDebug("EMC: could not read behaviour settings of {0}: {1}", c.Code, e.Message);
+                    }
+                }
+            }
+            Count("behaviours: squeezing", squeeze);
+            Count("behaviours: ground-storage processing", ground);
+        }
+
+        /// <summary>Number or NatFloat ({ "avg": 4.4, "var": 1 }) → its average.</summary>
+        static double Quantity(JsonObject q, double fallback)
+        {
+            if (q == null || !q.Exists) return fallback;
+            if (q["avg"].Exists) return q["avg"].AsDouble(fallback);
+            return q.AsDouble(fallback);
+        }
+
+        /// <summary>One input, several outputs (merged per item; outputs equal to the input are ignored). A single output becomes a normal processing step.</summary>
+        bool AddJoint(CollectibleObject input, double inputQty, List<KeyValuePair<CollectibleObject, double>> outputs, string label)
+        {
+            var merged = outputs
+                .Where(o => o.Key != null && o.Key != input && o.Value > 0)
+                .GroupBy(o => o.Key)
+                .Select(g => new KeyValuePair<CollectibleObject, double>(g.Key, g.Sum(o => o.Value)))
+                .ToList();
+            if (merged.Count == 0) return false;
+            if (merged.Count == 1) return AddProcessing(input, inputQty, merged[0].Key, merged[0].Value, label);
+            var conv = new Conversion { Kind = ConversionKind.Processing, Source = label, JointOutputs = merged, OutputQuantity = 1 };
+            conv.Inputs.Add(new ConversionInput { Choices = new[] { input }, Quantity = inputQty });
+            Conversions.Add(conv);
+            return true;
+        }
+
+        /// <summary>Some item classes compute their smelting data in code instead of JSON; ask them, safely.</summary>
+        CombustibleProperties CombustibleFor(CollectibleObject c)
+        {
+            try { return c.GetCombustibleProperties(sapi.World, new ItemStack(c), null); }
+            catch { return null; }
         }
 
         /// <summary>
@@ -505,8 +695,10 @@ namespace VintageE
                         double litres = juice["litresPerItem"].AsDouble(0);
                         if (liquid != null && litres > 0)
                         {
-                            double perLitre = liquid.Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(1) ?? 1; // game default is 1
-                            if (AddProcessing(c, 1, liquid, litres * perLitre * Math.Max(1, size), "fruit press")) juicing++;
+                            var outputs = new List<KeyValuePair<CollectibleObject, double>> { new(liquid, litres * PortionsPerLitre(liquid) * Math.Max(1, size)) };
+                            var (pressed, pressedSize) = ResolveStack(juice["pressedStack"], c.Code.Domain);
+                            if (pressed != null) outputs.Add(new(pressed, Math.Max(1, pressedSize)));
+                            if (AddJoint(c, 1, outputs, "fruit press")) juicing++;
                         }
                     }
 
@@ -547,13 +739,14 @@ namespace VintageE
             return preferred == EnumItemClass.Block ? (block ?? item) : (item ?? block);
         }
 
-        bool AddProcessing(CollectibleObject input, double inputQty, CollectibleObject output, double outputQty, string label)
+        bool AddProcessing(CollectibleObject input, double inputQty, CollectibleObject output, double outputQty, string label, double extraCost = 0)
         {
             if (outputQty <= 0 || inputQty <= 0) return false;
             var conv = new Conversion
             {
                 Output = output,
                 OutputQuantity = outputQty,
+                ExtraCost = extraCost,
                 Kind = ConversionKind.Processing,
                 Source = label
             };

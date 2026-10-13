@@ -20,6 +20,7 @@ namespace VintageE
         public int UnmatchedRules;
         public int SkippedRecipes;
         public int SiblingCount;
+        public int RelativeCount;
         public int FallbackCount;
         public long Milliseconds;
         public SortedDictionary<string, int> Sources;
@@ -62,14 +63,26 @@ namespace VintageE
             Seed(index, report, out Dictionary<CollectibleObject, double> fixedValues, out HashSet<CollectibleObject> excluded);
 
             // 3. Every way of making things.
-            var collector = new ConversionCollector(sapi, index, logger);
+            var collector = new ConversionCollector(sapi, index, logger, config);
             collector.CollectAll();
             report.SkippedRecipes = collector.SkippedRecipes;
 
             // 4. Propagate.
             var edges = new List<EmcSolver<CollectibleObject>.Edge>();
+            var joints = new List<EmcSolver<CollectibleObject>.JointEdge>();
             foreach (Conversion conv in collector.Conversions)
             {
+                if (conv.JointOutputs != null)
+                {
+                    joints.Add(new EmcSolver<CollectibleObject>.JointEdge
+                    {
+                        Input = conv.Inputs[0].Choices[0],
+                        InputQuantity = conv.Inputs[0].Quantity,
+                        Outputs = conv.JointOutputs.Select(o => o.Key).ToArray(),
+                        OutputQuantities = conv.JointOutputs.Select(o => o.Value).ToArray()
+                    });
+                    continue;
+                }
                 if (excluded.Contains(conv.Output)) continue;
                 var edge = new EmcSolver<CollectibleObject>.Edge
                 {
@@ -77,7 +90,8 @@ namespace VintageE
                     OutputQuantity = conv.OutputQuantity,
                     Choices = conv.Inputs.Select(i => i.Choices).ToArray(),
                     Quantities = conv.Inputs.Select(i => i.Quantity).ToArray(),
-                    Reversible = conv.Kind == ConversionKind.Processing
+                    Reversible = conv.Kind == ConversionKind.Processing,
+                    ExtraCost = conv.ExtraCost
                 };
                 if (conv.Returned != null)
                 {
@@ -86,17 +100,24 @@ namespace VintageE
                 }
                 edges.Add(edge);
             }
-            EmcSolver<CollectibleObject> solver = Solve(fixedValues, excluded, edges);
+            EmcSolver<CollectibleObject> solver = Solve(fixedValues, excluded, edges, joints);
 
             // 5. Last resort for whatever is still unvalued: borrow from its closest variant sibling
             //    (ore-poor-galena-chalk ← ore-poor-galena-granite, bread-spelt-charred ← bread-spelt-perfect).
             //    The highest sibling value is used, so a guessed value can never be cheaper to create than to burn.
             //    Then, only if the server owner asked for it, a flat fallback value for anything still left.
             var extra = new Dictionary<CollectibleObject, double>();
+            // Data-driven ratios first (metal bit = 1/20 ingot...), then variant siblings for whatever is left.
+            foreach (var kv in RelativeValues(index, solver.Values, excluded)) extra[kv.Key] = kv.Value;
+            report.RelativeCount = extra.Count;
             if (config.InferFromVariantSiblings)
             {
-                foreach (var kv in SiblingValues(index, solver.Values, excluded)) extra[kv.Key] = kv.Value;
-                report.SiblingCount = extra.Count;
+                foreach (var kv in SiblingValues(index, solver.Values, excluded))
+                {
+                    if (extra.ContainsKey(kv.Key)) continue;
+                    extra[kv.Key] = kv.Value;
+                    report.SiblingCount++;
+                }
             }
             if (config.FallbackValue > 0)
             {
@@ -113,7 +134,7 @@ namespace VintageE
             {
                 var seeded = new Dictionary<CollectibleObject, double>(fixedValues);
                 foreach (var kv in extra) seeded[kv.Key] = kv.Value;
-                solver = Solve(seeded, excluded, edges);
+                solver = Solve(seeded, excluded, edges, joints);
             }
 
             report.Values = new Dictionary<CollectibleObject, double>();
@@ -123,8 +144,8 @@ namespace VintageE
             }
             report.BaseCount = fixedValues.Count;
             report.InferredCount = solver.Inferred.Keys.Count(k => report.Values.ContainsKey(k));
-            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount;
-            report.ConversionCount = solver.Edges.Count;
+            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount;
+            report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
@@ -210,7 +231,7 @@ namespace VintageE
         /// <summary>Real, obtainable content: anything shown in a creative inventory tab.</summary>
         static bool IsListed(CollectibleObject c) => (c.CreativeInventoryTabs?.Length ?? 0) > 0 || (c.CreativeInventoryStacks?.Length ?? 0) > 0;
 
-        EmcSolver<CollectibleObject> Solve(Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, List<EmcSolver<CollectibleObject>.Edge> edges)
+        EmcSolver<CollectibleObject> Solve(Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, List<EmcSolver<CollectibleObject>.Edge> edges, List<EmcSolver<CollectibleObject>.JointEdge> joints)
         {
             var solver = new EmcSolver<CollectibleObject>
             {
@@ -220,8 +241,44 @@ namespace VintageE
                 InferBackwards = config.InferValuesFromProcessing
             };
             solver.Edges.AddRange(edges);
+            solver.JointEdges.AddRange(joints);
             solver.Solve();
             return solver;
+        }
+
+        /// <summary>
+        /// relativeValues rules: an unvalued item matching Code gets Ratio × the value of the item named by Of,
+        /// with the '*' part of Code carried over ("game:metalbit-*" of "game:ingot-*" → metalbit-copper from ingot-copper).
+        /// </summary>
+        Dictionary<CollectibleObject, double> RelativeValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded)
+        {
+            var result = new Dictionary<CollectibleObject, double>();
+            foreach (RelativeValueRule rule in rules.Relative)
+            {
+                int star = rule.Code.IndexOf('*');
+                foreach (CollectibleObject c in index.Match(rule.Code))
+                {
+                    if (values.ContainsKey(c) || excluded.Contains(c) || result.ContainsKey(c)) continue;
+                    string target = rule.Of;
+                    if (star >= 0)
+                    {
+                        var pattern = new AssetLocation(rule.Code.StartsWith("item:") || rule.Code.StartsWith("block:") ? rule.Code.Substring(rule.Code.IndexOf(':') + 1) : rule.Code);
+                        string prefix = pattern.Path.Substring(0, pattern.Path.IndexOf('*'));
+                        string suffix = pattern.Path.Substring(pattern.Path.IndexOf('*') + 1);
+                        string path = c.Code.Path;
+                        if (path.Length < prefix.Length + suffix.Length) continue;
+                        string captured = path.Substring(prefix.Length, path.Length - prefix.Length - suffix.Length);
+                        target = rule.Of.Replace("*", captured);
+                    }
+                    double best = 0;
+                    foreach (CollectibleObject source in index.Match(target))
+                    {
+                        if (values.TryGetValue(source, out double v) && v > best) best = v;
+                    }
+                    if (best > 0) result[c] = best * rule.Ratio;
+                }
+            }
+            return result;
         }
 
         /// <summary>

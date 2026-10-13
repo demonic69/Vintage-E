@@ -19,6 +19,14 @@ namespace VintageE
         public List<ConversionInput> Inputs = new List<ConversionInput>();
         /// <summary>Things handed back after crafting (e.g. an empty bucket); their value is subtracted.</summary>
         public List<KeyValuePair<CollectibleObject, double>> Returned;
+        /// <summary>
+        /// Set for one-input processes with several outputs (squeezing honeycomb → honey + beeswax, ground-storage
+        /// processing, the fruit press). The single input's value is shared out among these instead of Output.
+        /// </summary>
+        public List<KeyValuePair<CollectibleObject, double>> JointOutputs;
+
+        /// <summary>Flat EMC added to every run on top of the inputs (e.g. the drying-time bonus).</summary>
+        public double ExtraCost;
         public ConversionKind Kind;
         public string Source;
 

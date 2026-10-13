@@ -40,6 +40,13 @@ namespace VintageE
         /// </summary>
         public bool CacheEmcValues = true;
 
+        /// <summary>
+        /// Extra EMC added per in-game day an item takes to transform on its own, by transition type
+        /// (dry, cure, ripen, harden, melt, convert). The time counted is fresh hours + transition hours.
+        /// Example: tall grass that takes 1 day to become dry grass makes the dry grass worth 64 more. 0 or missing = no bonus.
+        /// </summary>
+        public Dictionary<string, double> TransitionEmcPerDay = new Dictionary<string, double> { ["dry"] = 64 };
+
         /// <summary>Upper bound on relaxation passes over the recipe graph. Values still falling after this are recipe loops and get dropped.</summary>
         public int MaxMappingPasses = 120;
 
@@ -69,6 +76,7 @@ namespace VintageE
             BaseValues ??= new Dictionary<string, double>();
             FixedValues ??= new Dictionary<string, double>();
             Blacklist ??= new List<string>();
+            TransitionEmcPerDay ??= new Dictionary<string, double>();
             if (MachineSpeedMultiplier <= 0) MachineSpeedMultiplier = 1.0;
             if (MaxMappingPasses < 4) MaxMappingPasses = 4;
             if (TableUseRange < 2) TableUseRange = 2;

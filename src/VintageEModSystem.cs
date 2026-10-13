@@ -175,9 +175,10 @@ namespace VintageE
                 "EMC mapped ({0}) in {1} ms: {2} valued collectibles ({3} base, {4} from recipes/processing, {5} inferred backwards), {6} conversions from {7} sources.",
                 reason, report.Milliseconds, report.Values.Count, report.BaseCount, report.DerivedCount, report.InferredCount,
                 report.ConversionCount, report.SourceCount);
-            if (report.SiblingCount > 0 || report.FallbackCount > 0)
+            if (report.RelativeCount > 0 || report.SiblingCount > 0 || report.FallbackCount > 0)
             {
-                Mod.Logger.Notification("EMC: {0} items had no recipe path and borrowed the value of their closest variant; {1} got the configured FallbackValue.", report.SiblingCount, report.FallbackCount);
+                Mod.Logger.Notification("EMC: items with no recipe path: {0} valued by relativeValues rules, {1} borrowed their closest variant's value, {2} got the configured FallbackValue.",
+                    report.RelativeCount, report.SiblingCount, report.FallbackCount);
             }
             LogCoverage(report);
             LastReport = report;
