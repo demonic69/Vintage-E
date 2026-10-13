@@ -16,7 +16,9 @@ namespace VintageE
     /// /emc recalc          – (admin) rerun the mapper
     /// /emc dump            – (admin) write every value to ModData/vintagee/emc-values.csv
     /// /emc missing         – (admin) list blocks/items without a value (also written to ModData/vintagee/emc-missing.csv)
-    /// /emc give &lt;amount&gt;  – (admin) add personal EMC
+    /// /emc add &lt;amount&gt; [player]    – (admin) add personal EMC to a player (yourself by default)
+    /// /emc remove &lt;amount&gt; [player] – (admin) take personal EMC from a player
+    /// /emc give &lt;amount&gt;  – (admin) old name for /emc add on yourself
     /// /emc learn           – (admin) learn the held item without burning it
     /// </summary>
     public static class EmcCommands
@@ -60,16 +62,23 @@ namespace VintageE
                     .RequiresPrivilege(Privilege.controlserver)
                     .HandleWith(args => Missing(mod, args))
                 .EndSubCommand()
-                .BeginSubCommand("give")
-                    .RequiresPlayer()
-                    .WithDescription("Add personal EMC to yourself")
+                .BeginSubCommand("add")
+                    .WithDescription("Add EMC to a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .WithArgs(parsers.Double("amount"))
-                    .HandleWith(args =>
-                    {
-                        PlayerEmc.AddEmc(args.Caller.Player, (double)args[0]);
-                        return TextCommandResult.Success(Lang.Get("vintagee:cmd-balance", EmcFormat.Format(PlayerEmc.GetEmc(args.Caller.Player))));
-                    })
+                    .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
+                    .HandleWith(args => ChangeBalance(args, +1))
+                .EndSubCommand()
+                .BeginSubCommand("remove")
+                    .WithDescription("Take EMC from a player's personal EMC (yours if no player is named)")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
+                    .HandleWith(args => ChangeBalance(args, -1))
+                .EndSubCommand()
+                .BeginSubCommand("give")
+                    .WithDescription("Same as /emc add")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
+                    .HandleWith(args => ChangeBalance(args, +1))
                 .EndSubCommand()
                 .BeginSubCommand("learn")
                     .RequiresPlayer()
@@ -95,7 +104,8 @@ namespace VintageE
             ("/emc clear", "cmdhelp-clear", true),
             ("/emc recalc", "cmdhelp-recalc", true),
             ("/emc dump", "cmdhelp-dump", true),
-            ("/emc give <amount>", "cmdhelp-give", true),
+            ("/emc add <amount> [player]", "cmdhelp-add", true),
+            ("/emc remove <amount> [player]", "cmdhelp-remove", true),
             ("/emc learn", "cmdhelp-learn", true),
         };
 
@@ -112,6 +122,31 @@ namespace VintageE
             }
             if (!isAdmin) sb.Append(Lang.GetL(lang, "vintagee:cmdhelp-notadmin"));
             return TextCommandResult.Success(sb.ToString().TrimEnd());
+        }
+
+        /// <summary>/emc add and /emc remove: changes a player's personal EMC (never below 0).</summary>
+        static TextCommandResult ChangeBalance(TextCommandCallingArgs args, int sign)
+        {
+            string lang = args.LanguageCode;
+            double amount = (double)args[0];
+            IPlayer target = args[1] as IPlayer ?? args.Caller.Player;
+            if (target == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-emc-needplayer"));
+            if (double.IsNaN(amount) || double.IsInfinity(amount) || amount <= 0) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-emc-positive"));
+
+            double before = PlayerEmc.GetEmc(target);
+            double after = Math.Max(0, before + sign * amount);
+            PlayerEmc.SetEmc(target, after);
+            double changed = Math.Abs(after - before);
+
+            if (target != args.Caller.Player && target is IServerPlayer sp)
+            {
+                string who = args.Caller.Player?.PlayerName ?? "Server";
+                sp.SendMessage(GlobalConstants.GeneralChatGroup,
+                    Lang.GetL(sp.LanguageCode, sign > 0 ? "vintagee:cmd-emc-gotadded" : "vintagee:cmd-emc-gotremoved", who, EmcFormat.Format(changed), EmcFormat.Format(after)),
+                    EnumChatType.Notification);
+            }
+            return TextCommandResult.Success(Lang.GetL(lang, sign > 0 ? "vintagee:cmd-emc-added" : "vintagee:cmd-emc-removed",
+                EmcFormat.Format(changed), target.PlayerName, EmcFormat.Format(after)));
         }
 
         static TextCommandResult Info(VintageEModSystem mod, TextCommandCallingArgs args)

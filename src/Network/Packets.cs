@@ -69,4 +69,11 @@ namespace VintageE
     {
         [ProtoMember(1)] public float Modifier;
     }
+
+    /// <summary>Client → server: the fire-projectile key was pressed (shoot the held lens).</summary>
+    [ProtoContract]
+    public class FireProjectilePacket
+    {
+        [ProtoMember(1)] public int Hand;
+    }
 }

@@ -115,19 +115,31 @@ namespace VintageE
             }
         }
 
-        /// <summary>Effective effect name of an active trinket ("ringofarcana" resolves to its selected mode).</summary>
-        public static string EffectOf(ItemEmcTrinket t, ItemStack stack)
+        /// <summary>The ring each Ring of Arcana effect copies, in <see cref="ItemEmcTrinket.ArcanaModes"/> order.</summary>
+        static readonly string[] ArcanaRings = { "zeroring", "ignitionring", "harvestgoddessband", "swiftwolfsrendinggale" };
+
+        /// <summary>
+        /// The effects of an active trinket: its own kind, or for the Ring of Arcana every one of its four ring
+        /// effects that is switched on.
+        /// </summary>
+        public static IEnumerable<string> EffectsOf(ItemEmcTrinket t, ItemStack stack)
         {
-            if (t.Kind != "ringofarcana") return t.Kind;
-            string mode = ItemEmcTrinket.ArcanaModes[GameMath.Clamp(ItemEmcTrinket.GetMode(stack), 0, ItemEmcTrinket.ArcanaModes.Length - 1)];
-            return mode switch { "zero" => "zeroring", "ignition" => "ignitionring", "harvest" => "harvestgoddessband", _ => "swiftwolfsrendinggale" };
+            if (t.Kind != "ringofarcana")
+            {
+                yield return t.Kind;
+                yield break;
+            }
+            for (int i = 0; i < ArcanaRings.Length; i++)
+            {
+                if (ItemEmcTrinket.ArcanaEnabled(stack, i)) yield return ArcanaRings[i];
+            }
         }
 
         public static bool HasActiveEffect(IPlayer player, string effect)
         {
             foreach (var (slot, t) in ActiveTrinkets(player))
             {
-                if (EffectOf(t, slot.Itemstack) == effect) return true;
+                if (EffectsOf(t, slot.Itemstack).Contains(effect)) return true;
             }
             return false;
         }
@@ -139,9 +151,8 @@ namespace VintageE
             bool gale = false;
             var done = new HashSet<string>(); // the same effect twice doesn't stack
 
-            foreach (var (slot, t) in ActiveTrinkets(player).ToList())
+            foreach (var (slot, effect) in ActiveTrinkets(player).SelectMany(a => EffectsOf(a.trinket, a.slot.Itemstack).Select(e => (a.slot, e))).ToList())
             {
-                string effect = EffectOf(t, slot.Itemstack);
                 if (!done.Add(effect + (effect == "gemofeternaldensity" ? slot.GetHashCode().ToString() : ""))) continue;
                 switch (effect)
                 {
@@ -401,6 +412,21 @@ namespace VintageE
             }
             StoredEmc.Set(gemSlot.Itemstack, stored);
             gemSlot.MarkDirty();
+        }
+
+        /// <summary>Places a water or lava source block at <paramref name="pos"/> if nothing solid is in the way. Returns true if placed.</summary>
+        public static bool PlaceLiquidAt(IWorldAccessor world, BlockPos pos, bool lava)
+        {
+            IBlockAccessor ba = world.BlockAccessor;
+            Block solid = ba.GetBlock(pos, BlockLayersAccess.Solid);
+            if (solid != null && solid.Id != 0 && solid.Replaceable < 6000) return false;
+            Block liquid = world.GetBlock(new AssetLocation(lava ? "game:lava-still-7" : "game:water-still-7"));
+            if (liquid == null || liquid.Id == 0) return false;
+            if (solid != null && solid.Id != 0) ba.SetBlock(0, pos, BlockLayersAccess.Solid);
+            ba.SetBlock(liquid.BlockId, pos);
+            ba.TriggerNeighbourBlockUpdate(pos);
+            world.PlaySoundAt(new AssetLocation(lava ? "game:sounds/effect/extinguish" : "game:sounds/environment/waterfall"), pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5, null, true, 12, 0.6f);
+            return true;
         }
 
         /// <summary>Evertide (water, free) and Volcanite (lava, costs EMC) amulets: places a source block where you click.</summary>

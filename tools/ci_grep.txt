@@ -1,0 +1,5 @@
+# Terms whose asset files the CI run copies into grep.json ("path:..." matches the file path)
+"fat-rendered"
+"fat"
+game:fat
+path:firepit

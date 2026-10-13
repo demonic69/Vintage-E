@@ -1,0 +1,63 @@
+{
+  "code": "projectile",
+  "class": "VintageEProjectile",
+  "variantgroups": [
+    {
+      "code": "kind",
+      "states": [
+        "lens",
+        "water",
+        "lava",
+        "fire",
+        "arrow"
+      ]
+    }
+  ],
+  "hitboxSize": {
+    "x": 0.25,
+    "y": 0.25
+  },
+  "client": {
+    "renderer": "Shape",
+    "shape": {
+      "base": "vintagee:entity/projectile"
+    },
+    "texturesByType": {
+      "*-lens": {
+        "orb": {
+          "base": "vintagee:entity/projectile-lens"
+        }
+      },
+      "*-water": {
+        "orb": {
+          "base": "vintagee:entity/projectile-water"
+        }
+      },
+      "*-lava": {
+        "orb": {
+          "base": "vintagee:entity/projectile-lava"
+        }
+      },
+      "*-fire": {
+        "orb": {
+          "base": "vintagee:entity/projectile-fire"
+        }
+      },
+      "*-arrow": {
+        "orb": {
+          "base": "vintagee:entity/projectile-arrow"
+        }
+      }
+    },
+    "size": 1,
+    "behaviors": [
+      {
+        "code": "interpolateposition"
+      }
+    ]
+  },
+  "server": {
+    "behaviors": []
+  },
+  "sounds": {}
+}

@@ -159,6 +159,34 @@ for path in walk("survival/blocktypes"):
 with open(os.path.join(out, "boards.json"), "w") as f:
     json.dump(boards, f, indent=1)
 
+# 5. Whole asset files that mention any term in tools/ci_grep.txt (one per line; "path:x" matches file paths instead),
+#    for looking into recipes/values.
+grep_terms = []
+grep_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci_grep.txt")
+if os.path.exists(grep_list):
+    with open(grep_list) as f:
+        grep_terms = [t.strip() for t in f if t.strip() and not t.startswith("#")]
+found = {t: [] for t in grep_terms}
+if grep_terms:
+    for domain in ("game", "survival", "creative"):
+        for path in walk(domain):
+            try:
+                with open(path, encoding="utf-8-sig") as f:
+                    text = f.read()
+            except Exception:  # noqa: BLE001
+                continue
+            for t in grep_terms:
+                hit = t[5:] in rel(path) if t.startswith("path:") else t in text
+                if hit:
+                    if len(text) <= 60000:
+                        found[t].append({"file": rel(path), "text": text})
+                    else:
+                        lines = text.splitlines()
+                        hits = [i for i, line in enumerate(lines) if t in line or t.startswith("path:")][:40]
+                        found[t].append({"file": rel(path), "lines": {i + 1: "\n".join(lines[max(0, i - 6):i + 7]) for i in hits}})
+with open(os.path.join(out, "grep.json"), "w") as f:
+    json.dump(found, f, indent=1)
+
 with open(os.path.join(out, "extract-errors.txt"), "w") as f:
     f.write("\n".join(errors))
 print(f"tools: {len(items)}, shapes: {len(shapes)}, animation files: {len(anims)}, board recipes: {len(boards['recipes'])}, parse errors: {len(errors)}")

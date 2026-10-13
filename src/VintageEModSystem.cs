@@ -50,6 +50,9 @@ namespace VintageE
         IClientNetworkChannel clientChannel;
         GuiDialogTransmutation transmutationDialog;
 
+        /// <summary>Hotkey that fires the Hyperkinetic/Catalytic Lens charge (R by default, like ProjectE).</summary>
+        public const string FireHotkey = "vintageefireprojectile";
+
         public override double ExecuteOrder() => 1.0; // after the survival mod has registered its recipe registries
 
         public override void Start(ICoreAPI api)
@@ -73,6 +76,7 @@ namespace VintageE
             api.RegisterBlockEntityClass("VintageENovaExplosive", typeof(BENovaExplosive));
             api.RegisterBlockEntityClass("VintageEPedestal", typeof(BEPedestal));
             api.RegisterEntityBehaviorClass(EntityBehaviorVintageE.Code, typeof(EntityBehaviorVintageE));
+            api.RegisterEntity("VintageEProjectile", typeof(EntityVintageEProjectile));
 
             api.Network.RegisterChannel(ChannelName)
                 .RegisterMessageType<EmcTablePacket>()
@@ -80,7 +84,8 @@ namespace VintageE
                 .RegisterMessageType<TransmuteResultPacket>()
                 .RegisterMessageType<EmcMissingPacket>()
                 .RegisterMessageType<EmcSetValuePacket>()
-                .RegisterMessageType<WatchSpeedPacket>();
+                .RegisterMessageType<WatchSpeedPacket>()
+                .RegisterMessageType<FireProjectilePacket>();
         }
 
         #region Server
@@ -102,6 +107,7 @@ namespace VintageE
             serverChannel = sapi.Network.GetChannel(ChannelName);
             serverChannel.SetMessageHandler<TransmuteRequestPacket>(Transmutation.OnRequest);
             serverChannel.SetMessageHandler<EmcSetValuePacket>(OnSetValueRequest);
+            serverChannel.SetMessageHandler<FireProjectilePacket>(OnFireProjectile);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start", allowCache: true));
@@ -117,6 +123,19 @@ namespace VintageE
             };
 
             EmcCommands.Register(this, sapi);
+        }
+
+        readonly Dictionary<string, long> lastShot = new Dictionary<string, long>();
+
+        /// <summary>The fire-projectile key: shoots the lens charge of the lens in the player's hand (at most 4 a second).</summary>
+        void OnFireProjectile(IServerPlayer player, FireProjectilePacket packet)
+        {
+            ItemSlot slot = player?.InventoryManager?.ActiveHotbarSlot;
+            if (!(slot?.Itemstack?.Collectible is ItemEmcGadget gadget) || !gadget.IsLens) return;
+            long now = Sapi.World.ElapsedMilliseconds;
+            if (lastShot.TryGetValue(player.PlayerUID, out long last) && now - last < 250) return;
+            lastShot[player.PlayerUID] = now;
+            ItemEmcGadget.FireLens(player, slot);
         }
 
         VintageEConfig LoadConfig(ICoreServerAPI sapi)
@@ -397,6 +416,15 @@ namespace VintageE
             clientChannel.SetMessageHandler<TransmuteResultPacket>(OnTransmuteResult);
             clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
             clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
+
+            capi.Input.RegisterHotKey(FireHotkey, Lang.Get("vintagee:hotkey-fire"), GlKeys.R, HotkeyType.CharacterControls);
+            capi.Input.SetHotKeyHandler(FireHotkey, _ =>
+            {
+                ItemSlot slot = capi.World.Player?.InventoryManager?.ActiveHotbarSlot;
+                if (!(slot?.Itemstack?.Collectible is ItemEmcGadget gadget) || !gadget.IsLens) return false;
+                clientChannel?.SendPacket(new FireProjectilePacket { Hand = 0 });
+                return true;
+            });
 
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>

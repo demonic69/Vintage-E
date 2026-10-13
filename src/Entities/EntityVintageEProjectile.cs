@@ -1,0 +1,241 @@
+using System;
+using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
+using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+
+namespace VintageE
+{
+    /// <summary>
+    /// ProjectE's projectiles, fired with the fire-projectile key (R) or right-click. Entity type
+    /// <c>vintagee:projectile-{kind}</c>; all fly in a straight line without gravity (the smite's arrows steer
+    /// towards hostile creatures) and act on the first block or creature they hit:
+    /// <list type="bullet">
+    /// <item><c>lens</c> (Hyperkinetic/Catalytic Lens): explodes, radius <see cref="Radius"/>.</item>
+    /// <item><c>water</c> (Evertide Amulet) / <c>lava</c> (Volcanite Amulet): places a source block where it lands.</item>
+    /// <item><c>fire</c> (Ignition Ring, Ring of Arcana): sets the creature it hits on fire.</item>
+    /// <item><c>arrow</c> (Archangel's Smite): homing arrow, <see cref="Damage"/> piercing damage.</item>
+    /// </list>
+    /// Shots that hit nothing vanish after <see cref="MaxLifeSeconds"/>; lens and fire shots fizzle in water.
+    /// Movement and hit tests run on the server; clients interpolate the position.
+    /// </summary>
+    public class EntityVintageEProjectile : Entity
+    {
+        public const float MaxLifeSeconds = 8;
+
+        /// <summary>
+        /// Spawns a <c>vintagee:projectile-{kind}</c> from the player's eyes in the direction they look, moving
+        /// <paramref name="blocksPerSecond"/>. Returns null if the entity type is missing.
+        /// </summary>
+        public static EntityVintageEProjectile Shoot(IServerPlayer player, string kind, double blocksPerSecond, Action<EntityVintageEProjectile> setup = null)
+        {
+            IWorldAccessor world = player.Entity.World;
+            EntityProperties type = world.GetEntityType(new AssetLocation("vintagee", "projectile-" + kind));
+            if (type == null) return null;
+            var shot = (EntityVintageEProjectile)world.ClassRegistry.CreateEntity(type);
+            EntityPos ppos = player.Entity.Pos;
+            Vec3d eye = ppos.XYZ.Add(0, player.Entity.LocalEyePos.Y, 0);
+            Vec3d dir = eye.AheadCopy(1, ppos.Pitch, ppos.Yaw).Sub(eye).Normalize();
+            double perFrame = blocksPerSecond / 60.0; // motion is in blocks per 1/60 s
+            shot.Pos.SetPos(eye.AddCopy(dir.X * 0.8, dir.Y * 0.8, dir.Z * 0.8));
+            shot.Pos.Motion.Set(dir.X * perFrame, dir.Y * perFrame, dir.Z * perFrame);
+            shot.FiredById = player.Entity.EntityId;
+            shot.FiredByUid = player.PlayerUID;
+            setup?.Invoke(shot);
+            world.SpawnEntity(shot);
+            return shot;
+        }
+
+        public string Kind => Code?.EndVariant() ?? "lens";
+
+        /// <summary>Explosion radius in blocks (lens).</summary>
+        public float Radius
+        {
+            get => WatchedAttributes.GetFloat("radius", 4);
+            set => WatchedAttributes.SetFloat("radius", value);
+        }
+
+        /// <summary>Damage dealt to a creature that is hit (fire, arrow).</summary>
+        public float Damage
+        {
+            get => WatchedAttributes.GetFloat("damage", 3);
+            set => WatchedAttributes.SetFloat("damage", value);
+        }
+
+        /// <summary>Entity id of whoever fired it (not hit by its own shot).</summary>
+        public long FiredById
+        {
+            get => WatchedAttributes.GetLong("firedBy");
+            set => WatchedAttributes.SetLong("firedBy", value);
+        }
+
+        /// <summary>Player uid credited with what it does (land claims are checked against it).</summary>
+        public string FiredByUid
+        {
+            get => WatchedAttributes.GetString("firedByUid");
+            set => WatchedAttributes.SetString("firedByUid", value);
+        }
+
+        float age;
+        bool done;
+
+        public override bool IsInteractable => false;
+        public override bool ApplyGravity => false;
+
+        public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
+        {
+            base.Initialize(properties, api, InChunkIndex3d);
+            LightHsv = Kind switch
+            {
+                "water" => new byte[] { 36, 4, 6 },
+                "lava" => new byte[] { 4, 7, 12 },
+                "fire" => new byte[] { 6, 7, 12 },
+                "arrow" => new byte[] { 10, 2, 8 },
+                _ => new byte[] { 8, 7, 14 },
+            };
+        }
+
+        public override void OnGameTick(float dt)
+        {
+            base.OnGameTick(dt);
+            if (!Alive || done || World.Side != EnumAppSide.Server) return;
+
+            age += dt;
+            if (age > MaxLifeSeconds)
+            {
+                Die(EnumDespawnReason.Expire);
+                return;
+            }
+
+            if (Kind == "arrow") Steer(dt);
+
+            Vec3d from = Pos.XYZ;
+            Vec3d to = from.AddCopy(Pos.Motion.X * dt * 60, Pos.Motion.Y * dt * 60, Pos.Motion.Z * dt * 60);
+
+            BlockSelection blockSel = null;
+            EntitySelection entitySel = null;
+            long firedBy = FiredById;
+            float myAge = age;
+            World.RayTraceForSelection(from, to, ref blockSel, ref entitySel,
+                (pos, block) => block != null && block.Id != 0 && block.CollisionBoxes != null && block.CollisionBoxes.Length > 0,
+                e => e.EntityId != EntityId && e.Alive && e.IsInteractable && !(e.EntityId == firedBy && myAge < 0.5f));
+
+            Vec3d blockHit = blockSel == null ? null : blockSel.Position.ToVec3d().Add(blockSel.HitPosition);
+            Vec3d entityHit = entitySel == null ? null : (entitySel.Position ?? entitySel.Entity.Pos.XYZ);
+            bool entityFirst = entityHit != null && (blockHit == null || entityHit.SquareDistanceTo(from) <= blockHit.SquareDistanceTo(from));
+
+            if (entityFirst)
+            {
+                done = true;
+                OnHitEntity(entitySel.Entity, entityHit);
+                Die(EnumDespawnReason.Removed);
+                return;
+            }
+            if (blockHit != null)
+            {
+                done = true;
+                OnHitBlock(blockSel, blockHit);
+                Die(EnumDespawnReason.Removed);
+                return;
+            }
+
+            if ((Kind == "lens" || Kind == "fire") && InWater(to))
+            {
+                World.PlaySoundAt(new AssetLocation("game:sounds/effect/extinguish"), to.X, to.Y, to.Z, null, true, 16, 0.7f);
+                World.SpawnParticles(12, ColorUtil.ToRgba(180, 200, 200, 200), to.AddCopy(-0.3, 0, -0.3), to.AddCopy(0.3, 0.6, 0.3),
+                    new Vec3f(-0.3f, 0.4f, -0.3f), new Vec3f(0.3f, 1f, 0.3f), 1.5f, -0.05f, 0.8f);
+                Die(EnumDespawnReason.Removed);
+                return;
+            }
+
+            Pos.SetPos(to);
+        }
+
+        bool InWater(Vec3d at)
+        {
+            Block fluid = World.BlockAccessor.GetBlock(ToBlockPos(at), BlockLayersAccess.Fluid);
+            return fluid != null && fluid.IsLiquid() && fluid.LiquidCode == "water";
+        }
+
+        BlockPos ToBlockPos(Vec3d at) => new BlockPos((int)Math.Floor(at.X), (int)Math.Floor(at.Y), (int)Math.Floor(at.Z), Pos.Dimension);
+
+        /// <summary>Smite arrows turn towards the nearest hostile creature within 24 blocks.</summary>
+        void Steer(float dt)
+        {
+            TrinketEffects fx = Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets;
+            if (fx == null) return;
+            Entity target = World.GetNearestEntity(Pos.XYZ, 24, 24, fx.IsHostile);
+            if (target == null) return;
+            double speed = Pos.Motion.Length();
+            Vec3d want = target.Pos.XYZ.Add(0, target.SelectionBox.Y2 / 2, 0).Sub(Pos.XYZ).Normalize().Mul(speed);
+            double t = Math.Min(1, dt * 6);
+            Pos.Motion.Set(
+                Pos.Motion.X + (want.X - Pos.Motion.X) * t,
+                Pos.Motion.Y + (want.Y - Pos.Motion.Y) * t,
+                Pos.Motion.Z + (want.Z - Pos.Motion.Z) * t);
+        }
+
+        IPlayer Shooter => string.IsNullOrEmpty(FiredByUid) ? null : World.PlayerByUid(FiredByUid);
+
+        bool MayEdit(BlockPos pos)
+        {
+            IPlayer player = Shooter;
+            return player == null || World.Claims.TryAccess(player, pos, EnumBlockAccessFlags.BuildOrBreak);
+        }
+
+        void OnHitEntity(Entity target, Vec3d at)
+        {
+            Entity shooter = World.GetEntityById(FiredById);
+            switch (Kind)
+            {
+                case "lens":
+                    Explode(at);
+                    break;
+                case "water":
+                case "lava":
+                    PlaceLiquid(ToBlockPos(target.Pos.XYZ));
+                    break;
+                case "fire":
+                    target.ReceiveDamage(new DamageSource { Source = shooter is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity, SourceEntity = this, CauseEntity = shooter, Type = EnumDamageType.Fire }, Damage);
+                    target.Ignite();
+                    break;
+                case "arrow":
+                    target.ReceiveDamage(new DamageSource { Source = shooter is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity, SourceEntity = this, CauseEntity = shooter, Type = EnumDamageType.PiercingAttack }, Damage);
+                    World.PlaySoundAt(new AssetLocation("game:sounds/arrow-impact"), target, null, true, 24, 0.8f);
+                    break;
+            }
+        }
+
+        void OnHitBlock(BlockSelection sel, Vec3d at)
+        {
+            switch (Kind)
+            {
+                case "lens":
+                    Explode(at);
+                    break;
+                case "water":
+                case "lava":
+                    PlaceLiquid(sel.Position.AddCopy(sel.Face));
+                    break;
+                case "fire":
+                    World.SpawnParticles(10, ColorUtil.ToRgba(255, 60, 160, 255), at.AddCopy(-0.2, 0, -0.2), at.AddCopy(0.2, 0.4, 0.2),
+                        new Vec3f(-0.3f, 0.3f, -0.3f), new Vec3f(0.3f, 0.9f, 0.3f), 0.6f, -0.05f, 0.5f);
+                    break;
+            }
+        }
+
+        void Explode(Vec3d at)
+        {
+            BlockPos pos = ToBlockPos(at);
+            if (!MayEdit(pos)) return;
+            float radius = Radius;
+            ((ICoreServerAPI)Api).World.CreateExplosion(pos, EnumBlastType.RockBlast, radius, radius + 2, 1f, FiredByUid);
+        }
+
+        void PlaceLiquid(BlockPos pos)
+        {
+            if (!MayEdit(pos)) return;
+            TrinketEffects.PlaceLiquidAt(World, pos, Kind == "lava");
+        }
+    }
+}

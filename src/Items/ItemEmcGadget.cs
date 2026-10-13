@@ -11,11 +11,15 @@ using Vintagestory.API.Server;
 namespace VintageE
 {
     /// <summary>
-    /// EMC-powered gadgets, used with right-click and paid for from personal EMC, then carried Klein stars:
+    /// EMC-powered gadgets, used with right-click and paid for from personal EMC, then carried Klein stars.
+    /// Lenses and the catalyst follow ProjectE: their charge level is picked with the tool-mode key.
     /// <list type="bullet">
-    /// <item>Destruction Catalyst: breaks a 3×3 tunnel into the block you click (3, 6 or 9 deep with the tool-mode key).</item>
-    /// <item>Hyperkinetic Lens: an explosion where you look, up to 64 blocks away.</item>
-    /// <item>Catalytic Lens: a bigger explosion, or the catalyst's tunnel (tool-mode key).</item>
+    /// <item>Destruction Catalyst: breaks a 3×3 tunnel into the block you click, 1/4/8/16 deep (charge 0–3), 8 EMC a block.
+    ///   Everything it breaks drops where you clicked.</item>
+    /// <item>Hyperkinetic Lens: right-click (or the fire-projectile key, R) shoots an explosive charge that flies
+    ///   straight and explodes where it hits: radius 4/6/8/10 for 384/768/1,536/2,304 EMC (charge 0–3).</item>
+    /// <item>Catalytic Lens: right-click a block for the catalyst's tunnel, 1 then 16–64 deep (charge 0–7);
+    ///   the fire-projectile key shoots the lens charge (charge 3 and up = the biggest shot).</item>
     /// <item>Mercurial Eye: sneak + right-click a block to remember it, then right-click blocks to turn them into it
     ///   (1×1 or 3×3); you pay the difference in EMC (or get it back if the old block was worth more).</item>
     /// <item>Archangel's Smite: strikes the creature you look at, up to 48 blocks away.</item>
@@ -32,21 +36,46 @@ namespace VintageE
 
         VintageEModSystem Mod(IWorldAccessor world) => world.Api.ModLoader.GetModSystem<VintageEModSystem>();
 
+        /// <summary>Lens shot explosion radius and EMC cost by charge level (ProjectE: power 4/8/12/16, 384–2,304 EMC).</summary>
+        public static readonly float[] LensRadius = { 4, 6, 8, 10 };
+        public static readonly double[] LensCost = { 384, 768, 1536, 2304 };
+        /// <summary>Destruction Catalyst tunnel depth by charge (ProjectE: 1, then 2^(1+charge)).</summary>
+        public static readonly int[] CatalystDepth = { 1, 4, 8, 16 };
+        public const int CatalyticCharges = 8;
+        public const double DestroyCostPerBlock = 8;
+        /// <summary>Catalytic Lens tunnel depth by charge (ProjectE: 1, then 8 + 8 × charge, up to 64).</summary>
+        public static int CatalyticDepth(int charge) => charge <= 0 ? 1 : 8 + 8 * Math.Min(charge, CatalyticCharges - 1);
+        public static int LensCharge(int charge) => GameMath.Clamp(charge, 0, LensRadius.Length - 1);
+
+        public bool IsLens => Kind == "hyperkineticlens" || Kind == "catalyticlens";
+
         public override void OnLoaded(ICoreAPI api)
         {
             base.OnLoaded(api);
             if (!(api is ICoreClientAPI capi)) return;
             if (Kind == "destructioncatalyst")
             {
-                modes = new[] { 3, 6, 9 }.Select(d => new SkillItem { Code = new AssetLocation("vintagee", "depth" + d), Name = Lang.Get("vintagee:gadget-depth", d) }.WithLetterIcon(capi, d.ToString())).ToArray();
+                modes = Enumerable.Range(0, CatalystDepth.Length).Select(c => new SkillItem
+                {
+                    Code = new AssetLocation("vintagee", "charge" + c),
+                    Name = Lang.Get("vintagee:gadget-charge-catalyst", c, CatalystDepth[c])
+                }.WithLetterIcon(capi, c.ToString())).ToArray();
+            }
+            else if (Kind == "hyperkineticlens")
+            {
+                modes = Enumerable.Range(0, LensRadius.Length).Select(c => new SkillItem
+                {
+                    Code = new AssetLocation("vintagee", "charge" + c),
+                    Name = Lang.Get("vintagee:gadget-charge-lens", c, LensRadius[c], EmcFormat.Format(LensCost[c]))
+                }.WithLetterIcon(capi, c.ToString())).ToArray();
             }
             else if (Kind == "catalyticlens")
             {
-                modes = new[]
+                modes = Enumerable.Range(0, CatalyticCharges).Select(c => new SkillItem
                 {
-                    new SkillItem { Code = new AssetLocation("vintagee", "lens-explode"), Name = Lang.Get("vintagee:gadget-explode") }.WithLetterIcon(capi, "E"),
-                    new SkillItem { Code = new AssetLocation("vintagee", "lens-tunnel"), Name = Lang.Get("vintagee:gadget-tunnel") }.WithLetterIcon(capi, "T")
-                };
+                    Code = new AssetLocation("vintagee", "charge" + c),
+                    Name = Lang.Get("vintagee:gadget-charge-catalytic", c, CatalyticDepth(c), LensRadius[LensCharge(c)], EmcFormat.Format(LensCost[LensCharge(c)]))
+                }.WithLetterIcon(capi, c.ToString())).ToArray();
             }
             else if (Kind == "mercurialeye")
             {
@@ -84,14 +113,13 @@ namespace VintageE
             switch (Kind)
             {
                 case "destructioncatalyst":
-                    if (blockSel != null) Tunnel(player, blockSel, new[] { 3, 6, 9 }[GameMath.Clamp(mode, 0, 2)], 8 * mult);
+                    if (blockSel != null) Destroy(player, blockSel, CatalystDepth[GameMath.Clamp(mode, 0, CatalystDepth.Length - 1)], DestroyCostPerBlock * mult);
                     break;
                 case "hyperkineticlens":
-                    Explode(player, 4, 384 * mult);
+                    FireLens(player, slot);
                     break;
                 case "catalyticlens":
-                    if (mode == 1) { if (blockSel != null) Tunnel(player, blockSel, 9, 8 * mult); }
-                    else Explode(player, 7, 768 * mult);
+                    if (blockSel != null) Destroy(player, blockSel, CatalyticDepth(mode), DestroyCostPerBlock * mult);
                     break;
                 case "mercurialeye":
                     if (blockSel != null) Eye(mod, player, slot, blockSel, mode);
@@ -111,7 +139,7 @@ namespace VintageE
             }
         }
 
-        static void Tell(IServerPlayer player, string msg) => player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
+        public static void Tell(IServerPlayer player, string msg) => player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
 
         static bool Breakable(IWorldAccessor world, IServerPlayer player, BlockPos pos, Block block)
         {
@@ -120,43 +148,69 @@ namespace VintageE
             return world.Claims.TryAccess(player, pos, EnumBlockAccessFlags.BuildOrBreak);
         }
 
-        void Tunnel(IServerPlayer player, BlockSelection sel, int depth, double costEach)
+        /// <summary>
+        /// ProjectE's destruction: a 3×3 area <paramref name="depth"/> blocks deep into the clicked face, paying
+        /// <paramref name="costEach"/> per block broken. The drops are gathered where you clicked.
+        /// </summary>
+        void Destroy(IServerPlayer player, BlockSelection sel, int depth, double costEach)
         {
             IWorldAccessor world = player.Entity.World;
             IBlockAccessor ba = world.BlockAccessor;
             BlockFacing into = sel.Face.Opposite;
             int broken = 0;
-            for (int d = 0; d < depth; d++)
+            bool stop = false;
+            for (int d = 0; d < depth && !stop; d++)
             {
                 BlockPos layer = sel.Position.AddCopy(into, d);
                 foreach (BlockPos pos in AreaToolModes.Plane(layer, sel.Face, 1))
                 {
                     Block block = ba.GetBlock(pos);
                     if (!Breakable(world, player, pos, block)) continue;
-                    if (!EmcWallet.TryPay(player, costEach)) { Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notenoughemc", EmcFormat.Format(costEach), EmcFormat.Format(EmcWallet.Balance(player)))); return; }
+                    if (!EmcWallet.TryPay(player, costEach))
+                    {
+                        Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notenoughemc", EmcFormat.Format(costEach), EmcFormat.Format(EmcWallet.Balance(player))));
+                        stop = true;
+                        break;
+                    }
                     ba.BreakBlock(pos, player);
                     broken++;
                 }
             }
-            if (broken > 0) world.PlaySoundAt(new AssetLocation("game:sounds/effect/rockslide"), sel.Position.X + 0.5, sel.Position.Y + 0.5, sel.Position.Z + 0.5, null, true, 16, 0.6f);
+            if (broken == 0) return;
+            world.PlaySoundAt(new AssetLocation("game:sounds/effect/rockslide"), sel.Position.X + 0.5, sel.Position.Y + 0.5, sel.Position.Z + 0.5, null, true, 16, 0.6f);
+
+            // Pull what dropped along the tunnel back to where the player clicked.
+            Vec3f n = sel.Face.Normalf;
+            Vec3d target = sel.Position.ToVec3d().Add(0.5 + n.X * 0.7, 0.5 + n.Y * 0.7, 0.5 + n.Z * 0.7);
+            BlockPos far = sel.Position.AddCopy(into, depth - 1);
+            Vec3d mid = new Vec3d((sel.Position.X + far.X) / 2.0 + 0.5, (sel.Position.Y + far.Y) / 2.0 + 0.5, (sel.Position.Z + far.Z) / 2.0 + 0.5);
+            float reach = depth / 2f + 2;
+            world.Api.Event.RegisterCallback(_ =>
+            {
+                foreach (Entity e in world.GetEntitiesAround(mid, reach, reach, x => x is EntityItem && x.Alive))
+                {
+                    e.Pos.SetPos(target);
+                    e.Pos.Motion.Set(0, 0, 0);
+                }
+            }, 100);
         }
 
-        void Explode(IServerPlayer player, float radius, double cost)
+        /// <summary>Hyperkinetic/Catalytic Lens: pays for and fires an explosive lens charge where the player looks.</summary>
+        public static bool FireLens(IServerPlayer player, ItemSlot slot)
         {
+            if (!(slot?.Itemstack?.Collectible is ItemEmcGadget gadget) || !gadget.IsLens) return false;
             IWorldAccessor world = player.Entity.World;
-            BlockSelection blockSel = null;
-            EntitySelection entitySel = null;
-            Vec3d eye = player.Entity.ServerPos.XYZ.Add(player.Entity.LocalEyePos);
-            world.RayTraceForSelection(eye, player.Entity.ServerPos.Pitch, player.Entity.ServerPos.Yaw, 64, ref blockSel, ref entitySel);
-            BlockPos at = blockSel?.Position ?? entitySel?.Entity?.ServerPos.AsBlockPos;
-            if (at == null) return;
-            if (!world.Claims.TryAccess(player, at, EnumBlockAccessFlags.BuildOrBreak)) return;
+            var mod = world.Api.ModLoader.GetModSystem<VintageEModSystem>();
+            int charge = LensCharge(slot.Itemstack.Attributes.GetInt(ItemEmcTrinket.ModeKey));
+            double cost = LensCost[charge] * (mod?.Config.TrinketCostMultiplier ?? 1);
             if (!EmcWallet.TryPay(player, cost))
             {
                 Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notenoughemc", EmcFormat.Format(cost), EmcFormat.Format(EmcWallet.Balance(player))));
-                return;
+                return false;
             }
-            ((IServerWorldAccessor)world).CreateExplosion(at, EnumBlastType.RockBlast, radius, radius + 2, 1f, player.PlayerUID);
+            if (EntityVintageEProjectile.Shoot(player, "lens", 36, shot => shot.Radius = LensRadius[charge]) == null) return false;
+            world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), player.Entity, null, true, 24, 1f);
+            return true;
         }
 
         void Eye(VintageEModSystem mod, IServerPlayer player, ItemSlot slot, BlockSelection sel, int mode)
@@ -262,7 +316,8 @@ namespace VintageE
                 new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-" + Kind, MouseButton = EnumMouseButton.Right }
             };
             if (Kind == "mercurialeye") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-eyepick", HotKeyCode = "sneak", MouseButton = EnumMouseButton.Right });
-            if (modes != null) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
+            if (IsLens) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-fire", HotKeyCode = VintageEModSystem.FireHotkey, MouseButton = EnumMouseButton.None });
+            if (modes != null) list.Add(new WorldInteraction { ActionLangCode = IsLens || Kind == "destructioncatalyst" ? "vintagee:heldhelp-gadget-charge" : "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
             return list.ToArray();
         }
     }

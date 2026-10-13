@@ -588,9 +588,39 @@ def lang():
         f.write("\n")
 
 
+PROJECTILE_KINDS = ["lens", "water", "lava", "fire", "arrow"]
+
+
+def entities():
+    """ProjectE's projectiles (lens charges, amulet water/lava, ignition fire, smite arrows): see EntityVintageEProjectile."""
+    write("entities/projectile.json", O([
+        ("code", "projectile"),
+        ("class", "VintageEProjectile"),
+        ("variantgroups", [O([("code", "kind"), ("states", PROJECTILE_KINDS)])]),
+        ("hitboxSize", O([("x", 0.25), ("y", 0.25)])),
+        ("client", O([
+            ("renderer", "Shape"),
+            ("shape", O([("base", "vintagee:entity/projectile")])),
+            ("texturesByType", O([("*-" + k, O([("orb", O([("base", "vintagee:entity/projectile-" + k)]))])) for k in PROJECTILE_KINDS])),
+            ("size", 1),
+            ("behaviors", [O([("code", "interpolateposition")])]),
+        ])),
+        ("server", O([("behaviors", [])])),
+        ("sounds", O()),
+    ]))
+    orb = box("orb", [6, 0, 6], [10, 4, 10], "#orb")
+    orb["glow"] = 255
+    write("shapes/entity/projectile.json", O([
+        ("textureWidth", 16), ("textureHeight", 16),
+        ("textures", O([("orb", "vintagee:entity/projectile-lens")])),
+        ("elements", [orb]),
+    ]))
+
+
 if __name__ == "__main__":
     items()
     blocks()
+    entities()
     recipes()
     lang()
     print("ProjectE assets written")

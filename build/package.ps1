@@ -15,5 +15,5 @@ $out = "release/vintagee_$version.zip"
 New-Item -ItemType Directory -Force -Path release | Out-Null
 if (Test-Path $out) { Remove-Item $out }
 $src = 'bin/Release/Mods/vintagee'
-Compress-Archive -Path "$src/modinfo.json", "$src/modicon.png", "$src/VintageE.dll", "$src/assets" -DestinationPath $out
+Compress-Archive -Path "$src/modinfo.json", "$src/modicon.png", "$src/VintageE.dll", "$src/THIRD-PARTY-NOTICES.md", "$src/assets" -DestinationPath $out
 Write-Host "Built $out"

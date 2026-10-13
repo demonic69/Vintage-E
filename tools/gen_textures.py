@@ -568,8 +568,10 @@ def projecte_textures():
     w = []
     for tier, base, glow in (("low", "8f9a8c", "e0f0d8"), ("medium", "3e9e5c", "b8ffcc"), ("high", "3b8fc8", "c8f0ff")):
         w.append(save(dust_pile(rgba(base), rgba(glow), "cd" + tier), f"item/covalencedust-{tier}"))
-    for tier, color in (("ein", "e8d44d"), ("zwei", "e88d2d"), ("drei", "d83b3b"), ("vier", "b03bd8"), ("sphere", "3b7bd8"), ("omega", "eef4ff")):
-        w.append(save(gem(rgba(color), "ks" + tier), f"item/kleinstar-{tier}"))
+    # Klein stars use ProjectE's own artwork (MIT licence, see THIRD-PARTY-NOTICES.md), vendored in tools/vendor/projecte.
+    vendor = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor", "projecte")
+    for tier in ("ein", "zwei", "drei", "vier", "sphere", "omega"):
+        w.append(save(Image.open(os.path.join(vendor, f"kleinstar-{tier}.png")).convert("RGBA"), f"item/kleinstar-{tier}"))
     w.append(save(ring(rgba("9a9aa4"), None, "ib"), "item/ironband"))
     rings = {
         "blackholeband": (rgba("2a2433"), rgba("05030a")),
@@ -588,6 +590,9 @@ def projecte_textures():
     w.append(save(amulet(rgba("c0c8d0"), rgba("2a70d0"), "ea"), "item/trinket/evertideamulet"))
     w.append(save(amulet(rgba("403030"), rgba("e04010"), "va"), "item/trinket/volcaniteamulet"))
     w.append(save(watch(), "item/trinket/watchofflowingtime"))
+    for kind, base, glow in (("lens", "ff7a1a", "fff0a0"), ("water", "2a6fe0", "bfe8ff"), ("lava", "c83010", "ffb040"),
+                             ("fire", "ff9a10", "fff6c0"), ("arrow", "e8e8f0", "ffffff")):
+        w.append(save(sphere(rgba(base), rgba(glow), "proj" + kind), f"entity/projectile-{kind}"))
     w.append(save(sphere(rgba("2a2a30"), rgba("ff3020"), "dc"), "item/gadget/destructioncatalyst"))
     w.append(save(lens(rgba("2a2433"), rgba("70c0ff")), "item/gadget/hyperkineticlens"))
     w.append(save(lens(rgba("6a1018"), rgba("ff9060")), "item/gadget/catalyticlens"))

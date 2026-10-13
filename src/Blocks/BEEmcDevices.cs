@@ -257,8 +257,14 @@ namespace VintageE
             bool everySecond = acc >= 1;
             if (everySecond) acc = 0;
             Vec3d center = Pos.ToVec3d().Add(0.5, 0.5, 0.5);
-            string effect = TrinketEffects.EffectOf(t, held);
+            foreach (string effect in TrinketEffects.EffectsOf(t, held))
+            {
+                PedestalEffect(fx, effect, center, everySecond);
+            }
+        }
 
+        void PedestalEffect(TrinketEffects fx, string effect, Vec3d center, bool everySecond)
+        {
             switch (effect)
             {
                 case "harvestgoddessband": if (everySecond) fx.Grow(Pos, 8, 10, null, 0); break;

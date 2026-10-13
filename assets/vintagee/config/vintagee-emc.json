@@ -121,7 +121,7 @@
     "game:ingot-steel": 512,
     "game:gem-*": 1024,
     "game:gem-diamond-*": 8192,
-    "game:gem-emerald-*": 8192,
+    "game:gem-emerald-*": 2048,
     "game:gear-rusty": 46,
     "game:gear-temporal": 4096,
     "game:agedfirewood": 8,
