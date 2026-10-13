@@ -1,0 +1,38 @@
+name: Release
+
+# Push a tag like v1.0.0 and this publishes dist/vintagee_<version>.zip as a GitHub release.
+# (The mod can't be compiled in CI without the game's DLLs, so the zip is built locally with
+# build/package.sh and committed to dist/ first.)
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find the zip for this tag
+        id: zip
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          file="dist/vintagee_${version}.zip"
+          if [ ! -f "$file" ]; then
+            echo "::error::$file not found - build it with build/package.sh and commit it to dist/ before tagging"
+            exit 1
+          fi
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.zip.outputs.file }}" \
+            --title "Vintage-E ${{ steps.zip.outputs.version }}" \
+            --notes "For Vintage Story 1.22.x. Drop the zip (still zipped) into your Mods folder on the server and every client. After the first server start, the server log line starting with 'EMC coverage:' (or /emc missing in game) shows any blocks/items that still have no EMC value."
