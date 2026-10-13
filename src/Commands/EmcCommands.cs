@@ -164,7 +164,8 @@ namespace VintageE
             string file = report.Missing.Count == 0 ? null : mod.WriteMissingFile(report);
             if (args.Caller.Player is IServerPlayer player)
             {
-                mod.SendMissingList(player, report, file); // opens the searchable list window
+                mod.SendMissingList(player, report, file); // the window shows everything, so nothing goes to chat
+                return TextCommandResult.Success();
             }
             if (report.Missing.Count == 0)
             {

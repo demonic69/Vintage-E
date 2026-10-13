@@ -242,8 +242,10 @@ namespace VintageE
 
         void UpdateBlockState()
         {
-            Block want = Api.World.GetBlock(Block.CodeWithVariant("state", held == null ? "empty" : "active"));
-            if (want != null && want.Id != Block.Id) Api.World.BlockAccessor.ExchangeBlock(want.Id, Pos);
+            Block current = Api.World.BlockAccessor.GetBlock(Pos);
+            if (current?.Code == null) return;
+            Block want = Api.World.GetBlock(current.CodeWithVariant("state", held == null ? "empty" : "active"));
+            if (want != null && want.Id != 0 && want.Id != current.Id) Api.World.BlockAccessor.ExchangeBlock(want.Id, Pos);
         }
 
         void OnServerTick(float dt)

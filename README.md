@@ -17,6 +17,12 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | **Matter tools** | Pickaxe, shovel, axe, sword, hoe and **sledgehammer** in dark and red matter, as 3D tools held, swung and displayed like the game's own (they use the vanilla tool models and animations with matter textures; the sledgehammer has its own model). They **never wear out**. The pickaxe/shovel/axe dig 1×1 by default and 3×3 (dark) or up to 5×5 (red) with the tool-mode key **F**; the sledgehammers smash stone and ore **3×3 from the start** (red: 5×5 with **F**). Sneak to dig a single block. The axe still fells trees and the hoe still tills. |
 | **Energy Collectors MK1–MK3** | Turn sunlight into EMC (4 / 12 / 40 EMC per second in full sun). They push it into a condenser next to them, or sneak + right-click with an empty hand to take it into your personal EMC. |
 | **Energy Condensers MK1–MK2** | Put an item in the target slot. The condenser burns everything else inside it (plus EMC from collectors) and makes copies of the target. Works with hoppers and chutes; automation only pulls out the finished copies. |
+| **Klein Stars** | Ein → Omega (50k to 51.2M EMC). Portable EMC: right-click to empty into your EMC, sneak + right-click to fill. Rings and gadgets draw from carried stars. |
+| **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale, Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. |
+| **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses, Mercurial Eye, Archangel's Smite, Tome of Knowledge, Divining Rods. |
+| **Armour** | Dark Matter, Red Matter and Gem armour (head, body, legs) that never wears out; full gem armour stops fall and fire damage. |
+| **More tools** | Dark/Red Matter Shears, Red Matter Katar, Red Matter Morning Star. |
+| **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces, Anti-Matter Relays MK1–3, Dark Matter Pedestal, Nova Catalyst/Cataclysm, Interdiction Torch. |
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
@@ -95,11 +101,12 @@ Value files can also hold:
 | Command | Who | |
 |---|---|---|
 | `/emc` | everyone | Your EMC and the held item's value |
+| `/emc help` | everyone | Every command with a short description |
 | `/emc set <value>` | admin | Pin the held item's value (0 = remove), saved to the config, remaps |
 | `/emc clear` | admin | Remove that pin |
 | `/emc recalc` | admin | Re-run the mapper |
 | `/emc dump` | admin | Write every value, and where it came from, to `VintagestoryData/ModData/vintagee/emc-values.csv` |
-| `/emc missing` | admin | Open the searchable list of blocks/items without a value (also written to `emc-missing.csv`) |
+| `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can also give them one (also written to `emc-missing.csv`) |
 | `/emc give <amount>` | admin | Add personal EMC |
 | `/emc learn` | admin | Learn the held item without burning it |
 
@@ -146,6 +153,8 @@ Value files can also hold:
 | 1× Energy Collector MK3 | `GRG / GCG / GGG` | G = Any glass block, R = Red Matter, C = Energy Collector MK2 |
 | 1× Energy Condenser MK1 | `IGI / GDG / IGI` | I = Iron ingot, G = Gold ingot, D = Dark Matter |
 | 1× Energy Condenser MK2 | `RDR / DCD / RDR` | R = Red Matter, D = Dark Matter, C = Energy Condenser MK1 |
+
+The 1.4.0 items (Klein stars, rings, gadgets, armour, chest, bags, furnaces, relays, pedestal…) are all crafting-grid recipes too; look them up in the in-game handbook (they're listed in [`assets/vintagee/recipes/grid/projecte.json`](assets/vintagee/recipes/grid/projecte.json)).
 
 Players' EMC and knowledge are saved on the player, so they persist across sessions and deaths.
 

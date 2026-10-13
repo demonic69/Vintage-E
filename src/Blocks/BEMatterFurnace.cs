@@ -68,7 +68,7 @@ namespace VintageE
             double speed = Mod?.Config.MachineSpeedMultiplier ?? 1;
             ItemSlot input = inventory[InputSlot], fuel = inventory[FuelSlot], output = inventory[OutputSlot];
             var recipe = Recipe(input.Itemstack);
-            bool canWork = recipe != null && input.StackSize >= recipe.Value.inputsNeeded && FitsOutput(output, recipe.Value.output);
+            bool canWork = recipe != null && input.StackSize >= recipe.Value.inputsNeeded && FitsOutput(Api.World, output, recipe.Value.output);
             bool changed = false;
 
             if (canWork && heatSeconds <= 0)
@@ -113,10 +113,10 @@ namespace VintageE
             if (changed) MarkDirty(false);
         }
 
-        static bool FitsOutput(ItemSlot output, ItemStack result)
+        static bool FitsOutput(IWorldAccessor world, ItemSlot output, ItemStack result)
         {
             if (output.Itemstack == null) return true;
-            if (!output.Itemstack.Equals(output.Inventory.Api.World, result, GlobalConstants.IgnoredStackAttributes)) return false;
+            if (!output.Itemstack.Equals(world, result, GlobalConstants.IgnoredStackAttributes)) return false;
             return output.Itemstack.StackSize + result.StackSize <= output.Itemstack.Collectible.MaxStackSize;
         }
 

@@ -2,6 +2,46 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.4.0 — 2026-10-13
+
+### Added — the rest of ProjectE
+- **Klein Stars** Ein, Zwei, Drei, Vier, Sphere and Omega (50,000 to 51,200,000 EMC): portable EMC. Right-click to empty one into your EMC, sneak + right-click to fill it. Rings and gadgets draw from stars you carry once your own EMC runs out, combining four stars into the next size keeps their EMC, and sneak + right-clicking a collector or relay with a star charges it.
+- **Covalence Dust** (low, medium, high) and the **Iron Band**, used in the recipes below.
+- **Rings, stones and amulets**: they work from anywhere in your hotbar or backpack (Vintage Story has no ring slots); right-click switches one on or off.
+  - Black Hole Band: pulls loose items to you.
+  - Swiftwolf's Rending Gale: run 40% faster, no fall damage.
+  - Harvest Goddess Band: crops around you grow faster.
+  - Ignition Ring: sets nearby hostile creatures on fire; fire can't hurt you.
+  - Zero Ring: freezes water around you.
+  - Ring of Arcana: all four of the above, picked with the tool-mode key.
+  - Body Stone, Soul Stone and Life Stone: keep you fed and/or heal you using EMC.
+  - Repair Talisman: slowly repairs everything you carry and wear.
+  - Gem of Eternal Density: turns cheap junk you carry into iron, gold, diamond, dark or red matter.
+  - Evertide Amulet and Volcanite Amulet: place water or lava.
+  - Watch of Flowing Time: crops in a wide area grow much faster.
+- **Gadgets**: Destruction Catalyst (3×3 tunnels), Hyperkinetic Lens and Catalytic Lens (explosions at range), Mercurial Eye (turn blocks into a chosen block), Archangel's Smite (strike a creature up to 48 blocks away), Tome of Knowledge (learn everything), Divining Rods (EMC in the ground below you).
+- **Armour**: Dark Matter, Red Matter and Gem helmets, chestplates and leggings, on the game's plate armour models. They never wear out; a full gem set makes you immune to fall and fire damage.
+- **Tools**: Dark and Red Matter Shears, the Red Matter Katar (sword, axe and shears) and the Red Matter Morning Star (pickaxe, shovel and sledgehammer).
+- **Blocks**:
+  - Alchemical Chest (104 slots) and Alchemical Bags (12 colours, 32-slot backpack bags).
+  - Alchemical Coal, Mobius Fuel and Aeternalis Fuel blocks.
+  - Dark and Red Matter Furnaces: smelt, fire and cook anything (ore straight to ingots), on fuel or on EMC from collectors.
+  - Anti-Matter Relays MK1–MK3: store and boost collector EMC and pass it on.
+  - Dark Matter Pedestal: runs a ring's effect on the area around it.
+  - Nova Catalyst and Nova Cataclysm explosives.
+  - Interdiction Torch: keeps hostile creatures away.
+- `/emc help` lists every command with a short description.
+- In the `/emc missing` window, admins can click a name, type a value and press **Set value**. The value is saved like `/emc set` and the list refreshes.
+- Settings: `HostileCreatures` (what the ignition ring, smite and interdiction torch affect) and `TrinketCostMultiplier`.
+
+### Changed
+- Items caught in a recipe loop that never settles now keep the first value they got instead of losing it.
+
+### Not included
+- The Mind Stone: Vintage Story has no experience points.
+- Separate boots: Vintage Story armour has head, body and legs slots, so the leggings cover the feet.
+- ProjectE's furnaces are adapted to how smelting works in Vintage Story, which has no furnaces.
+
 ## 1.3.1 — 2026-10-13
 
 ### Fixed

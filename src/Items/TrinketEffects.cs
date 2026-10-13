@@ -32,6 +32,11 @@ namespace VintageE
             this.mod = mod;
             this.sapi = sapi;
             sapi.Event.RegisterGameTickListener(OnTick, (int)(Interval * 1000));
+            sapi.Event.PlayerDisconnect += p =>
+            {
+                galeOn.Remove(p.PlayerUID);
+                timers.Remove(p.PlayerUID);
+            };
         }
 
         double Cost(double baseCost) => baseCost * mod.Config.TrinketCostMultiplier;
