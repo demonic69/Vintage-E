@@ -64,7 +64,8 @@ namespace VintageE
             api.Network.RegisterChannel(ChannelName)
                 .RegisterMessageType<EmcTablePacket>()
                 .RegisterMessageType<TransmuteRequestPacket>()
-                .RegisterMessageType<TransmuteResultPacket>();
+                .RegisterMessageType<TransmuteResultPacket>()
+                .RegisterMessageType<EmcMissingPacket>();
         }
 
         #region Server
@@ -179,10 +180,10 @@ namespace VintageE
                 "EMC mapped ({0}) in {1} ms: {2} valued collectibles ({3} base, {4} from recipes/processing, {5} inferred backwards), {6} conversions from {7} sources.",
                 reason, report.Milliseconds, report.Values.Count, report.BaseCount, report.DerivedCount, report.InferredCount,
                 report.ConversionCount, report.SourceCount);
-            if (report.RelativeCount > 0 || report.SiblingCount > 0 || report.FallbackCount > 0)
+            if (report.RelativeCount > 0 || report.SiblingCount > 0 || report.FallbackCount > 0 || report.TraderCount > 0)
             {
-                Mod.Logger.Notification("EMC: items with no recipe path: {0} valued by relativeValues rules, {1} borrowed their closest variant's value, {2} got the configured FallbackValue.",
-                    report.RelativeCount, report.SiblingCount, report.FallbackCount);
+                Mod.Logger.Notification("EMC: items with no recipe path: {0} valued by relativeValues rules, {1} from trader prices, {2} borrowed their closest variant's value, {3} got the configured FallbackValue.",
+                    report.RelativeCount, report.TraderCount, report.SiblingCount, report.FallbackCount);
             }
             LogCoverage(report);
             LastReport = report;
@@ -314,6 +315,19 @@ namespace VintageE
             serverChannel.SendPacket(result, player);
         }
 
+        /// <summary>Opens the /emc missing window for a player.</summary>
+        public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file)
+        {
+            serverChannel.SendPacket(new EmcMissingPacket
+            {
+                Keys = report.Missing.Select(PlayerEmc.KeyOf).ToArray(),
+                CreativeTotal = report.CreativeTotal,
+                ValueCount = report.Values.Count,
+                Version = Version,
+                File = file
+            }, player);
+        }
+
         #endregion
 
         #region Client
@@ -324,6 +338,7 @@ namespace VintageE
             clientChannel = capi.Network.GetChannel(ChannelName);
             clientChannel.SetMessageHandler<EmcTablePacket>(OnEmcTableReceived);
             clientChannel.SetMessageHandler<TransmuteResultPacket>(OnTransmuteResult);
+            clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
 
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>
@@ -358,6 +373,16 @@ namespace VintageE
 
         public void SendTransmuteRequest(TransmuteRequestPacket packet) => clientChannel?.SendPacket(packet);
 
+        GuiDialogEmcMissing missingDialog;
+
+        void OnMissingList(EmcMissingPacket packet)
+        {
+            missingDialog?.TryClose();
+            missingDialog?.Dispose();
+            missingDialog = new GuiDialogEmcMissing(Capi, packet);
+            missingDialog.TryOpen();
+        }
+
         /// <summary>Opens the transmutation GUI (from a table at <paramref name="tablePos"/>, or from a tablet when null).</summary>
         public void OpenTransmutationDialog(Vintagestory.API.MathTools.BlockPos tablePos)
         {
@@ -381,6 +406,7 @@ namespace VintageE
         public override void Dispose()
         {
             transmutationDialog?.Dispose();
+            missingDialog?.Dispose();
             base.Dispose();
         }
     }

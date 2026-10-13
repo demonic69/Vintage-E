@@ -35,6 +35,12 @@ namespace VintageE
         public bool InferFromVariantSiblings = true;
 
         /// <summary>
+        /// Value things nothing else can value (clothes, loot armour, decorations...) from what traders buy and sell them for.
+        /// The worth of one rusty gear is measured on traded items that already have a value, so prices stay in line with everything else.
+        /// </summary>
+        public bool UseTraderPrices = true;
+
+        /// <summary>
         /// Flat EMC value given to any creative-inventory block/item that still has no value after everything else (0 = off).
         /// Careful: anything valued this way can be created for that price, so a low number makes rare loot cheap.
         /// Check the server log or /emc missing first and prefer giving those items real values in BaseValues.

@@ -22,6 +22,9 @@ namespace VintageE
         public int SiblingCount;
         public int RelativeCount;
         public int FallbackCount;
+        /// <summary>Items valued from trader prices, and the measured EMC per unit of trader currency.</summary>
+        public int TraderCount;
+        public double TraderRate;
         public long Milliseconds;
         public SortedDictionary<string, int> Sources;
         /// <summary>Blocks/items that appear in the creative inventory (i.e. are real, obtainable content), excluding the blacklist.</summary>
@@ -115,6 +118,33 @@ namespace VintageE
             // Data-driven ratios first (metal bit = 1/20 ingot...), then variant siblings for whatever is left.
             foreach (var kv in RelativeValues(index, solver.Values, excluded, extraOrigin)) extra[kv.Key] = kv.Value;
             report.RelativeCount = extra.Count;
+            if (config.UseTraderPrices)
+            {
+                try
+                {
+                    var traders = new TraderPrices(sapi, logger);
+                    traders.Collect();
+                    double rate = traders.MeasureRate(solver.Values, out int samples);
+                    report.TraderRate = rate;
+                    logger.Notification("EMC: {0} traders price {1} different items; {2} of them already have a value, giving {3:0.##} EMC per unit of trader currency (median).",
+                        traders.TraderCount, traders.PricePerItem.Count, samples, rate);
+                    if (rate > 0)
+                    {
+                        foreach (var kv in traders.PricePerItem)
+                        {
+                            CollectibleObject c = kv.Key;
+                            if (solver.Values.ContainsKey(c) || excluded.Contains(c) || extra.ContainsKey(c)) continue;
+                            extra[c] = kv.Value * rate;
+                            extraOrigin[c] = string.Format(System.Globalization.CultureInfo.InvariantCulture, "trader price: {0:0.##} x {1:0.##} EMC per gear", kv.Value, rate);
+                            report.TraderCount++;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.Warning("EMC: could not read trader prices: {0}", e.Message);
+                }
+            }
             if (config.InferFromVariantSiblings)
             {
                 foreach (var kv in SiblingValues(index, solver.Values, excluded, extraOrigin))
@@ -150,7 +180,7 @@ namespace VintageE
             }
             report.BaseCount = fixedValues.Count;
             report.InferredCount = solver.Inferred.Keys.Count(k => report.Values.ContainsKey(k));
-            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount;
+            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount;
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
@@ -164,7 +194,8 @@ namespace VintageE
                 else if (extraOrigin.TryGetValue(c, out string how)) origin = how;
                 else if (solver.Via.TryGetValue(c, out object via))
                 {
-                    origin = (solver.Inferred.ContainsKey(c) ? "worked backwards from " : "") + Describe(via as Conversion);
+                    object tag = via is EmcSolver<CollectibleObject>.Edge ed ? ed.Tag : via is EmcSolver<CollectibleObject>.JointEdge je ? je.Tag : via;
+                    origin = (solver.Inferred.ContainsKey(c) ? "worked backwards from " : "") + Describe(tag as Conversion);
                     if (solver.Frozen.Contains(c)) origin += " (recipe loop: kept its first value)";
                 }
                 else origin = "?";

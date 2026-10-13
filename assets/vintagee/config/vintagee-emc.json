@@ -84,7 +84,7 @@
     "game:antler-*": 32,
     "game:insect-*": 4,
     "game:creature-butterfly-*": 16,
-    "game:deadbutterfly-*": 16,
+    "game:butterfly-dead-*": 16,
     "game:rawcassava-raw": 16,
     "game:potash": 8,
     "game:seashell-*": 4,

@@ -43,4 +43,15 @@ namespace VintageE
         [ProtoMember(2)] public string[] Args;
         [ProtoMember(3)] public string LearnedKey;
     }
+
+    /// <summary>Server → client: the blocks/items still without an EMC value, for the /emc missing window. Keys are "i:code" / "b:code".</summary>
+    [ProtoContract]
+    public class EmcMissingPacket
+    {
+        [ProtoMember(1)] public string[] Keys;
+        [ProtoMember(2)] public int CreativeTotal;
+        [ProtoMember(3)] public int ValueCount;
+        [ProtoMember(4)] public string Version;
+        [ProtoMember(5)] public string File;
+    }
 }

@@ -19,7 +19,7 @@ namespace VintageE
         public string Fingerprint;
         public string CreatedUtc;
         public string GameVersion;
-        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount, RelativeCount;
+        public int BaseCount, DerivedCount, InferredCount, SiblingCount, FallbackCount, RelativeCount, TraderCount;
         public int ConversionCount, SourceCount, LoopFrozen, UnstableRemoved;
         /// <summary>Knowledge-style keys ("i:game:ingot-gold", "b:game:rock-granite") → EMC.</summary>
         public SortedDictionary<string, double> Values = new SortedDictionary<string, double>(StringComparer.Ordinal);
@@ -275,6 +275,7 @@ namespace VintageE
                     SiblingCount = report.SiblingCount,
                     FallbackCount = report.FallbackCount,
                     RelativeCount = report.RelativeCount,
+                    TraderCount = report.TraderCount,
                     ConversionCount = report.ConversionCount,
                     SourceCount = report.SourceCount,
                     LoopFrozen = report.LoopFrozen,
@@ -304,6 +305,7 @@ namespace VintageE
             to.SiblingCount = from.SiblingCount;
             to.FallbackCount = from.FallbackCount;
             to.RelativeCount = from.RelativeCount;
+            to.TraderCount = from.TraderCount;
             to.ConversionCount = from.ConversionCount;
             to.SourceCount = from.SourceCount;
             to.LoopFrozen = from.LoopFrozen;

@@ -98,5 +98,20 @@
   "cmd-missing": "{0} of {1} blocks/items have no EMC value. Biggest groups: {2}. Full list: {3}",
   "cmd-missing-none": "All {0} blocks/items in the creative inventory have an EMC value.",
   "chat-announce": "Vintage-E version {0}: calculated {1} EMC values, {2} missing.",
-  "chat-announce-cached": "Vintage-E version {0}: {1} EMC values (calculated earlier, nothing has changed), {2} missing."
+  "chat-announce-cached": "Vintage-E version {0}: {1} EMC values (calculated earlier, nothing has changed), {2} missing.",
+  "missing-title": "Blocks and items without EMC",
+  "missing-summary": "{0} of {1} blocks/items in the creative inventory have no EMC value ({2} values calculated, Vintage-E {3}). Give them values in ModConfig/vintagee.json (BaseValues) or a config/vintagee-emc.json asset, then /emc recalc.",
+  "missing-summary-none": "All {0} blocks/items in the creative inventory have an EMC value (Vintage-E {1}).",
+  "missing-allmods": "All mods",
+  "missing-alltypes": "Blocks and items",
+  "missing-blocks": "Blocks",
+  "missing-items": "Items",
+  "missing-count": "Showing {0} of {1}",
+  "missing-capped": "(first {0} listed - search or filter to narrow it down)",
+  "missing-copy": "Copy codes",
+  "missing-close": "Close",
+  "missing-copied": "Copied {0} codes to the clipboard, ready to paste into BaseValues.",
+  "missing-empty": "Nothing is missing - every block and item has an EMC value.",
+  "missing-nomatch": "Nothing matches this search/filter.",
+  "gui-search-missing": "Search by name or code..."
 }

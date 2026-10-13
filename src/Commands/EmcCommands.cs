@@ -54,7 +54,7 @@ namespace VintageE
                 .BeginSubCommand("missing")
                     .WithDescription("List blocks/items that ended up without an EMC value")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Missing(mod))
+                    .HandleWith(args => Missing(mod, args))
                 .EndSubCommand()
                 .BeginSubCommand("give")
                     .RequiresPlayer()
@@ -125,15 +125,19 @@ namespace VintageE
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-recalc", report.Values.Count, report.Milliseconds, report.ConversionCount));
         }
 
-        static TextCommandResult Missing(VintageEModSystem mod)
+        static TextCommandResult Missing(VintageEModSystem mod, TextCommandCallingArgs args)
         {
             EmcMappingReport report = mod.LastReport;
             if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
+            string file = report.Missing.Count == 0 ? null : mod.WriteMissingFile(report);
+            if (args.Caller.Player is IServerPlayer player)
+            {
+                mod.SendMissingList(player, report, file); // opens the searchable list window
+            }
             if (report.Missing.Count == 0)
             {
                 return TextCommandResult.Success(Lang.Get("vintagee:cmd-missing-none", report.CreativeTotal));
             }
-            string file = mod.WriteMissingFile(report);
             string top = string.Join(", ", VintageEModSystem.MissingFamilies(report).Take(12).Select(f => f.Key + " (" + f.Value + ")"));
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-missing", report.Missing.Count, report.CreativeTotal, top, file ?? "-"));
         }
