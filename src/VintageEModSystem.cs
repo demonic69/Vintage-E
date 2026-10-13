@@ -70,7 +70,8 @@ namespace VintageE
             api.RegisterItemClass("ItemEmcTrinket", typeof(ItemEmcTrinket));
             api.RegisterItemClass("ItemEmcGadget", typeof(ItemEmcGadget));
             api.RegisterBlockEntityClass("VintageEAlchemicalChest", typeof(BEAlchemicalChest));
-            api.RegisterBlockEntityClass("VintageEMatterFurnace", typeof(BEMatterFurnace));
+            api.RegisterBlockEntityClass("VintageEMatterFurnace", typeof(BEMatterFurnaceLegacy)); // 1.4.0 furnaces convert themselves
+            api.RegisterBlockEntityClass("VintageEFurnace", typeof(BEMatterFurnace));
             api.RegisterBlockEntityClass("VintageEAntimatterRelay", typeof(BEAntimatterRelay));
             api.RegisterBlockEntityClass("VintageEInterdictionTorch", typeof(BEInterdictionTorch));
             api.RegisterBlockEntityClass("VintageENovaExplosive", typeof(BENovaExplosive));
@@ -85,7 +86,8 @@ namespace VintageE
                 .RegisterMessageType<EmcMissingPacket>()
                 .RegisterMessageType<EmcSetValuePacket>()
                 .RegisterMessageType<WatchSpeedPacket>()
-                .RegisterMessageType<FireProjectilePacket>();
+                .RegisterMessageType<FireProjectilePacket>()
+                .RegisterMessageType<EmcBlacklistPacket>();
         }
 
         #region Server
@@ -107,10 +109,15 @@ namespace VintageE
             serverChannel = sapi.Network.GetChannel(ChannelName);
             serverChannel.SetMessageHandler<TransmuteRequestPacket>(Transmutation.OnRequest);
             serverChannel.SetMessageHandler<EmcSetValuePacket>(OnSetValueRequest);
+            serverChannel.SetMessageHandler<EmcBlacklistPacket>(OnBlacklistRequest);
             serverChannel.SetMessageHandler<FireProjectilePacket>(OnFireProjectile);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
-            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => RecalculateEmc("server start", allowCache: true));
+            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
+            {
+                RecalculateEmc("server start", allowCache: true);
+                if (Config.SelfTestOnStart) sapi.Event.RegisterCallback(_ => new SelfTest(this, sapi).Start(), 5000);
+            });
             sapi.Event.PlayerNowPlaying += player =>
             {
                 if (player.Entity != null && player.Entity.GetBehavior<EntityBehaviorVintageE>() == null)
@@ -127,15 +134,15 @@ namespace VintageE
 
         readonly Dictionary<string, long> lastShot = new Dictionary<string, long>();
 
-        /// <summary>The fire-projectile key: shoots the lens charge of the lens in the player's hand (at most 4 a second).</summary>
+        /// <summary>The fire-projectile key: the held lens, amulet or ring shoots (at most 4 times a second).</summary>
         void OnFireProjectile(IServerPlayer player, FireProjectilePacket packet)
         {
             ItemSlot slot = player?.InventoryManager?.ActiveHotbarSlot;
-            if (!(slot?.Itemstack?.Collectible is ItemEmcGadget gadget) || !gadget.IsLens) return;
+            if (!(slot?.Itemstack?.Collectible is IVintageEShooter shooter) || !shooter.CanShoot(slot)) return;
             long now = Sapi.World.ElapsedMilliseconds;
             if (lastShot.TryGetValue(player.PlayerUID, out long last) && now - last < 250) return;
             lastShot[player.PlayerUID] = now;
-            ItemEmcGadget.FireLens(player, slot);
+            shooter.Shoot(player, slot);
         }
 
         VintageEConfig LoadConfig(ICoreServerAPI sapi)
@@ -363,11 +370,59 @@ namespace VintageE
         public string SetFixedValue(CollectibleObject collectible, double? value)
         {
             if (collectible?.Code == null) return null;
-            string key = (collectible.ItemClass == EnumItemClass.Block ? "block:" : "item:") + collectible.Code;
-            if (value.HasValue) Config.FixedValues[key] = value.Value;
+            string key = ConfigKey(collectible);
+            if (value.HasValue)
+            {
+                Config.FixedValues[key] = value.Value;
+                if (value.Value > 0) Config.Blacklist.Remove(key); // a value takes it off the blacklist
+            }
             else Config.FixedValues.Remove(key);
             SaveConfig();
             return key;
+        }
+
+        static string ConfigKey(CollectibleObject c) => (c.ItemClass == EnumItemClass.Block ? "block:" : "item:") + c.Code;
+
+        /// <summary>
+        /// Puts a block/item on the server blacklist (ModConfig Blacklist) or takes it off: removed from Blacklist if
+        /// it was added there, otherwise added to Allow so the built-in blacklist no longer applies. Remaps.
+        /// </summary>
+        public void SetBlacklisted(CollectibleObject c, bool blacklisted)
+        {
+            string key = ConfigKey(c);
+            if (blacklisted)
+            {
+                Config.Allow.Remove(key);
+                Config.FixedValues.Remove(key);
+                if (!Config.Blacklist.Contains(key)) Config.Blacklist.Add(key);
+            }
+            else if (!Config.Blacklist.Remove(key) && !Config.Allow.Contains(key))
+            {
+                Config.Allow.Add(key);
+            }
+            SaveConfig();
+        }
+
+        void OnBlacklistRequest(IServerPlayer player, EmcBlacklistPacket packet)
+        {
+            string lang = player.LanguageCode;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet.Key);
+            if (c?.Code == null) return;
+            SetBlacklisted(c, packet.Add);
+            EmcMappingReport report = RecalculateEmc(packet.Add ? "blacklisted from the /emc missing window" : "removed from the blacklist");
+            string name;
+            try { name = c.GetHeldItemName(new ItemStack(c)); } catch { name = c.Code.ToShortString(); }
+            double v = Emc.GetValue(c);
+            string msg = packet.Add ? Lang.GetL(lang, "vintagee:cmd-blacklisted", name, c.Code)
+                : v > 0 ? Lang.GetL(lang, "vintagee:cmd-unblacklisted-value", name, c.Code, EmcFormat.Format(v))
+                : Lang.GetL(lang, "vintagee:cmd-unblacklisted", name, c.Code);
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
+            if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
         }
 
         void OnSetValueRequest(IServerPlayer player, EmcSetValuePacket packet)
@@ -385,22 +440,23 @@ namespace VintageE
             string name;
             try { name = c.GetHeldItemName(new ItemStack(c)); } catch { name = c.Code.ToShortString(); }
             player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:cmd-itemvalue", name, c.Code, EmcFormat.Format(Emc.GetValue(c))), EnumChatType.CommandSuccess);
-            if (report != null) SendMissingList(player, report, null);
+            if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
         }
 
         /// <summary>Tells every client about a change to the watch's time speed, so their clocks and skies keep up.</summary>
         public void BroadcastWatchSpeed(float modifier) => serverChannel?.BroadcastPacket(new WatchSpeedPacket { Modifier = modifier });
 
-        /// <summary>Opens the /emc missing window for a player.</summary>
-        public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file)
+        /// <summary>Opens the /emc missing window (or with <paramref name="blacklist"/>, the /emc blacklist window) for a player.</summary>
+        public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file, bool blacklist = false)
         {
             serverChannel.SendPacket(new EmcMissingPacket
             {
-                Keys = report.Missing.Select(PlayerEmc.KeyOf).ToArray(),
+                Keys = (blacklist ? report.Blacklisted : report.Missing).Select(PlayerEmc.KeyOf).Where(k => k != null).ToArray(),
                 CreativeTotal = report.CreativeTotal,
                 ValueCount = report.Values.Count,
                 Version = Version,
-                File = file
+                File = file,
+                Blacklist = blacklist
             }, player);
         }
 
@@ -421,7 +477,7 @@ namespace VintageE
             capi.Input.SetHotKeyHandler(FireHotkey, _ =>
             {
                 ItemSlot slot = capi.World.Player?.InventoryManager?.ActiveHotbarSlot;
-                if (!(slot?.Itemstack?.Collectible is ItemEmcGadget gadget) || !gadget.IsLens) return false;
+                if (!(slot?.Itemstack?.Collectible is IVintageEShooter shooter) || !shooter.CanShoot(slot)) return false;
                 clientChannel?.SendPacket(new FireProjectilePacket { Hand = 0 });
                 return true;
             });
@@ -463,8 +519,10 @@ namespace VintageE
 
         void OnMissingList(EmcMissingPacket packet)
         {
-            GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() ? missingDialog : null;
-            var dialog = new GuiDialogEmcMissing(Capi, packet, previous, (key, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Key = key, Value = value }));
+            GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() && missingDialog.IsBlacklist == packet.Blacklist ? missingDialog : null;
+            var dialog = new GuiDialogEmcMissing(Capi, packet, previous,
+                (key, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Key = key, Value = value, FromBlacklist = packet.Blacklist }),
+                (key, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Key = key, Add = add, FromBlacklist = packet.Blacklist }));
             missingDialog?.TryClose();
             missingDialog?.Dispose();
             missingDialog = dialog;

@@ -199,11 +199,13 @@ namespace VintageE
     }
 
     /// <summary>
-    /// Dark Matter Pedestal: right-click with a ring, stone, amulet or talisman to set it on the pedestal (empty hand
-    /// takes it back). It then works on the area around the pedestal for free: the Harvest Goddess Band and Watch
-    /// grow crops, the Ignition Ring burns hostile creatures, the Zero Ring freezes water, the Black Hole Band pulls
-    /// in loose items and drops them into a container under the pedestal, Swiftwolf's Rending Gale strikes hostile
-    /// creatures, the Soul/Body/Life Stones heal and feed nearby players and the Repair Talisman mends their gear.
+    /// Dark Matter Pedestal: right-click with a ring, stone, amulet, talisman or watch to set it on the pedestal (empty
+    /// hand takes it back). It then works on the area around the pedestal for free, like ProjectE's: the Harvest Goddess
+    /// Band grows and harvests crops (8 blocks), the Watch grows crops and slows hostile creatures (12), the Ignition
+    /// Ring burns hostile creatures (8), the Zero Ring freezes water and puts out burning creatures (6), the Black Hole
+    /// Band and Void Ring pull in loose items (10) and put them into containers next to the pedestal, Swiftwolf's
+    /// Rending Gale strikes hostile creatures (10), the Soul/Body/Life Stones heal and feed players (6), the Repair
+    /// Talisman mends their gear (6), the Evertide Amulet brings rain and the Volcanite Amulet clear skies.
     /// </summary>
     public class BEPedestal : BlockEntity, IEmcInteractable
     {
@@ -216,7 +218,26 @@ namespace VintageE
         {
             base.Initialize(api);
             held?.ResolveBlockOrItem(api.World);
-            if (api.Side == EnumAppSide.Server) RegisterGameTickListener(OnServerTick, 500);
+            if (api.Side == EnumAppSide.Server)
+            {
+                RegisterGameTickListener(OnServerTick, 500);
+                if (WeatherCommand(true) != null) RegisterDelayedCallback(_ => ApplyWeather(true), 3000);
+            }
+        }
+
+        /// <summary>The weather command an amulet on the pedestal stands for (rain / clear skies), or null.</summary>
+        string WeatherCommand(bool placed)
+        {
+            string kind = (held?.Collectible as ItemEmcTrinket)?.Kind;
+            if (kind != "evertideamulet" && kind != "volcaniteamulet") return null;
+            if (!placed) return "/weather setprecipa";
+            return kind == "evertideamulet" ? "/weather setprecip 1" : "/weather setprecip 0";
+        }
+
+        void ApplyWeather(bool placed)
+        {
+            string cmd = WeatherCommand(placed);
+            if (cmd != null && Api is ICoreServerAPI sapi) sapi.InjectConsole(cmd);
         }
 
         public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
@@ -224,13 +245,15 @@ namespace VintageE
             ItemSlot hand = byPlayer.InventoryManager.ActiveHotbarSlot;
             if (Api.Side == EnumAppSide.Client) return true;
             if (!Api.World.Claims.TryAccess(byPlayer, Pos, EnumBlockAccessFlags.Use)) return true;
-            if (held == null && hand?.Itemstack?.Collectible is ItemEmcTrinket t && t.IsToggleable)
+            if (held == null && hand?.Itemstack?.Collectible is ItemEmcTrinket)
             {
                 held = hand.TakeOut(1);
                 hand.MarkDirty();
+                ApplyWeather(true);
             }
             else if (held != null && (hand == null || hand.Empty))
             {
+                ApplyWeather(false);
                 if (!byPlayer.InventoryManager.TryGiveItemstack(held, true)) Api.World.SpawnItemEntity(held, Pos.ToVec3d().Add(0.5, 1.1, 0.5));
                 held = null;
             }
@@ -267,10 +290,22 @@ namespace VintageE
         {
             switch (effect)
             {
-                case "harvestgoddessband": if (everySecond) fx.Grow(Pos, 8, 10, null, 0); break;
-                case "watchofflowingtime": if (everySecond) fx.Grow(Pos, 12, 24, null, 0); break;
+                case "harvestgoddessband":
+                    if (everySecond)
+                    {
+                        fx.Grow(Pos, 8, 10, null, 0);
+                        fx.Harvest(Pos, 8, null);
+                    }
+                    break;
+                case "watchofflowingtime":
+                    if (everySecond) fx.Grow(Pos, 12, 24, null, 0);
+                    fx.Slow(center, 12);
+                    break;
                 case "ignitionring": if (everySecond) fx.Burn(center, 8, null, null, 0); break;
-                case "zeroring": fx.Freeze(Pos.UpCopy(), 6, null); break;
+                case "zeroring":
+                    fx.Freeze(Pos.UpCopy(), 6, null);
+                    fx.Extinguish(center, 6);
+                    break;
                 case "blackholeband":
                     fx.Attract(center.AddCopy(0, 0.6, 0), 10);
                     Collect(center);
@@ -293,18 +328,28 @@ namespace VintageE
             }
         }
 
+        /// <summary>Puts items that reached the pedestal into containers next to it (below first, then the sides and above).</summary>
         void Collect(Vec3d center)
         {
-            if (!(Api.World.BlockAccessor.GetBlockEntity(Pos.DownCopy()) is IBlockEntityContainer container)) return;
+            var containers = new System.Collections.Generic.List<IBlockEntityContainer>();
+            foreach (BlockFacing face in new[] { BlockFacing.DOWN, BlockFacing.NORTH, BlockFacing.EAST, BlockFacing.SOUTH, BlockFacing.WEST, BlockFacing.UP })
+            {
+                if (Api.World.BlockAccessor.GetBlockEntity(Pos.AddCopy(face)) is IBlockEntityContainer c && c.Inventory != null) containers.Add(c);
+            }
+            if (containers.Count == 0) return;
             foreach (Entity e in Api.World.GetEntitiesAround(center.AddCopy(0, 0.6, 0), 1.5f, 1.5f, x => x is EntityItem && x.Alive))
             {
                 var ei = (EntityItem)e;
                 if (ei.Itemstack == null) continue;
                 var source = new DummySlot(ei.Itemstack);
-                foreach (ItemSlot slot in container.Inventory)
+                foreach (IBlockEntityContainer container in containers)
                 {
+                    foreach (ItemSlot slot in container.Inventory)
+                    {
+                        if (source.Empty) break;
+                        source.TryPutInto(Api.World, slot, source.StackSize);
+                    }
                     if (source.Empty) break;
-                    source.TryPutInto(Api.World, slot, source.StackSize);
                 }
                 if (source.Empty) e.Die(EnumDespawnReason.PickedUp);
                 else ei.Itemstack = source.Itemstack;
@@ -352,7 +397,11 @@ namespace VintageE
 
         public override void OnBlockBroken(IPlayer byPlayer = null)
         {
-            if (held != null && Api.Side == EnumAppSide.Server) Api.World.SpawnItemEntity(held, Pos.ToVec3d().Add(0.5, 0.5, 0.5));
+            if (held != null && Api.Side == EnumAppSide.Server)
+            {
+                ApplyWeather(false);
+                Api.World.SpawnItemEntity(held, Pos.ToVec3d().Add(0.5, 0.5, 0.5));
+            }
             held = null;
             base.OnBlockBroken(byPlayer);
         }

@@ -62,6 +62,11 @@ namespace VintageE
                     .RequiresPrivilege(Privilege.controlserver)
                     .HandleWith(args => Missing(mod, args))
                 .EndSubCommand()
+                .BeginSubCommand("blacklist")
+                    .WithDescription("Open a window listing everything on the EMC blacklist")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .HandleWith(args => Blacklist(mod, args))
+                .EndSubCommand()
                 .BeginSubCommand("add")
                     .WithDescription("Add EMC to a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -100,6 +105,7 @@ namespace VintageE
             ("/emc", "cmdhelp-emc", false),
             ("/emc help", "cmdhelp-help", false),
             ("/emc missing", "cmdhelp-missing", true),
+            ("/emc blacklist", "cmdhelp-blacklist", true),
             ("/emc set <value>", "cmdhelp-set", true),
             ("/emc clear", "cmdhelp-clear", true),
             ("/emc recalc", "cmdhelp-recalc", true),
@@ -208,6 +214,18 @@ namespace VintageE
             }
             string top = string.Join(", ", VintageEModSystem.MissingFamilies(report).Take(12).Select(f => f.Key + " (" + f.Value + ")"));
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-missing", report.Missing.Count, report.CreativeTotal, top, file ?? "-"));
+        }
+
+        static TextCommandResult Blacklist(VintageEModSystem mod, TextCommandCallingArgs args)
+        {
+            EmcMappingReport report = mod.LastReport;
+            if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
+            if (args.Caller.Player is IServerPlayer player)
+            {
+                mod.SendMissingList(player, report, null, blacklist: true);
+                return TextCommandResult.Success();
+            }
+            return TextCommandResult.Success(report.Blacklisted.Count + " blacklisted: " + string.Join(", ", report.Blacklisted.Take(40).Select(c => c.Code.ToString())));
         }
 
         static TextCommandResult Dump(VintageEModSystem mod, ICoreServerAPI sapi)

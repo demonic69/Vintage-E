@@ -73,6 +73,7 @@ namespace VintageE
             foreach (DiscoveredRecipeList found in DiscoverRecipeLists(sapi, logger))
             {
                 if (found.Alloy != null) CollectAlloys(found.Recipes, found.Alloy, found.Label);
+                else if (found.Cooking != null) CollectCooking(found.Recipes, found.Cooking, found.Label);
                 else CollectRecipeList(found.Recipes, found.Label);
             }
         }
@@ -83,6 +84,7 @@ namespace VintageE
             public string Label;
             public IEnumerable Recipes;
             internal AlloyShape Alloy;
+            internal CookingShape Cooking;
         }
 
         /// <summary>Every recipe list held by any loaded mod system (fields, properties, recipe registries), found by type.</summary>
@@ -126,9 +128,10 @@ namespace VintageE
                 if (element == null) return;
 
                 AlloyShape shape = null;
-                if (!typeof(IRecipeBase).IsAssignableFrom(element) && !AlloyShape.TryCreate(element, out shape)) return;
+                CookingShape cooking = null;
+                if (!typeof(IRecipeBase).IsAssignableFrom(element) && !AlloyShape.TryCreate(element, out shape) && !CookingShape.TryCreate(element, out cooking)) return;
                 if (!(getter() is IEnumerable list) || !seen.Add(list)) return;
-                result.Add(new DiscoveredRecipeList { Label = label, Recipes = list, Alloy = shape });
+                result.Add(new DiscoveredRecipeList { Label = label, Recipes = list, Alloy = shape, Cooking = cooking });
             }
             catch (Exception e)
             {
@@ -342,6 +345,87 @@ namespace VintageE
         }
 
         static string Join(string[] arr) => arr == null ? "" : string.Join(",", arr);
+
+        #endregion
+
+        #region Cooking pot recipes that cook into an item (rendered fat, linseed oil...), matched by shape
+
+        internal sealed class CookingShape
+        {
+            public FieldInfo Ingredients, CooksInto, Enabled, MinQuantity, PortionSizeLitres, ValidStacks;
+
+            public static bool TryCreate(Type t, out CookingShape shape)
+            {
+                shape = null;
+                FieldInfo ingredients = t.GetField("Ingredients");
+                FieldInfo cooksInto = t.GetField("CooksInto");
+                if (ingredients == null || cooksInto == null || !typeof(JsonItemStack).IsAssignableFrom(cooksInto.FieldType)) return false;
+                Type ingType = ingredients.FieldType.IsArray ? ingredients.FieldType.GetElementType() : null;
+                if (ingType == null) return false;
+                FieldInfo min = ingType.GetField("MinQuantity"), litres = ingType.GetField("PortionSizeLitres"), stacks = ingType.GetField("ValidStacks");
+                if (min == null || stacks == null || !stacks.FieldType.IsArray || !typeof(JsonItemStack).IsAssignableFrom(stacks.FieldType.GetElementType())) return false;
+                shape = new CookingShape { Ingredients = ingredients, CooksInto = cooksInto, Enabled = t.GetField("Enabled"), MinQuantity = min, PortionSizeLitres = litres, ValidStacks = stacks };
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Cooking pot recipes with a <c>cooksInto</c> item (meals have none and are skipped): the smallest batch's
+        /// ingredients make the output. Liquid ingredients count their litres in portions.
+        /// </summary>
+        void CollectCooking(IEnumerable recipes, CookingShape shape, string label)
+        {
+            if (recipes == null || !seenLists.Add(recipes)) return;
+            int before = Conversions.Count;
+            foreach (object recipe in recipes)
+            {
+                if (recipe == null || !seenRecipes.Add(recipe)) continue;
+                try
+                {
+                    if (shape.Enabled?.GetValue(recipe) is bool en && !en) continue;
+                    var cooksInto = shape.CooksInto.GetValue(recipe) as JsonItemStack;
+                    if (cooksInto == null) continue;
+                    if (cooksInto.ResolvedItemstack == null) cooksInto.Resolve(sapi.World, "cooking recipe output");
+                    ItemStack output = cooksInto.ResolvedItemstack;
+                    if (output?.Collectible == null || !(shape.Ingredients.GetValue(recipe) is Array ings)) continue;
+
+                    var conv = new Conversion { Output = output.Collectible, OutputQuantity = Math.Max(1, cooksInto.StackSize), Kind = ConversionKind.Crafting, Source = label };
+                    bool usable = true;
+                    foreach (object ing in ings)
+                    {
+                        if (ing == null) continue;
+                        int min = Convert.ToInt32(shape.MinQuantity.GetValue(ing));
+                        if (min <= 0) continue; // optional ingredient
+                        var choices = new List<CollectibleObject>();
+                        if (shape.ValidStacks.GetValue(ing) is Array stacks)
+                        {
+                            foreach (object st in stacks)
+                            {
+                                if (!(st is JsonItemStack js)) continue;
+                                if (js.ResolvedItemstack?.Collectible != null) choices.Add(js.ResolvedItemstack.Collectible);
+                                else if (js.Code != null && js.Code.Path.Contains('*'))
+                                {
+                                    string pattern = (js.Type == EnumItemClass.Block ? "block:" : "item:") + js.Code;
+                                    choices.AddRange(index.Match(pattern));
+                                }
+                            }
+                        }
+                        if (choices.Count == 0) { usable = false; break; }
+                        double litres = shape.PortionSizeLitres == null ? 0 : Convert.ToDouble(shape.PortionSizeLitres.GetValue(ing));
+                        double perLitre = choices[0].Attributes?["waterTightContainerProps"]?["itemsPerLitre"].AsDouble(0) ?? 0;
+                        double qty = perLitre > 0 && litres > 0 ? min * litres * perLitre : min;
+                        conv.Inputs.Add(new ConversionInput { Choices = choices.Distinct().ToArray(), Quantity = qty });
+                    }
+                    if (usable) AddIfSane(conv);
+                }
+                catch (Exception e)
+                {
+                    SkippedRecipes++;
+                    logger.VerboseDebug("EMC: skipped cooking recipe from {0}: {1}", label, e.Message);
+                }
+            }
+            Count(label + " (cooking)", Conversions.Count - before);
+        }
 
         #endregion
 

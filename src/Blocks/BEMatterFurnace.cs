@@ -1,162 +1,159 @@
 using System;
+using System.Reflection;
 using System.Text;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.GameContent;
 
 namespace VintageE
 {
     /// <summary>
-    /// Dark/Red Matter Furnace: a fast, fuss-free smelter. Slot 1 = input, 2 = fuel, 3 = output. Anything with
-    /// smelting/firing/cooking data whose melting point the furnace reaches is processed directly — ore nuggets
-    /// straight to ingots (no crucible), raw clay to fired, raw food to cooked. Runs on any fuel (alchemical fuels
-    /// burn longest) or on EMC fed in by adjacent collectors and relays (1 EMC per second of heat).
-    /// Speeds and temperature come from block attributes: <c>secondsPerItem</c>, <c>maxTemperature</c>.
-    /// Hoppers can feed the input/fuel; chutes take from the output.
+    /// Dark/Red Matter Furnace: the game's own firepit (same window, fuel, cooking pots, crucibles, spits and
+    /// ignition) built from matter, so it burns hotter, cooks faster and makes fuel last longer. Block attributes:
+    /// <c>heatModifier</c> (× the fuel's burn temperature), <c>burnDurationModifier</c> (× how long fuel lasts),
+    /// <c>cookingSpeed</c> (÷ cooking/smelting time once hot), <c>emcPerSecond</c> and <c>emcTemperature</c>.
+    /// It can also run on EMC pushed in by collectors and relays: when it has something to heat and no fuel burning,
+    /// it lights itself and burns EMC instead, at <c>emcPerSecond</c> and <c>emcTemperature</c> °C (× heatModifier).
     /// </summary>
-    public class BEMatterFurnace : BEInventoryBase, IEmcAcceptor
+    public class BEMatterFurnace : BlockEntityFirepit, IEmcAcceptor
     {
-        public const int InputSlot = 0, FuelSlot = 1, OutputSlot = 2;
+        public const double EmcCapacity = 1000;
+        const float EmcBurnSeconds = 10;
 
-        double heatSeconds;   // remaining burn time
-        double emcBuffer;     // EMC pushed in by collectors, spent as heat
-        double progress;      // seconds spent on the current item
-        double secondsPerItem = 1;
-        double maxTemperature = 1600;
+        double emcBuffer;
+        float heatModifier = 1.4f, burnDurationModifier = 3f, cookingSpeed = 4f, emcTemperature = 1300;
+        double emcPerSecond = 2;
 
-        public override string InventoryClassName => "vintageefurnace";
-        protected override int Columns => 3;
+        static readonly MethodInfo ContentMesh = typeof(BlockEntityFirepit).GetMethod("getContentMesh", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        protected override InventoryBase CreateInventory() => new FurnaceInventory();
+        public override float HeatModifier => heatModifier;
+        public override float BurnDurationModifier => burnDurationModifier;
+        public override float maxCookingTime() => base.maxCookingTime() / Math.Max(0.1f, cookingSpeed);
+
+        public override string DialogTitle
+        {
+            get
+            {
+                try { return Block?.GetPlacedBlockName(Api.World, Pos) ?? base.DialogTitle; }
+                catch { return base.DialogTitle; }
+            }
+        }
 
         public override void Initialize(ICoreAPI api)
         {
             base.Initialize(api);
-            secondsPerItem = Block?.Attributes?["secondsPerItem"].AsDouble(1) ?? 1;
-            maxTemperature = Block?.Attributes?["maxTemperature"].AsDouble(1600) ?? 1600;
-            if (api.Side == EnumAppSide.Server) RegisterGameTickListener(OnServerTick, 250);
+            JsonObject attrs = Block?.Attributes;
+            heatModifier = attrs?["heatModifier"].AsFloat(1.4f) ?? 1.4f;
+            burnDurationModifier = attrs?["burnDurationModifier"].AsFloat(3f) ?? 3f;
+            cookingSpeed = attrs?["cookingSpeed"].AsFloat(4f) ?? 4f;
+            emcPerSecond = attrs?["emcPerSecond"].AsDouble(2) ?? 2;
+            emcTemperature = attrs?["emcTemperature"].AsFloat(1300) ?? 1300;
+            if (api.Side == EnumAppSide.Server) RegisterGameTickListener(OnEmcTick, 1000);
         }
-
-        VintageEModSystem Mod => Api.ModLoader.GetModSystem<VintageEModSystem>();
 
         public double AcceptEmc(double amount)
         {
-            double room = Math.Max(0, 10000 - emcBuffer);
-            double take = Math.Min(room, amount);
+            double take = Math.Min(amount, Math.Max(0, EmcCapacity - emcBuffer));
             emcBuffer += take;
             return take;
         }
 
-        /// <summary>What the input slot turns into, and how many inputs that takes; null if the furnace can't process it.</summary>
-        (ItemStack output, int inputsNeeded)? Recipe(ItemStack input)
+        /// <summary>Keeps the fire going on EMC while there is something to heat and no fuel is burning.</summary>
+        void OnEmcTick(float dt)
         {
-            if (input == null) return null;
-            CombustibleProperties props = input.Collectible.CombustibleProps;
-            if (props == null)
+            double cost = emcPerSecond * EmcBurnSeconds;
+            if (emcBuffer < cost || inputStack == null) return;
+            bool wantsHeat;
+            try { wantsHeat = canHeatInput(); }
+            catch { wantsHeat = false; }
+            if (!wantsHeat) return;
+
+            if (!IsBurning)
             {
-                try { props = input.Collectible.GetCombustibleProperties(Api.World, input, null); }
-                catch { props = null; }
+                if (fuelSlot.Itemstack?.Collectible.GetCombustibleProperties(Api.World, fuelSlot.Itemstack, null)?.BurnTemperature > 0) return; // real fuel first
+                emcBuffer -= cost;
+                maxFuelBurnTime = fuelBurnTime = EmcBurnSeconds;
+                maxTemperature = (int)(emcTemperature * HeatModifier);
+                setBlockState("lit");
+                MarkDirty(true);
             }
-            ItemStack smelted = props?.SmeltedStack?.ResolvedItemstack;
-            if (smelted == null) return null;
-            if (props.MeltingPoint > maxTemperature) return null;
-            return (smelted.Clone(), Math.Max(1, props.SmeltedRatio));
+            else if (fuelBurnTime < 2 && fuelSlot.Empty)
+            {
+                emcBuffer -= cost;
+                fuelBurnTime += EmcBurnSeconds;
+                maxFuelBurnTime = Math.Max(maxFuelBurnTime, fuelBurnTime);
+                maxTemperature = Math.Max(maxTemperature, (int)(emcTemperature * HeatModifier));
+                MarkDirty(false);
+            }
         }
 
-        void OnServerTick(float dt)
+        public override bool OnTesselation(ITerrainMeshPool mesher, ITesselatorAPI tesselator)
         {
-            double speed = Mod?.Config.MachineSpeedMultiplier ?? 1;
-            ItemSlot input = inventory[InputSlot], fuel = inventory[FuelSlot], output = inventory[OutputSlot];
-            var recipe = Recipe(input.Itemstack);
-            bool canWork = recipe != null && input.StackSize >= recipe.Value.inputsNeeded && FitsOutput(Api.World, output, recipe.Value.output);
-            bool changed = false;
-
-            if (canWork && heatSeconds <= 0)
+            // Draw whatever sits on the fire the way the firepit does, but our own furnace instead of the logs.
+            try
             {
-                // Refuel: EMC first (cheap and automatic), then the fuel slot.
-                if (emcBuffer >= 1)
-                {
-                    double use = Math.Min(emcBuffer, 5);
-                    emcBuffer -= use;
-                    heatSeconds += use;
-                    changed = true;
-                }
-                else if (fuel.Itemstack?.Collectible.CombustibleProps is CombustibleProperties fp && fp.BurnDuration > 0 && fp.BurnTemperature > 0)
-                {
-                    heatSeconds += fp.BurnDuration;
-                    fuel.TakeOut(1);
-                    fuel.MarkDirty();
-                    changed = true;
-                }
+                ItemStack content = inputStack ?? outputStack;
+                if (ContentMesh?.Invoke(this, new object[] { content, tesselator }) is MeshData mesh) mesher.AddMeshData(mesh);
             }
-
-            if (canWork && heatSeconds > 0)
+            catch (Exception e)
             {
-                heatSeconds -= dt;
-                progress += dt * speed;
-                if (progress >= secondsPerItem)
-                {
-                    progress = 0;
-                    input.TakeOut(recipe.Value.inputsNeeded);
-                    input.MarkDirty();
-                    if (output.Itemstack == null) output.Itemstack = recipe.Value.output;
-                    else output.Itemstack.StackSize += recipe.Value.output.StackSize;
-                    output.MarkDirty();
-                }
-                changed = true;
+                Api?.Logger.VerboseDebug("Vintage-E furnace content mesh: {0}", e.Message);
             }
-            else if (!canWork && progress > 0)
-            {
-                progress = 0;
-                changed = true;
-            }
-            if (changed) MarkDirty(false);
-        }
-
-        static bool FitsOutput(IWorldAccessor world, ItemSlot output, ItemStack result)
-        {
-            if (output.Itemstack == null) return true;
-            if (!output.Itemstack.Equals(world, result, GlobalConstants.IgnoredStackAttributes)) return false;
-            return output.Itemstack.StackSize + result.StackSize <= output.Itemstack.Collectible.MaxStackSize;
+            return false;
         }
 
         public override void ToTreeAttributes(ITreeAttribute tree)
         {
             base.ToTreeAttributes(tree);
-            tree.SetDouble("heat", heatSeconds);
-            tree.SetDouble("emc", emcBuffer);
-            tree.SetDouble("progress", progress);
+            tree.SetDouble("vintageeEmc", emcBuffer);
         }
 
         public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
         {
             base.FromTreeAttributes(tree, worldAccessForResolve);
-            heatSeconds = tree.GetDouble("heat");
-            emcBuffer = tree.GetDouble("emc");
-            progress = tree.GetDouble("progress");
+            emcBuffer = tree.GetDouble("vintageeEmc");
         }
 
         public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
         {
             base.GetBlockInfo(forPlayer, dsc);
-            dsc.AppendLine(Lang.Get("vintagee:furnace-slots"));
-            dsc.AppendLine(Lang.Get(heatSeconds > 0 ? "vintagee:furnace-burning" : "vintagee:furnace-cold", (int)Math.Ceiling(heatSeconds), EmcFormat.Format(emcBuffer)));
-            if (progress > 0) dsc.AppendLine(Lang.Get("vintagee:furnace-progress", (int)(progress / Math.Max(0.01, secondsPerItem) * 100)));
+            dsc.AppendLine(Lang.Get("vintagee:furnace-info", (int)furnaceTemperature, EmcFormat.Format(emcBuffer), EmcFormat.Format(EmcCapacity)));
         }
     }
 
-    /// <summary>Input, fuel and a take-only output. Hoppers fill input (or fuel, for fuels); chutes pull the output.</summary>
-    public class FurnaceInventory : InventoryGeneric
+    /// <summary>
+    /// Matter furnaces placed with Vintage-E 1.4.0 (before they became firepits): turns itself into the new furnace
+    /// as soon as it loads, dropping whatever was inside on top of it.
+    /// </summary>
+    public class BEMatterFurnaceLegacy : BEInventoryBase
     {
-        public FurnaceInventory() : base(3, null, null, null, (id, inv) => id == BEMatterFurnace.OutputSlot ? new ItemSlotOutput(inv) : new ItemSlotSurvival(inv)) { }
+        public override string InventoryClassName => "vintageefurnace";
+        protected override int Columns => 3;
+        protected override InventoryBase CreateInventory() => new InventoryGeneric(3, null, null);
 
-        public override ItemSlot GetAutoPushIntoSlot(Vintagestory.API.MathTools.BlockFacing atBlockFace, ItemSlot fromSlot)
+        public override void Initialize(ICoreAPI api)
         {
-            CombustibleProperties props = fromSlot?.Itemstack?.Collectible.CombustibleProps;
-            bool isFuel = props != null && props.BurnDuration > 0 && props.SmeltedStack == null;
-            return isFuel ? this[BEMatterFurnace.FuelSlot] : this[BEMatterFurnace.InputSlot];
+            base.Initialize(api);
+            if (api.Side == EnumAppSide.Server) RegisterDelayedCallback(_ => Convert(), 500);
         }
 
-        public override ItemSlot GetAutoPullFromSlot(Vintagestory.API.MathTools.BlockFacing atBlockFace) => this[BEMatterFurnace.OutputSlot];
+        void Convert()
+        {
+            Block current = Api.World.BlockAccessor.GetBlock(Pos);
+            if (current?.Code == null || current.Code.Domain != VintageEModSystem.ModId) return;
+            string type = current.Variant?["type"] ?? "dark";
+            Block replacement = Api.World.GetBlock(new AssetLocation(VintageEModSystem.ModId, "furnace-" + type + "-cold"));
+            if (replacement == null || replacement.Id == 0) return;
+            var contents = new System.Collections.Generic.List<ItemStack>();
+            foreach (ItemSlot slot in Inventory)
+            {
+                if (slot?.Itemstack != null) contents.Add(slot.Itemstack.Clone());
+                if (slot != null) slot.Itemstack = null;
+            }
+            Api.World.BlockAccessor.SetBlock(replacement.Id, Pos);
+            foreach (ItemStack stack in contents) Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.1, 0.5));
+        }
     }
 }

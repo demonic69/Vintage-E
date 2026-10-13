@@ -27,7 +27,7 @@ namespace VintageE
         /// Spawns a <c>vintagee:projectile-{kind}</c> from the player's eyes in the direction they look, moving
         /// <paramref name="blocksPerSecond"/>. Returns null if the entity type is missing.
         /// </summary>
-        public static EntityVintageEProjectile Shoot(IServerPlayer player, string kind, double blocksPerSecond, Action<EntityVintageEProjectile> setup = null)
+        public static EntityVintageEProjectile Shoot(IServerPlayer player, string kind, double blocksPerSecond, Action<EntityVintageEProjectile> setup = null, float spread = 0)
         {
             IWorldAccessor world = player.Entity.World;
             EntityProperties type = world.GetEntityType(new AssetLocation("vintagee", "projectile-" + kind));
@@ -35,7 +35,10 @@ namespace VintageE
             var shot = (EntityVintageEProjectile)world.ClassRegistry.CreateEntity(type);
             EntityPos ppos = player.Entity.Pos;
             Vec3d eye = ppos.XYZ.Add(0, player.Entity.LocalEyePos.Y, 0);
-            Vec3d dir = eye.AheadCopy(1, ppos.Pitch, ppos.Yaw).Sub(eye).Normalize();
+            Random rand = world.Rand;
+            float pitch = ppos.Pitch + (float)(rand.NextDouble() * 2 - 1) * spread;
+            float yaw = ppos.Yaw + (float)(rand.NextDouble() * 2 - 1) * spread;
+            Vec3d dir = eye.AheadCopy(1, pitch, yaw).Sub(eye).Normalize();
             double perFrame = blocksPerSecond / 60.0; // motion is in blocks per 1/60 s
             shot.Pos.SetPos(eye.AddCopy(dir.X * 0.8, dir.Y * 0.8, dir.Z * 0.8));
             shot.Pos.Motion.Set(dir.X * perFrame, dir.Y * perFrame, dir.Z * perFrame);

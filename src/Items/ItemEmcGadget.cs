@@ -22,12 +22,12 @@ namespace VintageE
     ///   the fire-projectile key shoots the lens charge (charge 3 and up = the biggest shot).</item>
     /// <item>Mercurial Eye: sneak + right-click a block to remember it, then right-click blocks to turn them into it
     ///   (1×1 or 3×3); you pay the difference in EMC (or get it back if the old block was worth more).</item>
-    /// <item>Archangel's Smite: strikes the creature you look at, up to 48 blocks away.</item>
+    /// <item>Archangel's Smite: right-click fires a homing arrow, left-click a volley of 10 (each costs what an arrow is worth).</item>
     /// <item>Tome of Knowledge: learn every item that has an EMC value.</item>
     /// <item>Divining Rods: report the EMC of the ground below the block you click (3, 16 or 64 deep).</item>
     /// </list>
     /// </summary>
-    public class ItemEmcGadget : Item
+    public class ItemEmcGadget : Item, IVintageEShooter
     {
         public const string EyeTargetKey = "vintageeEyeTarget";
         SkillItem[] modes;
@@ -48,6 +48,10 @@ namespace VintageE
         public static int LensCharge(int charge) => GameMath.Clamp(charge, 0, LensRadius.Length - 1);
 
         public bool IsLens => Kind == "hyperkineticlens" || Kind == "catalyticlens";
+
+        public bool CanShoot(ItemSlot slot) => IsLens;
+
+        public bool Shoot(IServerPlayer player, ItemSlot slot) => FireLens(player, slot);
 
         public override void OnLoaded(ICoreAPI api)
         {
@@ -125,7 +129,7 @@ namespace VintageE
                     if (blockSel != null) Eye(mod, player, slot, blockSel, mode);
                     break;
                 case "archangelssmite":
-                    Smite(mod, player, 64 * mult);
+                    FireArrows(mod, player, 1, 0);
                     break;
                 case "tomeofknowledge":
                     int n = PlayerEmc.LearnMany(player, mod.Emc.All.Keys.Select(PlayerEmc.KeyOf));
@@ -245,29 +249,48 @@ namespace VintageE
             world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), sel.Position.X + 0.5, sel.Position.Y + 0.5, sel.Position.Z + 0.5, null, true, 12, 0.5f);
         }
 
-        void Smite(VintageEModSystem mod, IServerPlayer player, double cost)
+        /// <summary>Archangel's Smite arrow damage and how many a left-click volley fires (ProjectE: 10).</summary>
+        public const float ArrowDamage = 3;
+        public const int VolleySize = 10;
+
+        /// <summary>EMC per smite arrow: what an arrow is worth, like ProjectE (a flint arrow here; 14 if it has no value).</summary>
+        public static double ArrowCost(VintageEModSystem mod, IWorldAccessor world)
         {
-            IWorldAccessor world = player.Entity.World;
-            BlockSelection blockSel = null;
-            EntitySelection entitySel = null;
-            Vec3d eye = player.Entity.ServerPos.XYZ.Add(player.Entity.LocalEyePos);
-            world.RayTraceForSelection(eye, player.Entity.ServerPos.Pitch, player.Entity.ServerPos.Yaw, 48, ref blockSel, ref entitySel,
-                null, e => e != player.Entity && e is EntityAgent && e.Alive && !(e is EntityPlayer));
-            Entity target = entitySel?.Entity;
-            if (target == null) return;
-            if (!EmcWallet.TryPay(player, cost))
+            Item arrow = world.GetItem(new AssetLocation("game:arrow-flint"));
+            double v = arrow == null ? 0 : mod.Emc.GetValue(arrow);
+            return v > 0 ? v : 14;
+        }
+
+        /// <summary>Archangel's Smite: homing arrows that steer towards hostile creatures.</summary>
+        void FireArrows(VintageEModSystem mod, IServerPlayer player, int count, float spread)
+        {
+            double cost = ArrowCost(mod, player.Entity.World) * mod.Config.TrinketCostMultiplier;
+            int fired = 0;
+            for (int i = 0; i < count; i++)
             {
-                Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notenoughemc", EmcFormat.Format(cost), EmcFormat.Format(EmcWallet.Balance(player))));
+                if (!EmcWallet.TryPay(player, cost))
+                {
+                    if (fired == 0) Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notenoughemc", EmcFormat.Format(cost), EmcFormat.Format(EmcWallet.Balance(player))));
+                    break;
+                }
+                if (EntityVintageEProjectile.Shoot(player, "arrow", 50, shot => shot.Damage = ArrowDamage, spread) == null) break;
+                fired++;
+            }
+            if (fired > 0) player.Entity.World.PlaySoundAt(new AssetLocation("game:sounds/bow-release"), player.Entity, null, true, 24, 1f);
+        }
+
+        public override void OnHeldAttackStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, ref EnumHandHandling handling)
+        {
+            if (Kind != "archangelssmite")
+            {
+                base.OnHeldAttackStart(slot, byEntity, blockSel, entitySel, ref handling);
                 return;
             }
-            target.ReceiveDamage(new DamageSource
-            {
-                Source = EnumDamageSource.Player,
-                SourceEntity = player.Entity,
-                CauseEntity = player.Entity,
-                Type = EnumDamageType.PiercingAttack
-            }, 12f);
-            world.PlaySoundAt(new AssetLocation("game:sounds/weather/lightning-verynear"), target, null, true, 32, 0.4f);
+            // ProjectE: left-click fires a volley.
+            handling = EnumHandHandling.PreventDefault;
+            if (byEntity.World.Side != EnumAppSide.Server || !((byEntity as EntityPlayer)?.Player is IServerPlayer player)) return;
+            var mod = Mod(byEntity.World);
+            if (mod != null) FireArrows(mod, player, VolleySize, 0.08f);
         }
 
         void Divine(VintageEModSystem mod, IServerPlayer player, BlockSelection sel, int depth)
@@ -316,6 +339,7 @@ namespace VintageE
                 new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-" + Kind, MouseButton = EnumMouseButton.Right }
             };
             if (Kind == "mercurialeye") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-eyepick", HotKeyCode = "sneak", MouseButton = EnumMouseButton.Right });
+            if (Kind == "archangelssmite") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-volley", MouseButton = EnumMouseButton.Left });
             if (IsLens) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-gadget-fire", HotKeyCode = VintageEModSystem.FireHotkey, MouseButton = EnumMouseButton.None });
             if (modes != null) list.Add(new WorldInteraction { ActionLangCode = IsLens || Kind == "destructioncatalyst" ? "vintagee:heldhelp-gadget-charge" : "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
             return list.ToArray();

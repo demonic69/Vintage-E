@@ -15,8 +15,11 @@ namespace VintageE
         /// <summary>Hard overrides set by hand or with /emc set. Applied last; recipes never change them. A value of 0 removes the item's EMC entirely.</summary>
         public Dictionary<string, double> FixedValues = new Dictionary<string, double>();
 
-        /// <summary>Codes/wildcards that never get an EMC value, on top of the asset blacklist.</summary>
+        /// <summary>Codes/wildcards that never get an EMC value, on top of the asset blacklist. The /emc missing window's Blacklist button adds to this.</summary>
         public List<string> Blacklist = new List<string>();
+
+        /// <summary>Exceptions to the built-in (asset) blacklist. The /emc blacklist window's "Remove from blacklist" button adds to this.</summary>
+        public List<string> Allow = new List<string>();
 
         /// <summary>Ignore the default value file shipped with this mod (assets/vintagee/config/vintagee-emc.json). Other mods' files still load.</summary>
         public bool DisableBuiltInBaseValues = false;
@@ -118,6 +121,9 @@ namespace VintageE
         /// <summary>How many times slower time runs while a Watch of Flowing Time is on in "slower" mode.</summary>
         public double WatchSlowDown = 3;
 
+        /// <summary>Development only: builds a few test furnaces/projectiles near spawn after start-up and writes ModData/vintagee/selftest.txt. Used by the GitHub server test.</summary>
+        public bool SelfTestOnStart = false;
+
         /// <summary>Multiplies the EMC that rings, stones, amulets and gadgets cost to run.</summary>
         public double TrinketCostMultiplier = 1.0;
 
@@ -126,6 +132,7 @@ namespace VintageE
             BaseValues ??= new Dictionary<string, double>();
             FixedValues ??= new Dictionary<string, double>();
             Blacklist ??= new List<string>();
+            Allow ??= new List<string>();
             TransitionEmcPerDay ??= new Dictionary<string, double>();
             HostileCreatures ??= new List<string>();
             if (TrinketCostMultiplier < 0) TrinketCostMultiplier = 0;

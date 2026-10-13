@@ -574,6 +574,31 @@
     "name": "vintagee:gemofeternaldensity"
   },
   {
+    "ingredientPattern": "BG,RR",
+    "ingredients": {
+      "B": {
+        "type": "item",
+        "code": "vintagee:trinket-blackholeband"
+      },
+      "G": {
+        "type": "item",
+        "code": "vintagee:trinket-gemofeternaldensity"
+      },
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "vintagee:trinket-voidring"
+    },
+    "name": "vintagee:voidring",
+    "shapeless": true
+  },
+  {
     "ingredientPattern": "SSS,DDD,SSS",
     "ingredients": {
       "S": {
@@ -1609,7 +1634,7 @@
     "height": 3,
     "output": {
       "type": "block",
-      "code": "vintagee:matterfurnace-dark"
+      "code": "vintagee:furnace-dark-cold"
     },
     "name": "vintagee:matterfurnace-dark"
   },
@@ -1622,14 +1647,14 @@
       },
       "F": {
         "type": "block",
-        "code": "vintagee:matterfurnace-dark"
+        "code": "vintagee:furnace-dark-cold"
       }
     },
     "width": 3,
     "height": 3,
     "output": {
       "type": "block",
-      "code": "vintagee:matterfurnace-red"
+      "code": "vintagee:furnace-red-cold"
     },
     "name": "vintagee:matterfurnace-red"
   },

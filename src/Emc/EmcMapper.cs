@@ -35,6 +35,8 @@ namespace VintageE
         public int CreativeTotal;
         /// <summary>Of those, the ones that still have no value.</summary>
         public List<CollectibleObject> Missing = new List<CollectibleObject>();
+        /// <summary>Everything the blacklist keeps from having a value (for the /emc blacklist window).</summary>
+        public List<CollectibleObject> Blacklisted = new List<CollectibleObject>();
         /// <summary>True when the values were loaded from the on-disk cache instead of being mapped.</summary>
         public bool FromCache;
         public string CachedAt;
@@ -265,13 +267,17 @@ namespace VintageE
         {
             // 1. Things that must never have a value (creative/debug blocks etc.).
             excluded = new HashSet<CollectibleObject>();
-            foreach (string pattern in rules.Blacklist.Concat(config.Blacklist))
+            foreach (string pattern in rules.Blacklist)
             {
                 excluded.UnionWith(index.Match(pattern));
             }
-            foreach (string pattern in rules.Allow)
+            foreach (string pattern in rules.Allow.Concat(config.Allow))
             {
                 excluded.ExceptWith(index.Match(pattern));
+            }
+            foreach (string pattern in config.Blacklist)
+            {
+                excluded.UnionWith(index.Match(pattern));
             }
 
             // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
@@ -318,6 +324,7 @@ namespace VintageE
 
         static void FillCoverage(CollectibleIndex index, EmcMappingReport report, HashSet<CollectibleObject> excluded)
         {
+            report.Blacklisted = excluded.Where(c => c?.Code != null).ToList();
             foreach (CollectibleObject c in index.All)
             {
                 if (!IsListed(c) || excluded.Contains(c)) continue;

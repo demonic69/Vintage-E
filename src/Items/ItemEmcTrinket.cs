@@ -1,22 +1,39 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 
 namespace VintageE
 {
+    /// <summary>Items that shoot something with the fire-projectile key (R by default, like ProjectE).</summary>
+    public interface IVintageEShooter
+    {
+        bool CanShoot(ItemSlot slot);
+        /// <summary>Server side. Returns true if something was fired.</summary>
+        bool Shoot(IServerPlayer player, ItemSlot slot);
+    }
+
     /// <summary>
-    /// Rings, stones, amulets, the repair talisman and the watch. Vintage Story has no ring slots, so these work
-    /// from anywhere in your hotbar or backpack. Right-click toggles one on or off (shown in its tooltip); the
-    /// watch and the Gem of Eternal Density pick their mode with the tool-mode key, and on the Ring of Arcana the
-    /// tool-mode key switches each of its four effects on or off independently (all four are on by default). The Evertide and
-    /// Volcanite amulets instead place water/lava where you right-click. Effects run in <see cref="TrinketEffects"/>
-    /// and are paid for from personal EMC, then carried Klein stars.
+    /// ProjectE's rings, stones, amulets, the repair talisman and the watch. Vintage Story has no ring slots, so
+    /// these work from anywhere in your hotbar or backpack. Right-click switches one on or off (shown in its
+    /// tooltip), except where ProjectE gives right-click another job:
+    /// <list type="bullet">
+    /// <item>Evertide/Volcanite Amulet: place water/lava where you click (they're always ready, no switch).</item>
+    /// <item>Repair Talisman: always works while carried.</item>
+    /// <item>Black Hole Band / Void Ring: right-click a water or lava source to remove it.</item>
+    /// <item>Harvest Goddess Band: right-click farmland to plant the seeds you carry on farmland around it.</item>
+    /// <item>Void Ring: sneak + right-click to teleport to where you look (up to 64 blocks).</item>
+    /// </list>
+    /// The tool-mode key picks Swiftwolf's flight/shield, the watch's direction, the density target, and switches each
+    /// of the Ring of Arcana's four effects on or off. The fire-projectile key shoots water (Evertide), lava (Volcanite)
+    /// or fire (Ignition Ring, Ring of Arcana). Effects run in <see cref="TrinketEffects"/>.
     /// </summary>
-    public class ItemEmcTrinket : Item
+    public class ItemEmcTrinket : Item, IVintageEShooter
     {
         public const string ActiveKey = "vintageeActive";
         public const string ModeKey = "vintageeMode";
@@ -24,14 +41,28 @@ namespace VintageE
         public const string ArcanaOffKey = "vintageeArcanaOff";
 
         public static readonly string[] ArcanaModes = { "zero", "ignition", "harvest", "swiftwolf" };
+        public static readonly string[] GaleModes = { "both", "flight", "shield" };
         public static readonly string[] WatchModes = { "faster", "slower" };
         public static readonly string[] DensityTargets = { "game:ingot-iron", "game:ingot-gold", "game:gem-diamond-rough", "vintagee:matter-dark", "vintagee:matter-red" };
 
+        /// <summary>EMC per lava block (amulet click or shot), as ProjectE.</summary>
+        public const double LavaCost = 32;
+        public const int PlantRadius = 8;
+        public const int TeleportRange = 64;
+
         SkillItem[] modes;
+        SkillItem[] arcanaOn, arcanaOff;
 
         public string Kind => Variant?["type"] ?? "";
 
-        public bool IsToggleable => Kind != "evertideamulet" && Kind != "volcaniteamulet";
+        public bool IsAmulet => Kind == "evertideamulet" || Kind == "volcaniteamulet";
+
+        /// <summary>Always works while carried (ProjectE's talisman has no on/off).</summary>
+        public bool IsAlwaysOn => Kind == "repairtalisman";
+
+        public bool IsToggleable => !IsAmulet && !IsAlwaysOn;
+
+        public bool UsesDensityModes => Kind == "gemofeternaldensity" || Kind == "voidring";
 
         public static bool IsActive(ItemStack stack) => stack?.Attributes?.GetBool(ActiveKey) == true;
 
@@ -40,45 +71,52 @@ namespace VintageE
         /// <summary>Whether the Ring of Arcana's effect <paramref name="index"/> is switched on (all are by default).</summary>
         public static bool ArcanaEnabled(ItemStack stack, int index) => ((stack?.Attributes?.GetInt(ArcanaOffKey) ?? 0) & (1 << index)) == 0;
 
-        SkillItem[] arcanaOn, arcanaOff;
+        TrinketEffects Effects(IWorldAccessor world) => world.Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets;
 
         public override void OnLoaded(ICoreAPI api)
         {
             base.OnLoaded(api);
-            if (api is ICoreClientAPI capi)
+            if (!(api is ICoreClientAPI capi)) return;
+            if (Kind == "ringofarcana")
             {
-                if (Kind == "ringofarcana")
+                arcanaOn = new SkillItem[ArcanaModes.Length];
+                arcanaOff = new SkillItem[ArcanaModes.Length];
+                for (int i = 0; i < ArcanaModes.Length; i++)
                 {
-                    arcanaOn = new SkillItem[ArcanaModes.Length];
-                    arcanaOff = new SkillItem[ArcanaModes.Length];
-                    for (int i = 0; i < ArcanaModes.Length; i++)
-                    {
-                        string name = Lang.Get("vintagee:arcana-" + ArcanaModes[i]);
-                        string letter = name.Substring(0, 1);
-                        arcanaOn[i] = new SkillItem { Code = new AssetLocation("vintagee", "arcana-" + ArcanaModes[i] + "-on"), Name = Lang.Get("vintagee:arcana-toggle-on", name) }
-                            .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, letter, true));
-                        arcanaOff[i] = new SkillItem { Code = new AssetLocation("vintagee", "arcana-" + ArcanaModes[i] + "-off"), Name = Lang.Get("vintagee:arcana-toggle-off", name) }
-                            .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, letter, false));
-                    }
+                    string name = Lang.Get("vintagee:arcana-" + ArcanaModes[i]);
+                    string letter = name.Substring(0, 1);
+                    arcanaOn[i] = new SkillItem { Code = new AssetLocation("vintagee", "arcana-" + ArcanaModes[i] + "-on"), Name = Lang.Get("vintagee:arcana-toggle-on", name) }
+                        .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, letter, true));
+                    arcanaOff[i] = new SkillItem { Code = new AssetLocation("vintagee", "arcana-" + ArcanaModes[i] + "-off"), Name = Lang.Get("vintagee:arcana-toggle-off", name) }
+                        .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, letter, false));
                 }
-                else if (Kind == "watchofflowingtime")
+            }
+            else if (Kind == "swiftwolfsrendinggale")
+            {
+                modes = new SkillItem[GaleModes.Length];
+                for (int i = 0; i < modes.Length; i++)
                 {
-                    modes = new SkillItem[WatchModes.Length];
-                    for (int i = 0; i < modes.Length; i++)
-                    {
-                        modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "watch-" + WatchModes[i]), Name = Lang.Get("vintagee:watch-" + WatchModes[i]) }
-                            .WithLetterIcon(capi, i == 0 ? "+" : "-");
-                    }
+                    modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "gale-" + GaleModes[i]), Name = Lang.Get("vintagee:gale-" + GaleModes[i]) }
+                        .WithLetterIcon(capi, i == 0 ? "F+S" : i == 1 ? "F" : "S");
                 }
-                else if (Kind == "gemofeternaldensity")
+            }
+            else if (Kind == "watchofflowingtime")
+            {
+                modes = new SkillItem[WatchModes.Length];
+                for (int i = 0; i < modes.Length; i++)
                 {
-                    modes = new SkillItem[DensityTargets.Length];
-                    for (int i = 0; i < modes.Length; i++)
-                    {
-                        CollectibleObject target = Resolve(capi.World, DensityTargets[i]);
-                        string name = target == null ? DensityTargets[i] : target.GetHeldItemName(new ItemStack(target));
-                        modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "density" + i), Name = name }.WithLetterIcon(capi, name.Substring(0, 1));
-                    }
+                    modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "watch-" + WatchModes[i]), Name = Lang.Get("vintagee:watch-" + WatchModes[i]) }
+                        .WithLetterIcon(capi, i == 0 ? "+" : "-");
+                }
+            }
+            else if (UsesDensityModes)
+            {
+                modes = new SkillItem[DensityTargets.Length];
+                for (int i = 0; i < modes.Length; i++)
+                {
+                    CollectibleObject target = Resolve(capi.World, DensityTargets[i]);
+                    string name = target == null ? DensityTargets[i] : target.GetHeldItemName(new ItemStack(target));
+                    modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "density" + i), Name = name }.WithLetterIcon(capi, name.Substring(0, 1));
                 }
             }
         }
@@ -116,10 +154,6 @@ namespace VintageE
                 int off = slot.Itemstack.Attributes.GetInt(ArcanaOffKey) ^ (1 << toolMode);
                 if (off == 0) slot.Itemstack.Attributes.RemoveAttribute(ArcanaOffKey);
                 else slot.Itemstack.Attributes.SetInt(ArcanaOffKey, off);
-                if (byPlayer is Vintagestory.API.Server.IServerPlayer sp && !ArcanaEnabled(slot.Itemstack, 3))
-                {
-                    byPlayer.Entity.World.Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets?.OnDeactivated(sp);
-                }
             }
             slot.Itemstack.Attributes.SetInt(ModeKey, toolMode);
             slot.MarkDirty();
@@ -127,28 +161,68 @@ namespace VintageE
 
         public override void OnHeldInteractStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, bool firstEvent, ref EnumHandHandling handling)
         {
+            IWorldAccessor world = byEntity.World;
             // Placing a trinket on a pedestal is the pedestal's job.
-            if (blockSel != null && byEntity.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BEPedestal)
+            if (blockSel != null && world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEPedestal)
             {
                 base.OnHeldInteractStart(slot, byEntity, blockSel, entitySel, firstEvent, ref handling);
                 return;
             }
             handling = EnumHandHandling.PreventDefault;
-            if (!firstEvent || byEntity.World.Side != EnumAppSide.Server) return;
-            IPlayer player = (byEntity as EntityPlayer)?.Player;
-            if (player == null || slot.Itemstack == null) return;
+            if (!firstEvent || world.Side != EnumAppSide.Server) return;
+            if (!((byEntity as EntityPlayer)?.Player is IServerPlayer player) || slot.Itemstack == null) return;
+            TrinketEffects effects = Effects(world);
+            if (effects == null) return;
 
-            TrinketEffects effects = byEntity.World.Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets;
-            if (!IsToggleable)
+            if (IsAmulet)
             {
-                if (blockSel != null) effects?.PlaceLiquid(this, player, blockSel);
+                if (blockSel != null) effects.PlaceLiquid(this, player, blockSel);
                 return;
             }
+            if (IsAlwaysOn) return;
+
+            if (Kind == "voidring" && byEntity.Controls.Sneak)
+            {
+                effects.Teleport(player, TeleportRange);
+                return;
+            }
+            if ((Kind == "blackholeband" || Kind == "voidring") && blockSel != null && effects.RemoveLiquidSource(player, blockSel.Position)) return;
+            if (Kind == "harvestgoddessband" && blockSel != null && effects.PlantSeeds(player, blockSel, PlantRadius) > 0) return;
+
             bool on = !IsActive(slot.Itemstack);
             slot.Itemstack.Attributes.SetBool(ActiveKey, on);
             slot.MarkDirty();
-            byEntity.World.PlaySoundAt(new AssetLocation(on ? "game:sounds/effect/latch" : "game:sounds/effect/woodswitch"), byEntity, null, true, 8, 0.7f);
-            if (!on) effects?.OnDeactivated(player as Vintagestory.API.Server.IServerPlayer);
+            world.PlaySoundAt(new AssetLocation(on ? "game:sounds/effect/latch" : "game:sounds/effect/woodswitch"), byEntity, null, true, 8, 0.7f);
+        }
+
+        // ------------------------------------------------------------------ fire-projectile key
+
+        public bool CanShoot(ItemSlot slot)
+        {
+            if (IsAmulet || Kind == "ignitionring") return true;
+            return Kind == "ringofarcana" && ArcanaEnabled(slot?.Itemstack, 1);
+        }
+
+        public bool Shoot(IServerPlayer player, ItemSlot slot)
+        {
+            if (!CanShoot(slot)) return false;
+            IWorldAccessor world = player.Entity.World;
+            switch (Kind)
+            {
+                case "evertideamulet":
+                    if (EntityVintageEProjectile.Shoot(player, "water", 30) == null) return false;
+                    world.PlaySoundAt(new AssetLocation("game:sounds/environment/smallsplash"), player.Entity, null, true, 16, 0.8f);
+                    return true;
+                case "volcaniteamulet":
+                    if (!Effects(world).Pay(player, LavaCost)) return false;
+                    if (EntityVintageEProjectile.Shoot(player, "lava", 30) == null) return false;
+                    world.PlaySoundAt(new AssetLocation("game:sounds/effect/extinguish"), player.Entity, null, true, 16, 0.5f);
+                    return true;
+                default: // ignition ring, ring of arcana
+                    if (EntityVintageEProjectile.Shoot(player, "fire", 30, shot => shot.Damage = 3) == null) return false;
+                    world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), player.Entity, null, true, 16, 0.8f);
+                    return true;
+            }
         }
 
         public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
@@ -159,15 +233,19 @@ namespace VintageE
             if (IsToggleable) dsc.AppendLine(Lang.Get(IsActive(stack) ? "vintagee:trinket-on" : "vintagee:trinket-off"));
             if (Kind == "ringofarcana")
             {
-                var on = new System.Collections.Generic.List<string>();
+                var on = new List<string>();
                 for (int i = 0; i < ArcanaModes.Length; i++) if (ArcanaEnabled(stack, i)) on.Add(Lang.Get("vintagee:arcana-" + ArcanaModes[i]));
                 dsc.AppendLine(on.Count == 0 ? Lang.Get("vintagee:arcana-none") : Lang.Get("vintagee:arcana-effects", string.Join(", ", on)));
+            }
+            else if (Kind == "swiftwolfsrendinggale")
+            {
+                dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:gale-" + GaleModes[GameMath.Clamp(GetMode(stack), 0, GaleModes.Length - 1)])));
             }
             else if (Kind == "watchofflowingtime")
             {
                 dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:watch-" + WatchModes[GameMath.Clamp(GetMode(stack), 0, WatchModes.Length - 1)])));
             }
-            else if (Kind == "gemofeternaldensity")
+            if (UsesDensityModes)
             {
                 CollectibleObject target = Resolve(world, DensityTargets[GameMath.Clamp(GetMode(stack), 0, DensityTargets.Length - 1)]);
                 if (target != null) dsc.AppendLine(Lang.Get("vintagee:density-target", target.GetHeldItemName(new ItemStack(target)), EmcFormat.Format(StoredEmc.Get(stack))));
@@ -176,10 +254,13 @@ namespace VintageE
 
         public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot)
         {
-            var list = new System.Collections.Generic.List<WorldInteraction>
-            {
-                new WorldInteraction { ActionLangCode = IsToggleable ? "vintagee:heldhelp-trinket-toggle" : "vintagee:heldhelp-trinket-place", MouseButton = EnumMouseButton.Right }
-            };
+            var list = new List<WorldInteraction>();
+            if (IsAmulet) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-place", MouseButton = EnumMouseButton.Right });
+            if (IsToggleable) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-toggle", MouseButton = EnumMouseButton.Right });
+            if (Kind == "blackholeband" || Kind == "voidring") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-voidliquid", MouseButton = EnumMouseButton.Right });
+            if (Kind == "harvestgoddessband") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-plant", MouseButton = EnumMouseButton.Right });
+            if (Kind == "voidring") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-teleport", HotKeyCode = "sneak", MouseButton = EnumMouseButton.Right });
+            if (CanShoot(inSlot)) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-shoot-" + (Kind == "ringofarcana" ? "ignitionring" : Kind), HotKeyCode = VintageEModSystem.FireHotkey, MouseButton = EnumMouseButton.None });
             if (modes != null || arcanaOn != null) list.Add(new WorldInteraction { ActionLangCode = arcanaOn != null ? "vintagee:heldhelp-arcana-toggle" : "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
             return list.ToArray();
         }

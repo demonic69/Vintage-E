@@ -37,7 +37,7 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 6; // 2: barrel outputs counted in portions, liquid-container ingredients
+        public const int Format = 7; // 2: barrel outputs counted in portions, liquid-container ingredients; 7: cooking pot recipes
 
         public static string FilePath(ICoreServerAPI sapi)
         {

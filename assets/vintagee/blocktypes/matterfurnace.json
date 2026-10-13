@@ -1,6 +1,5 @@
 {
   "code": "matterfurnace",
-  "class": "BlockEmcMachine",
   "entityClass": "VintageEMatterFurnace",
   "variantgroups": [
     {
@@ -11,63 +10,19 @@
       ]
     }
   ],
-  "creativeinventory": {
-    "general": [
-      "*"
-    ],
-    "mechanics": [
-      "*"
-    ],
-    "vintagee": [
-      "*"
-    ]
-  },
   "blockmaterial": "Metal",
   "drawtype": "cube",
   "textures": {
-    "up": {
-      "base": "block/matterfurnace-{type}-top"
-    },
-    "down": {
-      "base": "block/matterfurnace-{type}-top"
-    },
-    "north": {
-      "base": "block/matterfurnace-{type}-side"
-    },
-    "east": {
-      "base": "block/matterfurnace-{type}-side"
-    },
-    "south": {
-      "base": "block/matterfurnace-{type}-side"
-    },
-    "west": {
-      "base": "block/matterfurnace-{type}-side"
+    "all": {
+      "base": "block/matterblock-{type}"
     }
   },
-  "attributesByType": {
-    "*-dark": {
-      "secondsPerItem": 1.0,
-      "maxTemperature": 1600,
-      "interactionHelp": "vintagee:blockhelp-furnace"
-    },
-    "*-red": {
-      "secondsPerItem": 0.25,
-      "maxTemperature": 3000,
-      "interactionHelp": "vintagee:blockhelp-furnace"
+  "drops": [
+    {
+      "type": "block",
+      "code": "furnace-{type}-cold"
     }
-  },
-  "lightHsvByType": {
-    "*-dark": [
-      40,
-      4,
-      6
-    ],
-    "*-red": [
-      0,
-      5,
-      8
-    ]
-  },
+  ],
   "resistance": 10,
   "requiredMiningTier": 4,
   "sounds": {

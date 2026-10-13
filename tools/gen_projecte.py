@@ -43,7 +43,7 @@ STARS = ["ein", "zwei", "drei", "vier", "sphere", "omega"]
 STAR_CAP = {"ein": 50000, "zwei": 200000, "drei": 800000, "vier": 3200000, "sphere": 12800000, "omega": 51200000}
 TRINKETS = ["blackholeband", "swiftwolfsrendinggale", "harvestgoddessband", "ignitionring", "zeroring", "ringofarcana",
             "bodystone", "soulstone", "lifestone", "repairtalisman", "gemofeternaldensity", "evertideamulet",
-            "volcaniteamulet", "watchofflowingtime"]
+            "volcaniteamulet", "watchofflowingtime", "voidring"]
 GADGETS = ["destructioncatalyst", "hyperkineticlens", "catalyticlens", "mercurialeye", "archangelssmite",
            "tomeofknowledge", "diviningrodlow", "diviningrodmedium", "diviningrodhigh"]
 BAGS = ["white", "plain", "gray", "black", "brown", "red", "orange", "yellow", "green", "blue", "purple", "pink"]
@@ -85,7 +85,9 @@ def items():
         ("maxstacksize", 1),
         ("creativeinventory", CREATIVE),
         ("textureByType", O([("*", O([("base", "item/trinket/{type}")]))])),
-        ("attributesByType", O([("*-gemofeternaldensity", O([("maxInputValue", 8)]))])),
+        ("attributesByType", O([("*-gemofeternaldensity", O([("maxInputValue", 8)])), ("*-voidring", O([("maxInputValue", 8)]))])),
+        # The Black Hole Band and Void Ring can target water/lava sources (right-click removes them).
+        ("liquidSelectableByType", O([("*-blackholeband", True), ("*-voidring", True), ("*", False)])),
         ("materialDensity", 5000),
     ]))
     write("itemtypes/gadget.json", O([
@@ -185,6 +187,37 @@ def cube(top, side, bottom=None):
 
 SOUNDS_METAL = O([("place", "game:block/ingot"), ("break", "game:block/ingot"), ("hit", "game:block/ingot")])
 
+# Interdiction Torch brightness (a vanilla torch is 14) and the radius it keeps hostile creatures out of.
+TORCH_LIGHT = 20
+TORCH_RADIUS = 8
+
+# Matter furnace numbers (also used in the descriptions): heat × fuel temperature, × fuel burn time, × cooking speed, EMC/s.
+FURNACE = {"dark": {"heat": 1.4, "burn": 3, "speed": 4, "emc": 2}, "red": {"heat": 2.0, "burn": 4, "speed": 12, "emc": 4}}
+
+# The vanilla firepit's particles (embers, smoke, flames when lit; a wisp of smoke when extinct).
+FIREPIT_PARTICLES = """{
+ "lit": [
+  {"hsvaColor": [{"avg": 30, "var": 20}, {"avg": 255, "var": 50}, {"avg": 255, "var": 50}, {"avg": 255, "var": 0}],
+   "gravityEffect": {"dist": "invexp", "avg": -0.1, "var": 0.4}, "posOffset": [{"avg": 0, "var": 0.2}, {"avg": -0.3, "var": 0}, {"avg": 0, "var": 0.2}],
+   "velocity": [{"avg": 0, "var": 0.15}, {"avg": 0.5, "var": 0.1}, {"avg": 0, "var": 0.15}], "quantity": {"avg": 0.015}, "size": {"avg": 0.4, "var": 0},
+   "sizeEvolve": {"transform": "quadratic", "factor": -0.7}, "lifeLength": {"avg": 1.5}, "vertexFlags": 128, "windAffectednes": 0.2},
+  {"hsvaColor": [{"avg": 0, "var": 0}, {"avg": 0, "var": 0}, {"avg": 70, "var": 30}, {"avg": 220, "var": 50}], "opacityEvolve": {"transform": "linear", "factor": -255},
+   "gravityEffect": {"avg": 0, "var": 0}, "posOffset": [{"avg": 0, "var": 0.2}, {"avg": -0.3, "var": 0}, {"avg": 0, "var": 0.2}],
+   "velocity": [{"avg": 0, "var": 0.025}, {"avg": 0.2, "var": 0.05}, {"avg": 0, "var": 0.025}], "quantity": {"avg": 0.08}, "size": {"avg": 0.3, "var": 0.05},
+   "sizeEvolve": {"transform": "linear", "factor": 1.5}, "particleModel": "Quad", "lifeLength": {"avg": 18}, "selfPropelled": true, "windAffectednes": 0.7},
+  {"hsvaColor": [{"avg": 20, "var": 20}, {"avg": 255, "var": 50}, {"avg": 255, "var": 50}, {"avg": 255, "var": 0}], "opacityEvolve": {"transform": "quadratic", "factor": -16},
+   "gravityEffect": {"avg": 0, "var": 0}, "posOffset": [{"avg": 0, "var": 0.15}, {"avg": -0.25, "var": 0}, {"avg": 0, "var": 0.15}],
+   "velocity": [{"avg": 0, "var": 0.1}, {"avg": 0.125, "var": 0.05}, {"avg": 0, "var": 0.1}], "quantity": {"avg": 1}, "size": {"avg": 0.35, "var": 0.05},
+   "lifeLength": {"avg": 0.25}, "sizeEvolve": {"transform": "linear", "factor": 0.25}, "particleModel": "Quad", "vertexFlags": 128, "windAffectednes": 0.5}
+ ],
+ "extinct": [
+  {"hsvaColor": [{"avg": 0, "var": 0}, {"avg": 0, "var": 0}, {"avg": 70, "var": 30}, {"avg": 220, "var": 50}], "opacityEvolve": {"transform": "quadratic", "factor": -16},
+   "gravityEffect": {"avg": 0, "var": 0}, "posOffset": [{"avg": 0, "var": 0.2}, {"avg": -0.3, "var": 0}, {"avg": 0, "var": 0.2}],
+   "velocity": [{"avg": 0, "var": 0.05}, {"avg": 0.1, "var": 0.05}, {"avg": 0, "var": 0.05}], "quantity": {"avg": 0.02}, "size": {"avg": 0.3, "var": 0.05},
+   "sizeEvolve": {"transform": "linear", "factor": 1.5}, "particleModel": "Quad", "windAffectednes": 0.7}
+ ]
+}"""
+
 
 def blocks():
     write("blocktypes/alchemicalfuelblock.json", O([
@@ -216,20 +249,50 @@ def blocks():
         ("resistance", 3),
         ("sounds", O([("place", "game:block/planks"), ("break", "game:block/planks"), ("hit", "game:block/planks")])),
     ]))
+    # Matter furnaces are the game's firepit (BlockFirepit + a BlockEntityFirepit subclass) built from matter.
+    firepit_particles = json.loads(FIREPIT_PARTICLES)
+    write("blocktypes/furnace.json", O([
+        ("code", "furnace"),
+        ("class", "BlockFirepit"),
+        ("entityClass", "VintageEFurnace"),
+        ("entityBehaviors", [O([("name", "FirepitAmbient")]), O([("name", "TemperatureSensitive")])]),
+        ("behaviors", [O([("name", "Lockable")]), O([("name", "Container")]), O([("name", "Ignitable")]), O([("name", "HeatSource")])]),
+        ("variantgroups", [O([("code", "type"), ("states", ["dark", "red"])]), O([("code", "burnstate"), ("states", ["cold", "lit", "extinct"])])]),
+        ("creativeinventory", O([("general", ["*-cold"]), ("mechanics", ["*-cold"]), ("vintagee", ["*-cold"])])),
+        ("attributesByType", O([
+            ("*-dark-*", O([("heatModifier", FURNACE["dark"]["heat"]), ("burnDurationModifier", FURNACE["dark"]["burn"]), ("cookingSpeed", FURNACE["dark"]["speed"]),
+                            ("emcPerSecond", FURNACE["dark"]["emc"]), ("emcTemperature", 1300)])),
+            ("*-red-*", O([("heatModifier", FURNACE["red"]["heat"]), ("burnDurationModifier", FURNACE["red"]["burn"]), ("cookingSpeed", FURNACE["red"]["speed"]),
+                           ("emcPerSecond", FURNACE["red"]["emc"]), ("emcTemperature", 1300)])),
+        ])),
+        ("shapeByType", O([("*-lit", O([("base", "block/matterfurnace-lit")])), ("*", O([("base", "block/matterfurnace-cold")]))])),
+        ("textures", O([("body", O([("base", "block/matterblock-{type}")])), ("ember", O([("base", "game:block/coal/ember")])),
+                        ("charred", O([("base", "game:block/wood/charred")]))])),
+        ("blockmaterial", "Metal"),
+        ("renderpass", "OpaqueNoCull"),
+        ("faceCullMode", "NeverCull"),
+        ("lightAbsorption", 0),
+        ("lightHsvByType", O([("*-lit", [7, 7, 18]), ("*-extinct", [7, 7, 3])])),
+        ("particlePropertiesByType", O([("*-lit", firepit_particles["lit"]), ("*-extinct", firepit_particles["extinct"])])),
+        ("sidesolid", O([("all", False)])),
+        ("sideopaque", O([("all", False)])),
+        ("collisionbox", O([("x1", 0), ("y1", 0), ("z1", 0), ("x2", 1), ("y2", 0.1875), ("z2", 1)])),
+        ("selectionbox", O([("x1", 0), ("y1", 0), ("z1", 0), ("x2", 1), ("y2", 0.25), ("z2", 1)])),
+        ("resistance", 10),
+        ("requiredMiningTier", 4),
+        ("drops", [O([("type", "block"), ("code", "furnace-{type}-cold")])]),
+        ("guiTransform", O([("origin", O([("x", 0.5), ("y", 0.1), ("z", 0.5)])), ("scale", 1.6)])),
+        ("sounds", SOUNDS_METAL),
+    ]))
+    # 1.4.0's furnaces: kept so placed ones load, then turn themselves into the new furnace.
     write("blocktypes/matterfurnace.json", O([
         ("code", "matterfurnace"),
-        ("class", "BlockEmcMachine"),
         ("entityClass", "VintageEMatterFurnace"),
         ("variantgroups", [O([("code", "type"), ("states", ["dark", "red"])])]),
-        ("creativeinventory", O([("general", ["*"]), ("mechanics", ["*"]), ("vintagee", ["*"])])),
         ("blockmaterial", "Metal"),
         ("drawtype", "cube"),
-        ("textures", cube("block/matterfurnace-{type}-top", "block/matterfurnace-{type}-side")),
-        ("attributesByType", O([
-            ("*-dark", O([("secondsPerItem", 1.0), ("maxTemperature", 1600), ("interactionHelp", "vintagee:blockhelp-furnace")])),
-            ("*-red", O([("secondsPerItem", 0.25), ("maxTemperature", 3000), ("interactionHelp", "vintagee:blockhelp-furnace")])),
-        ])),
-        ("lightHsvByType", O([("*-dark", [40, 4, 6]), ("*-red", [0, 5, 8])])),
+        ("textures", O([("all", O([("base", "block/matterblock-{type}")]))])),
+        ("drops", [O([("type", "block"), ("code", "furnace-{type}-cold")])]),
         ("resistance", 10),
         ("requiredMiningTier", 4),
         ("sounds", SOUNDS_METAL),
@@ -277,8 +340,8 @@ def blocks():
         ("drawtype", "json"),
         ("shape", O([("base", "block/interdictiontorch")])),
         ("textures", O([("rod", O([("base", "item/tool/material/darkmatter")])), ("glow", O([("base", "block/interdictiontorch-glow")]))])),
-        ("attributes", O([("radius", 8)])),
-        ("lightHsv", [36, 3, 14]),
+        ("attributes", O([("radius", TORCH_RADIUS)])),
+        ("lightHsv", [36, 3, TORCH_LIGHT]),
         ("sidesolid", O([("all", False)])),
         ("sideopaque", O([("all", False)])),
         ("emitSideAo", O([("all", False)])),
@@ -322,7 +385,29 @@ def box(name, frm, to, tex):
     return O([("name", name), ("from", frm), ("to", to), ("faces", faces)])
 
 
+def furnace_shape(lit):
+    els = [
+        box("base", [0, 0, 0], [16, 1, 16], "#body"),
+        box("rim-n", [0, 1, 0], [16, 3, 2], "#body"),
+        box("rim-s", [0, 1, 14], [16, 3, 16], "#body"),
+        box("rim-w", [0, 1, 2], [2, 3, 14], "#body"),
+        box("rim-e", [14, 1, 2], [16, 3, 14], "#body"),
+        box("coals", [3, 1, 3], [13, 2, 13], "#ember" if lit else "#charred"),
+    ]
+    if lit:
+        els[-1]["glow"] = 200
+        for i, (x, z) in enumerate(((5, 5), (9, 6), (6, 9), (10, 10))):
+            ember = box(f"ember{i}", [x, 2, z], [x + 1, 2.5, z + 1], "#ember")
+            ember["glow"] = 255
+            els.append(ember)
+    return O([("textureWidth", 16), ("textureHeight", 16),
+              ("textures", O([("body", "vintagee:block/matterblock-dark"), ("ember", "game:block/coal/ember"), ("charred", "game:block/wood/charred")])),
+              ("elements", els)])
+
+
 def shapes():
+    write("shapes/block/matterfurnace-cold.json", furnace_shape(False))
+    write("shapes/block/matterfurnace-lit.json", furnace_shape(True))
     write("shapes/block/interdictiontorch.json", O([
         ("textureWidth", 16), ("textureHeight", 16),
         ("textures", O([("rod", "vintagee:item/tool/material/darkmatter"), ("glow", "vintagee:block/interdictiontorch-glow")])),
@@ -401,6 +486,8 @@ def recipes():
     rs.append(R("lifestone", "BS", O([("B", I(t("bodystone"))), ("S", I(t("soulstone")))]), t("lifestone"), shapeless=True))
     rs.append(R("repairtalisman", "LMH,SPS,HML", O([("L", dust("low")), ("M", dust("medium")), ("H", dust("high")), ("S", I("game:flaxtwine")), ("P", PS)]), t("repairtalisman")))
     rs.append(R("gemofeternaldensity", "DOD,OMO,DOD", O([("D", DIAMOND), ("O", OBSIDIAN), ("M", DM)]), t("gemofeternaldensity")))
+    # ProjectE: Black Hole Band + Gem of Eternal Density + 2 red matter.
+    rs.append(R("voidring", "BG,RR", O([("B", I("vintagee:trinket-blackholeband")), ("G", I("vintagee:trinket-gemofeternaldensity")), ("R", RM)]), t("voidring"), shapeless=True))
     rs.append(R("evertideamulet", "SSS,DDD,SSS", O([("S", I("game:seashell-*", "block")), ("D", DM)]), t("evertideamulet")))
     rs.append(R("volcaniteamulet", "OOO,DDD,OOO", O([("O", OBSIDIAN), ("D", DM)]), t("volcaniteamulet")))
     rs.append(R("watchofflowingtime", "GGG,DTD,GGG", O([("G", I("game:glass-*", "block")), ("D", DM), ("T", I("game:gear-temporal"))]), t("watchofflowingtime")))
@@ -450,8 +537,8 @@ def recipes():
     rs.append(R("antimatterrelay-mk1", "OOO,ODO,OGO", O([("O", OBSIDIAN), ("D", DM), ("G", I("game:glass-*", "block"))]), "vintagee:antimatterrelay-mk1", out_type="block"))
     rs.append(R("antimatterrelay-mk2", "ODO,DRD,ODO", O([("O", OBSIDIAN), ("D", DM), ("R", I("vintagee:antimatterrelay-mk1", "block"))]), "vintagee:antimatterrelay-mk2", out_type="block"))
     rs.append(R("antimatterrelay-mk3", "ORO,RXR,ORO", O([("O", OBSIDIAN), ("R", RM), ("X", I("vintagee:antimatterrelay-mk2", "block"))]), "vintagee:antimatterrelay-mk3", out_type="block"))
-    rs.append(R("matterfurnace-dark", "DDD,DFD,DDD", O([("D", DM), ("F", I("game:forge", "block"))]), "vintagee:matterfurnace-dark", out_type="block"))
-    rs.append(R("matterfurnace-red", "_R_,RFR,_R_", O([("R", RM), ("F", I("vintagee:matterfurnace-dark", "block"))]), "vintagee:matterfurnace-red", out_type="block"))
+    rs.append(R("matterfurnace-dark", "DDD,DFD,DDD", O([("D", DM), ("F", I("game:forge", "block"))]), "vintagee:furnace-dark-cold", out_type="block"))
+    rs.append(R("matterfurnace-red", "_R_,RFR,_R_", O([("R", RM), ("F", I("vintagee:furnace-dark-cold", "block"))]), "vintagee:furnace-red-cold", out_type="block"))
     rs.append(R("pedestal", "R_R,RDR,DDD", O([("R", RM), ("D", I("vintagee:matterblock-dark", "block"))]), "vintagee:pedestal-empty", out_type="block"))
     write("recipes/grid/projecte.json", rs)
 
@@ -466,6 +553,7 @@ NAMES = O([
     ("trinket-ringofarcana", "Ring of Arcana"), ("trinket-bodystone", "Body Stone"), ("trinket-soulstone", "Soul Stone"),
     ("trinket-lifestone", "Life Stone"), ("trinket-repairtalisman", "Repair Talisman"), ("trinket-gemofeternaldensity", "Gem of Eternal Density"),
     ("trinket-evertideamulet", "Evertide Amulet"), ("trinket-volcaniteamulet", "Volcanite Amulet"), ("trinket-watchofflowingtime", "Watch of Flowing Time"),
+    ("trinket-voidring", "Void Ring"),
     ("gadget-destructioncatalyst", "Destruction Catalyst"), ("gadget-hyperkineticlens", "Hyperkinetic Lens"), ("gadget-catalyticlens", "Catalytic Lens"),
     ("gadget-mercurialeye", "Mercurial Eye"), ("gadget-archangelssmite", "Archangel's Smite"), ("gadget-tomeofknowledge", "Tome of Knowledge"),
     ("gadget-diviningrodlow", "Divining Rod (low)"), ("gadget-diviningrodmedium", "Divining Rod (medium)"), ("gadget-diviningrodhigh", "Divining Rod (high)"),
@@ -512,7 +600,7 @@ BLOCK_NAMES = O([
     ("antimatterrelay-mk1", "Anti-Matter Relay MK1"), ("antimatterrelay-mk2", "Anti-Matter Relay MK2"), ("antimatterrelay-mk3", "Anti-Matter Relay MK3"),
     ("novaexplosive-catalyst", "Nova Catalyst"), ("novaexplosive-cataclysm", "Nova Cataclysm"), ("interdictiontorch", "Interdiction Torch"),
     ("pedestal-empty", "Dark Matter Pedestal"), ("pedestal-active", "Dark Matter Pedestal"),
-])
+] + [(f"furnace-{m}-{st}", f"{n} Matter Furnace") for m, n in (("dark", "Dark"), ("red", "Red")) for st in ("cold", "lit", "extinct")])
 BLOCK_DESCS = O([
     ("alchemicalfuelblock-alchemicalcoal", "Nine alchemical coal. Burns nine times as long."),
     ("alchemicalfuelblock-mobiusfuel", "Nine mobius fuel. Burns nine times as long."),
@@ -535,16 +623,16 @@ LANG = O([
     ("heldhelp-kleinstar-fill", "Fill from your EMC"),
     ("trinket-on", "On"), ("trinket-off", "Off (right-click to switch on)"), ("trinket-mode", "Mode: {0}"),
     ("watch-faster", "Speed up time"), ("watch-slower", "Slow down time"),
-    ("arcana-zero", "Zero"), ("arcana-ignition", "Ignition"), ("arcana-harvest", "Harvest"), ("arcana-swiftwolf", "Swiftwolf"),
+    ("arcana-zero", "Zero Ring"), ("arcana-ignition", "Ignition Ring"), ("arcana-harvest", "Harvest Goddess Band"), ("arcana-swiftwolf", "Swiftwolf's Rending Gale"),
     ("density-target", "Makes: {0} ({1} EMC collected)"),
     ("heldhelp-trinket-toggle", "Switch on/off"), ("heldhelp-trinket-place", "Place liquid"), ("heldhelp-trinket-mode", "Change mode"),
     ("gadget-depth", "{0} deep"), ("gadget-explode", "Explode"), ("gadget-tunnel", "Tunnel"),
     ("tome-learned", "Learned {0} new items."),
     ("eye-target", "Mercurial Eye set to {0}."), ("eye-notarget", "No block chosen - sneak + right-click a block to choose one."), ("eye-current", "Turns blocks into: {0}"),
     ("divining-result", "{0} blocks deep: {1} EMC in total, {2} per block on average. Most valuable: {3} ({4} EMC)."),
-    ("heldhelp-gadget-destructioncatalyst", "Break tunnel"), ("heldhelp-gadget-hyperkineticlens", "Explode"), ("heldhelp-gadget-catalyticlens", "Use"),
+    ("heldhelp-gadget-destructioncatalyst", "Break tunnel"), ("heldhelp-gadget-hyperkineticlens", "Shoot an explosive charge"), ("heldhelp-gadget-catalyticlens", "Break tunnel"),
     ("heldhelp-gadget-mercurialeye", "Turn block into chosen block"), ("heldhelp-gadget-eyepick", "Choose block"),
-    ("heldhelp-gadget-archangelssmite", "Smite"), ("heldhelp-gadget-tomeofknowledge", "Learn everything"),
+    ("heldhelp-gadget-archangelssmite", "Fire a homing arrow"), ("heldhelp-gadget-tomeofknowledge", "Learn everything"),
     ("heldhelp-gadget-diviningrodlow", "Divine"), ("heldhelp-gadget-diviningrodmedium", "Divine"), ("heldhelp-gadget-diviningrodhigh", "Divine"),
     ("furnace-slots", "Slots: input, fuel, output"),
     ("furnace-burning", "Burning: {0}s of heat left, {1} EMC stored"), ("furnace-cold", "Cold - add fuel or feed it EMC ({1} EMC stored)"),
@@ -555,6 +643,36 @@ LANG = O([
     ("blockhelp-openchest", "Open"), ("blockhelp-furnace", "Open"), ("blockhelp-relay-withdraw", "Take stored EMC (empty hand or Klein star)"),
     ("blockhelp-nova", "Light the fuse (empty hand)"), ("blockhelp-pedestal", "Place or take a ring/stone/amulet"),
     ("alchemicalbagcontents", "Alchemical Bag"),
+    # 1.5.0
+    ("arcana-toggle-on", "{0}: on (pick to switch off)"), ("arcana-toggle-off", "{0}: off (pick to switch on)"),
+    ("arcana-none", "All four effects are switched off (tool-mode key)"), ("arcana-effects", "Effects on: {0}"),
+    ("heldhelp-arcana-toggle", "Switch effects on/off"),
+    ("gale-both", "Flight and shield"), ("gale-flight", "Flight only"), ("gale-shield", "Shield only"),
+    ("gale-outofemc", "Swiftwolf's Rending Gale ran out of EMC and switched off."),
+    ("heldhelp-trinket-voidliquid", "Remove a water/lava source"), ("heldhelp-trinket-plant", "Plant your seeds (on farmland)"),
+    ("heldhelp-trinket-teleport", "Teleport"), ("heldhelp-trinket-shoot-evertideamulet", "Shoot water"),
+    ("heldhelp-trinket-shoot-volcaniteamulet", "Shoot lava"), ("heldhelp-trinket-shoot-ignitionring", "Shoot a fireball"),
+    ("gadget-charge-catalyst", "Charge {0}: 3x3 tunnel, {1} deep"), ("gadget-charge-lens", "Charge {0}: radius {1}, {2} EMC"),
+    ("gadget-charge-catalytic", "Charge {0}: tunnel {1} deep; shots radius {2} ({3} EMC)"),
+    ("heldhelp-gadget-fire", "Shoot an explosive charge"), ("heldhelp-gadget-charge", "Choose charge"),
+    ("heldhelp-gadget-volley", "Fire a volley of 10 arrows"),
+    ("hotkey-fire", "Vintage-E: fire projectile (lenses, amulets, Ignition Ring)"),
+    ("furnace-info", "Furnace: {0} °C. EMC for heat: {1} / {2}"),
+    ("cmd-emc-added", "Added {0} EMC to {1}. They now have {2} EMC."), ("cmd-emc-removed", "Took {0} EMC from {1}. They now have {2} EMC."),
+    ("cmd-emc-gotadded", "{0} gave you {1} EMC. You now have {2} EMC."), ("cmd-emc-gotremoved", "{0} took {1} EMC from you. You now have {2} EMC."),
+    ("cmd-emc-needplayer", "Name an online player when running this from the console."), ("cmd-emc-positive", "The amount must be a number above 0."),
+    ("cmdhelp-add", "Add EMC to a player's personal EMC (yours if no name is given)"),
+    ("cmdhelp-remove", "Take EMC from a player's personal EMC (yours if no name is given; never below 0)"),
+    ("cmdhelp-blacklist", "Open a window listing everything on the EMC blacklist; select one to give it a value or take it off the blacklist"),
+    ("blacklist-title", "EMC blacklist"),
+    ("blacklist-summary", "{0} blocks and items are blacklisted: they never get an EMC value ({1} have one). Select one to give it a value or take it off the blacklist so recipes can value it. Vintage-E {2}."),
+    ("blacklist-summary-none", "Nothing is blacklisted ({1} blocks and items have a value). Vintage-E {2}."),
+    ("blacklist-empty", "The blacklist is empty."),
+    ("missing-blacklist", "Blacklist it"), ("missing-unblacklist", "Remove from blacklist"),
+    ("missing-blacklisting", "Blacklisting {0}..."), ("missing-unblacklisting", "Taking {0} off the blacklist..."),
+    ("cmd-blacklisted", "{0} ({1}) is now blacklisted and has no EMC value. Saved to ModConfig/vintagee.json."),
+    ("cmd-unblacklisted", "{0} ({1}) is off the blacklist but nothing gives it a value yet; it is on /emc missing now."),
+    ("cmd-unblacklisted-value", "{0} ({1}) is off the blacklist and now worth {2} EMC."),
 ])
 
 
@@ -583,6 +701,12 @@ def lang():
         d["blockdesc-" + k] = v
     for k, v in LANG.items():
         d[k] = v
+    # Descriptions with the real numbers win over anything older.
+    import descriptions
+    for k, v in descriptions.ITEM.items():
+        d["itemdesc-" + k] = v
+    for k, v in descriptions.BLOCK.items():
+        d["blockdesc-" + k] = v
     with open(path, "w", encoding="utf-8") as f:
         json.dump(d, f, indent=2, ensure_ascii=False)
         f.write("\n")

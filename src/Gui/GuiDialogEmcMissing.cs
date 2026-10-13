@@ -9,10 +9,12 @@ using Vintagestory.API.Config;
 namespace VintageE
 {
     /// <summary>
-    /// Window opened by /emc missing: every block/item that still has no EMC value, as a scrollable list with
-    /// icons, a search bar, a mod filter and a blocks/items filter. Click an icon to open its handbook page;
-    /// "Copy codes" puts the filtered list on the clipboard ready to paste into BaseValues. Admins can click a name,
-    /// type a value and press "Set value" to give it an EMC value on the spot (saved like /emc set; the list refreshes).
+    /// Window opened by /emc missing (every block/item that still has no EMC value) and /emc blacklist (everything
+    /// the blacklist keeps from having one): a scrollable list with icons, a search bar, a mod filter and a
+    /// blocks/items filter. Click an icon to open its handbook page; "Copy codes" puts the filtered list on the
+    /// clipboard ready to paste into BaseValues. Admins can click a name and then type a value and press "Set value"
+    /// (saved like /emc set; it also takes a blacklisted item off the blacklist), or press "Blacklist" (missing
+    /// window) / "Remove from blacklist" (blacklist window). The list refreshes after each change.
     /// </summary>
     public class GuiDialogEmcMissing : GuiDialog
     {
@@ -32,6 +34,10 @@ namespace VintageE
 
         readonly EmcMissingPacket packet;
         readonly Action<string, double> onSetValue;
+        readonly Action<string, bool> onBlacklist;
+
+        /// <summary>True for the /emc blacklist window.</summary>
+        public bool IsBlacklist => packet.Blacklist;
         Entry selected;
         readonly List<Entry> all = new List<Entry>();
         List<Entry> shown = new List<Entry>();
@@ -44,10 +50,11 @@ namespace VintageE
 
         public override string ToggleKeyCombinationCode => null;
 
-        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null, Action<string, double> onSetValue = null) : base(capi)
+        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null, Action<string, double> onSetValue = null, Action<string, bool> onBlacklist = null) : base(capi)
         {
             this.packet = packet;
             this.onSetValue = onSetValue;
+            this.onBlacklist = onBlacklist;
             if (previous != null)
             {
                 search = previous.search;
@@ -102,11 +109,12 @@ namespace VintageE
             ElementBounds selectedBounds = ElementBounds.Fixed(0, editRow + 6, 330, 24);
             ElementBounds valueBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 120, 30);
             ElementBounds setBounds = ElementBounds.Fixed(ListWidth - 100, editRow, 100, 30);
+            ElementBounds listButtonBounds = ElementBounds.Fixed(ListWidth - 230, editRow + 38, 230, 30);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
             bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds,
-                selectedBounds, valueBounds, setBounds);
+                selectedBounds, valueBounds, setBounds, listButtonBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
@@ -122,15 +130,17 @@ namespace VintageE
                 Lang.Get("vintagee:missing-items") + " (" + all.Count(e => !e.IsBlock) + ")"
             };
 
-            string summary = all.Count == 0
-                ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
-                : Lang.Get("vintagee:missing-summary", all.Count, packet.CreativeTotal, packet.ValueCount, packet.Version);
+            string summary = IsBlacklist
+                ? Lang.Get(all.Count == 0 ? "vintagee:blacklist-summary-none" : "vintagee:blacklist-summary", all.Count, packet.ValueCount, packet.Version)
+                : all.Count == 0
+                    ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
+                    : Lang.Get("vintagee:missing-summary", all.Count, packet.CreativeTotal, packet.ValueCount, packet.Version);
 
             composing = true;
             SingleComposer = capi.Gui
-                .CreateCompo("vintagee-missing", dialogBounds)
+                .CreateCompo(IsBlacklist ? "vintagee-blacklist" : "vintagee-missing", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
-                .AddDialogTitleBar(Lang.Get("vintagee:missing-title"), () => TryClose())
+                .AddDialogTitleBar(Lang.Get(IsBlacklist ? "vintagee:blacklist-title" : "vintagee:missing-title"), () => TryClose())
                 .BeginChildElements(bgBounds)
                     .AddStaticText(summary, CairoFont.WhiteDetailText(), summaryBounds)
                     .AddTextInput(searchBounds, OnSearch, CairoFont.WhiteSmallText(), "search")
@@ -149,6 +159,7 @@ namespace VintageE
                     .AddDynamicText(Lang.Get("vintagee:missing-select"), CairoFont.WhiteDetailText(), selectedBounds, "selected")
                     .AddTextInput(valueBounds, null, CairoFont.WhiteSmallText(), "value")
                     .AddSmallButton(Lang.Get("vintagee:missing-set"), OnSet, setBounds)
+                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklist" : "vintagee:missing-blacklist"), OnBlacklistButton, listButtonBounds)
                 .EndChildElements()
                 .Compose();
 
@@ -189,7 +200,7 @@ namespace VintageE
                 }
                 if (shown.Count == 0)
                 {
-                    comps.Add(new RichTextComponent(capi, Lang.Get(all.Count == 0 ? "vintagee:missing-empty" : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
+                    comps.Add(new RichTextComponent(capi, Lang.Get(all.Count == 0 ? (IsBlacklist ? "vintagee:blacklist-empty" : "vintagee:missing-empty") : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
                 }
 
                 GuiElementRichtext list = SingleComposer.GetRichtext("list");
@@ -233,6 +244,16 @@ namespace VintageE
             if (onSetValue == null) return true;
             onSetValue(selected.Key, v);
             status?.SetNewText(Lang.Get("vintagee:missing-sending", selected.Name, text));
+            return true;
+        }
+
+        bool OnBlacklistButton()
+        {
+            var status = SingleComposer?.GetDynamicText("selected");
+            if (selected == null) { status?.SetNewText(Lang.Get("vintagee:missing-select")); return true; }
+            if (onBlacklist == null) return true;
+            onBlacklist(selected.Key, !IsBlacklist);
+            status?.SetNewText(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklisting" : "vintagee:missing-blacklisting", selected.Name));
             return true;
         }
 

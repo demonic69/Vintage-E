@@ -53,6 +53,8 @@ namespace VintageE
         [ProtoMember(3)] public int ValueCount;
         [ProtoMember(4)] public string Version;
         [ProtoMember(5)] public string File;
+        /// <summary>True: this is the /emc blacklist window (Keys are the blacklisted blocks/items).</summary>
+        [ProtoMember(6)] public bool Blacklist;
     }
 
     /// <summary>Client → server: set a block/item's EMC value from the /emc missing window (admins only). Key is "i:code" / "b:code".</summary>
@@ -61,6 +63,17 @@ namespace VintageE
     {
         [ProtoMember(1)] public string Key;
         [ProtoMember(2)] public double Value;
+        /// <summary>Sent from the blacklist window (the reply reopens that one).</summary>
+        [ProtoMember(3)] public bool FromBlacklist;
+    }
+
+    /// <summary>Client → server: put a block/item on the blacklist (Add) or take it off, from the missing/blacklist windows (admins only).</summary>
+    [ProtoContract]
+    public class EmcBlacklistPacket
+    {
+        [ProtoMember(1)] public string Key;
+        [ProtoMember(2)] public bool Add;
+        [ProtoMember(3)] public bool FromBlacklist;
     }
 
     /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>

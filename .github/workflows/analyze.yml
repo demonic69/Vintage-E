@@ -60,12 +60,19 @@ jobs:
           data="$PWD/data"
           mkdir -p "$data/Mods" "$data/ModConfig"
           cp -r bin/Release/Mods/vintagee "$data/Mods/"
-          echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false }' > "$data/ModConfig/vintagee.json"
+          echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false, "SelfTestOnStart": true }' > "$data/ModConfig/vintagee.json"
           cd "$VSDIR"
           dotnet VintagestoryServer.dll --dataPath "$data" > "$GITHUB_WORKSPACE/server-console.log" 2>&1 &
           pid=$!
           for i in $(seq 1 240); do
-            if [ -n "$(find "$data" -name emc-values.csv 2>/dev/null | head -1)" ]; then echo "values written after $((i*5))s"; sleep 10; break; fi
+            if [ -n "$(find "$data" -name emc-values.csv 2>/dev/null | head -1)" ]; then
+              echo "values written after $((i*5))s"
+              for j in $(seq 1 30); do
+                if [ -n "$(find "$data" -name selftest.txt 2>/dev/null | head -1)" ]; then echo "self-test finished"; break; fi
+                sleep 5
+              done
+              sleep 5; break
+            fi
             if ! kill -0 $pid 2>/dev/null; then echo "server exited early"; break; fi
             sleep 5
           done
@@ -79,6 +86,12 @@ jobs:
           pip install json5 >/dev/null
           mkdir -p analysis
           find data -name 'emc-*.csv' -exec cp {} analysis/ \;
+          find data -name 'selftest.txt' -exec cp {} analysis/ \;
+          # The mod built against the real game DLLs, zipped for release.
+          version=$(python3 -c "import json;print(json.load(open('modinfo.json'))['version'])")
+          if [ -f bin/Release/Mods/vintagee/VintageE.dll ]; then
+            (cd bin/Release/Mods/vintagee && zip -qr "$GITHUB_WORKSPACE/analysis/vintagee_${version}.zip" modinfo.json modicon.png VintageE.dll THIRD-PARTY-NOTICES.md assets)
+          fi
           cp server-console.log build.log analysis/ || true
           cp data/Logs/*crash* analysis/ 2>/dev/null || true
           for f in data/Logs/server-main.log data/Logs/server-debug.log; do [ -f "$f" ] && grep -iE "vintagee|vintage-e|EMC|error|exception" "$f" | head -3000 > "analysis/$(basename "$f" .log)-filtered.log"; done

@@ -5,9 +5,10 @@ using Vintagestory.API.Config;
 namespace VintageE
 {
     /// <summary>
-    /// Added to every player on the server: Swiftwolf's Rending Gale (or the Ring of Arcana in gale mode) and a full
-    /// set of gem armour stop fall damage; an active Ignition Ring (or arcana in ignition mode) and full gem armour
-    /// stop fire damage.
+    /// Added to every player on the server. No fall damage with an active Swiftwolf's Rending Gale (or Ring of Arcana
+    /// with its Swiftwolf effect on), while flying on one and for 15 seconds after the flight ends, or with a full set
+    /// of gem armour. No fire damage while carrying an Ignition Ring, Volcanite Amulet or Ring of Arcana (ProjectE's
+    /// fire protection, on or off) or wearing full gem armour.
     /// </summary>
     public class EntityBehaviorVintageE : EntityBehavior
     {
@@ -34,13 +35,14 @@ namespace VintageE
             }
 
             bool fall = damageSource.Source == EnumDamageSource.Fall || damageSource.Type == EnumDamageType.Gravity;
-            if (fall && (gem >= 3 || TrinketEffects.HasActiveEffect(player, "swiftwolfsrendinggale")))
+            TrinketEffects fx = entity.Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets;
+            if (fall && (gem >= 3 || TrinketEffects.HasActiveEffect(player, "swiftwolfsrendinggale") || fx?.FlightProtects(player) == true))
             {
                 damage = 0;
                 return;
             }
             bool fire = damageSource.Type == EnumDamageType.Fire;
-            if (fire && (gem >= 3 || TrinketEffects.HasActiveEffect(player, "ignitionring")))
+            if (fire && (gem >= 3 || TrinketEffects.IsFireProof(player)))
             {
                 damage = 0;
             }

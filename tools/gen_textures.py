@@ -587,6 +587,7 @@ def projecte_textures():
         w.append(save(sphere(rgba(base), rgba(glow), "s" + k), f"item/trinket/{k}"))
     w.append(save(amulet(rgba("d9b440"), rgba("e0c040"), "rt"), "item/trinket/repairtalisman"))
     w.append(save(gem(rgba("4a1a6a"), "ged"), "item/trinket/gemofeternaldensity"))
+    w.append(save(ring(rgba("1a1020"), rgba("b040ff"), "rvoid"), "item/trinket/voidring"))
     w.append(save(amulet(rgba("c0c8d0"), rgba("2a70d0"), "ea"), "item/trinket/evertideamulet"))
     w.append(save(amulet(rgba("403030"), rgba("e04010"), "va"), "item/trinket/volcaniteamulet"))
     w.append(save(watch(), "item/trinket/watchofflowingtime"))

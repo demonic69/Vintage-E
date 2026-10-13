@@ -18,7 +18,8 @@
         "gemofeternaldensity",
         "evertideamulet",
         "volcaniteamulet",
-        "watchofflowingtime"
+        "watchofflowingtime",
+        "voidring"
       ]
     }
   ],
@@ -39,7 +40,15 @@
   "attributesByType": {
     "*-gemofeternaldensity": {
       "maxInputValue": 8
+    },
+    "*-voidring": {
+      "maxInputValue": 8
     }
+  },
+  "liquidSelectableByType": {
+    "*-blackholeband": true,
+    "*-voidring": true,
+    "*": false
   },
   "materialDensity": 5000
 }

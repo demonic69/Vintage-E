@@ -208,6 +208,7 @@
   "defaultValues": {
     "//": "Only used for blocks/items that no recipe, trader price, relative rule or variant could value - mostly natural blocks, ruin decorations and loot. Recipes always win over these.",
     "game:coral-*": 8,
+    "game:altar-*": 64,
     "game:aquatic-*": 4,
     "game:aquaticplant-*": 2,
     "game:seaweed-*": 1,
@@ -375,7 +376,6 @@
     "game:clutter-elevator-*",
     "game:door-devastation-*",
     "game:dpanel-*",
-    "game:altar-*",
     "game:blade-longsword-admin",
     "game:devastatedsoil-*",
     "game:drock",
