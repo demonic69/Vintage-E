@@ -18,11 +18,11 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | **Energy Collectors MK1–MK3** | Turn sunlight into EMC (4 / 12 / 40 EMC per second in full sun). They push it into a condenser next to them, or sneak + right-click with an empty hand to take it into your personal EMC. |
 | **Energy Condensers MK1–MK2** | Put an item in the target slot. The condenser burns everything else inside it (plus EMC from collectors) and makes copies of the target. Works with hoppers and chutes; automation only pulls out the finished copies. |
 | **Klein Stars** | Ein → Omega (50k to 51.2M EMC). Portable EMC: right-click to empty into your EMC, sneak + right-click to fill. Rings and gadgets draw from carried stars. |
-| **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale, Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. |
-| **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses, Mercurial Eye, Archangel's Smite, Tome of Knowledge, Divining Rods. |
+| **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale (flight and shield), Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana (every effect switchable on its own), Void Ring, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. |
+| **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses (explosive charges), Mercurial Eye, Archangel's Smite (homing arrows), Tome of Knowledge, Divining Rods. Lenses, amulets and the Ignition Ring shoot with the **fire-projectile key (R)**. |
 | **Armour** | Dark Matter, Red Matter and Gem armour (head, body, legs) that never wears out; full gem armour stops fall and fire damage. |
 | **More tools** | Dark/Red Matter Shears, Red Matter Katar, Red Matter Morning Star. |
-| **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces, Anti-Matter Relays MK1–3, Dark Matter Pedestal, Nova Catalyst/Cataclysm, Interdiction Torch. |
+| **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces (hotter, faster firepits that can run on EMC), Anti-Matter Relays MK1–3, Dark Matter Pedestal, Nova Catalyst/Cataclysm, Interdiction Torch. |
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
@@ -106,8 +106,10 @@ Value files can also hold:
 | `/emc clear` | admin | Remove that pin |
 | `/emc recalc` | admin | Re-run the mapper |
 | `/emc dump` | admin | Write every value, and where it came from, to `VintagestoryData/ModData/vintagee/emc-values.csv` |
-| `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can also give them one (also written to `emc-missing.csv`) |
-| `/emc give <amount>` | admin | Add personal EMC |
+| `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can also give them one or blacklist them (also written to `emc-missing.csv`) |
+| `/emc blacklist` | admin | Open the same window for everything on the blacklist: give something a value or take it off the blacklist |
+| `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
+| `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
 | `/emc learn` | admin | Learn the held item without burning it |
 
 ## Recipes
@@ -154,7 +156,7 @@ Value files can also hold:
 | 1× Energy Condenser MK1 | `IGI / GDG / IGI` | I = Iron ingot, G = Gold ingot, D = Dark Matter |
 | 1× Energy Condenser MK2 | `RDR / DCD / RDR` | R = Red Matter, D = Dark Matter, C = Energy Condenser MK1 |
 
-The 1.4.0 items (Klein stars, rings, gadgets, armour, chest, bags, furnaces, relays, pedestal…) are all crafting-grid recipes too; look them up in the in-game handbook (they're listed in [`assets/vintagee/recipes/grid/projecte.json`](assets/vintagee/recipes/grid/projecte.json)).
+The ProjectE items (Klein stars, rings, gadgets, armour, chest, bags, furnaces, relays, pedestal…) are all crafting-grid recipes too; look them up in the in-game handbook (they're listed in [`assets/vintagee/recipes/grid/projecte.json`](assets/vintagee/recipes/grid/projecte.json)).
 
 Players' EMC and knowledge are saved on the player, so they persist across sessions and deaths.
 
@@ -191,4 +193,4 @@ The **Test on a real server** workflow (Actions tab → Run workflow) downloads 
 
 ## Credits
 
-Inspired by ProjectE by sinkillerj and contributors (and Equivalent Exchange 2 by x3n0ph0b3 before it). This is an independent reimplementation for Vintage Story; no code or art was copied. The matter tools use Vintage Story's own tool models by reference (nothing from the game is included in this mod).
+Inspired by ProjectE by sinkillerj and contributors (and Equivalent Exchange 2 by x3n0ph0b3 before it). This is an independent reimplementation for Vintage Story; no code was copied. The Klein Star textures are ProjectE's own artwork, used under its MIT licence (see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). The matter tools use Vintage Story's own tool models by reference (nothing from the game is included in this mod).

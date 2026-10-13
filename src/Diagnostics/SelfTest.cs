@@ -86,8 +86,9 @@ namespace VintageE
 
                 // Projectiles fired straight down at the ground a little way off.
                 var lens = Fire("lens", new Vec3d(x + 0.5, y + 12, z + 12.5), p => p.Radius = 4);
-                var water = Fire("water", new Vec3d(x + 8.5, y + 8, z + 0.5), null);
-                var fire = Fire("fire", new Vec3d(x + 12.5, y + 8, z + 0.5), null);
+                // Well away from the furnaces: the water flows, and firepits go out in water.
+                var water = Fire("water", new Vec3d(x + 30.5, y + 8, z + 0.5), null);
+                var fire = Fire("fire", new Vec3d(x + 36.5, y + 8, z + 0.5), null);
                 BlockPos lensTarget = new BlockPos(x, y - 1, z + 12);
                 int solidBefore = CountSolid(lensTarget, 2);
 
@@ -99,7 +100,7 @@ namespace VintageE
                         int solidAfter = CountSolid(lensTarget, 2);
                         Check(solidAfter < solidBefore, $"lens explosion broke blocks ({solidBefore} -> {solidAfter} solid around the impact)");
                         Check(water == null || !water.Alive, "water shot landed");
-                        Block placed = sapi.World.BlockAccessor.GetBlock(new BlockPos(x + 8, ba.GetTerrainMapheightAt(new BlockPos(x + 8, 0, z)) + 1, z), BlockLayersAccess.Fluid);
+                        Block placed = sapi.World.BlockAccessor.GetBlock(new BlockPos(x + 30, ba.GetTerrainMapheightAt(new BlockPos(x + 30, 0, z)) + 1, z), BlockLayersAccess.Fluid);
                         Line("  fluid where the water shot landed: " + (placed?.Code?.ToString() ?? "none"));
                         Check(fire == null || !fire.Alive, "fireball landed");
                     }
@@ -145,6 +146,9 @@ namespace VintageE
             Check(block != null && block.Id != 0, $"furnace-{type}-cold exists");
             if (block == null || block.Id == 0) return null;
             sapi.World.BlockAccessor.SetBlock(block.Id, pos);
+            // A roof, so rain can't put it out (firepits go out in the rain).
+            Block roof = sapi.World.GetBlock(new AssetLocation("game:rock-granite"));
+            if (roof != null) sapi.World.BlockAccessor.SetBlock(roof.Id, pos.UpCopy(3));
             var be = sapi.World.BlockAccessor.GetBlockEntity(pos) as BlockEntityFirepit;
             Check(be is BEMatterFurnace, $"{type} furnace has its block entity ({be?.GetType().Name ?? "none"})");
             return be;

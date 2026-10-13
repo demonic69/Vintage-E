@@ -76,6 +76,8 @@ namespace VintageE
         public override void OnLoaded(ICoreAPI api)
         {
             base.OnLoaded(api);
+            // The Black Hole Band and Void Ring can aim at water/lava sources (right-click removes them).
+            if (Kind == "blackholeband" || Kind == "voidring") LiquidSelectable = true;
             if (!(api is ICoreClientAPI capi)) return;
             if (Kind == "ringofarcana")
             {
