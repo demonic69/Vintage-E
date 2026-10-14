@@ -443,12 +443,12 @@ def plain(name, frm, to, tex, uv, glow=0):
 
 # Worn models. Coordinates are in the seraph's element space: the emblem sits on the front of "UpperTorso" (where the
 # game's own emblems hang), the ring is a band round "LowerArmL" near the wrist (where the game's bracelets sit).
-EMBLEM_FRONT_X = 0.0      # the chest surface; the badge stands just in front of it (towards -x)
-EMBLEM_CENTER = (3.2, 1.55)  # (y, z) of the badge centre
+EMBLEM_FRONT_X = 0.0  # the chest surface: the player model faces -x (its eyes are at x=0 of the head)
+EMBLEM_CENTER = (2.9, 3.1)  # (y, z) of the badge centre: upper chest, middle (the torso is 6.2 wide)
 EMBLEM_SIZE = 2.6
 ARM_BOX = (0.0, 2.5, 0.0, 2.0)  # lower arm cross-section: x from/to, z from/to
 RING_Y = (1.3, 2.1)
-RING_GEM_SIDE = "west"
+RING_GEM_SIDE = "south"  # +z: the outside of the left arm (the left arm is on the +z side of the body)
 
 
 def central_opaque_pixel(png):

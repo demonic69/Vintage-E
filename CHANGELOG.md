@@ -2,6 +2,22 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.6.0 — 2026-10-14
+
+### Added
+- **Wear your Klein Star and rings**: a Klein Star goes in the **emblem** slot and shows on your chest; the Black Hole Band, Swiftwolf's Rending Gale, Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana and Void Ring go in the **arm** slot and show as a band with its gem on your wrist. Worn, they keep working: rings keep their effects and a worn star's EMC still pays for rings and gadgets. Switch a ring on or off before you put it on (right-click still toggles it in your hand).
+- **Swiftwolf's Rending Gale speed**: the tool-mode key now also picks 1x, 1.5x, 2x or 3x speed, for running and flying. Flying costs 6.4 EMC a second x your speed; running faster than normal costs 6.4 EMC a second x (speed - 1) while you move.
+- **Select several entries** in the `/emc missing` and `/emc blacklist` windows: click names to tick them, or **Select shown** for everything the search and filters show, then give them all one value, blacklist them or take them off the blacklist in one go.
+- **Blacklist a whole mod** from those windows: pick the mod in the mod filter and press **Blacklist whole mod** (saved as `modid:*`; **Unblacklist whole mod** undoes it). The base game can't be done as a whole.
+- **`/emc dump hand`**: the held item's value, how it was worked out, and what each of its ingredients is worth, in chat and in `ModData/vintagee/emc-dump-<item>.txt`.
+- `emc-values.csv` has a name column, and `/emc dump` also writes `emc-blacklisted.csv`.
+- **Recipes**: 4 emeralds into 1 diamond and 1 diamond into 4 emeralds with the philosopher's stone, like iron and gold.
+- **Values**: live fish (the same as the raw fish), Jonas parts 1,024, Jonas sub-assemblies 2,048, the night vision mask 4,096 and its upgrades 1,024, loose paper found in ruins (the same as parchment), metal parts and metal scraps 64 if nothing else values them, and shields from any mod 256 if nothing else values them.
+
+### Changed
+- **Matter and gem armour are silent**: no more metal clanking when you walk or run in them.
+- **Creatures and NPCs from every mod, and maps from every mod**, are blacklisted (before, only the base game's). They're creative-only. Live butterflies and fish stay valued, since you can catch them.
+
 ## 1.5.0 — 2026-10-14
 
 ### Changed — closer to ProjectE

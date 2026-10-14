@@ -17,16 +17,16 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | **Matter tools** | Pickaxe, shovel, axe, sword, hoe and **sledgehammer** in dark and red matter, as 3D tools held, swung and displayed like the game's own (they use the vanilla tool models and animations with matter textures; the sledgehammer has its own model). They **never wear out**. The pickaxe/shovel/axe dig 1×1 by default and 3×3 (dark) or up to 5×5 (red) with the tool-mode key **F**; the sledgehammers smash stone and ore **3×3 from the start** (red: 5×5 with **F**). Sneak to dig a single block. The axe still fells trees and the hoe still tills. |
 | **Energy Collectors MK1–MK3** | Turn sunlight into EMC (4 / 12 / 40 EMC per second in full sun). They push it into a condenser next to them, or sneak + right-click with an empty hand to take it into your personal EMC. |
 | **Energy Condensers MK1–MK2** | Put an item in the target slot. The condenser burns everything else inside it (plus EMC from collectors) and makes copies of the target. Works with hoppers and chutes; automation only pulls out the finished copies. |
-| **Klein Stars** | Ein → Omega (50k to 51.2M EMC). Portable EMC: right-click to empty into your EMC, sneak + right-click to fill. Rings and gadgets draw from carried stars. |
-| **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale (flight and shield), Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana (every effect switchable on its own), Void Ring, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. |
+| **Klein Stars** | Ein → Omega (50k to 51.2M EMC). Portable EMC: right-click to empty into your EMC, sneak + right-click to fill. Rings and gadgets draw from carried stars. Can be worn in the **emblem** slot, where it shows on your chest and still counts as carried. |
+| **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale (flight, shield and 1x–3x speed), Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana (every effect switchable on its own), Void Ring, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. The rings can also be worn in the **arm** slot, where they show on your wrist and keep working. |
 | **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses (explosive charges), Mercurial Eye, Archangel's Smite (homing arrows), Tome of Knowledge, Divining Rods. Lenses, amulets and the Ignition Ring shoot with the **fire-projectile key (R)**. |
-| **Armour** | Dark Matter, Red Matter and Gem armour (head, body, legs) that never wears out; full gem armour stops fall and fire damage. |
+| **Armour** | Dark Matter, Red Matter and Gem armour (head, body, legs) that never wears out and makes no clanking noise; full gem armour stops fall and fire damage. |
 | **More tools** | Dark/Red Matter Shears, Red Matter Katar, Red Matter Morning Star. |
 | **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces (hotter, faster firepits that can run on EMC), Anti-Matter Relays MK1–3, Dark Matter Pedestal, Nova Catalyst/Cataclysm, Interdiction Torch. |
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
-When you join, chat shows a summary such as `Vintage-E version 1.5.0: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
+When you join, chat shows a summary such as `Vintage-E version 1.6.0: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
 
 ## How EMC values are calculated
 
@@ -70,9 +70,9 @@ EMC coverage: <valued> of <total> blocks/items in the creative inventory have a 
 EMC: <n> without a value, by family: <domain:family> (<count>), ...
 ```
 
-The full list is written to `VintagestoryData/ModData/vintagee/emc-missing.csv`, and admins can run `/emc missing` in game to open a **searchable, scrollable list** with item icons, filters by mod and by blocks/items, and a button that copies the codes ready to paste into `BaseValues`. Clicking an icon opens its handbook page. Give anything on it a value with `BaseValues` in `ModConfig/vintagee.json` (or `/emc set` while holding it), then `/emc recalc`. If you really want *every* listed block and item to have some value, set `FallbackValue` — but anything valued that way can be created for that price, so a small number makes rare loot cheap.
+The full list is written to `VintagestoryData/ModData/vintagee/emc-missing.csv`, and admins can run `/emc missing` in game to open a **searchable, scrollable list** with item icons, filters by mod and by blocks/items, and a button that copies the codes ready to paste into `BaseValues`. Clicking an icon opens its handbook page. Click names to select several (or **Select shown** for everything the filters show) and give them all one value or blacklist them in one go; with a mod picked in the mod filter, **Blacklist whole mod** blacklists everything from that mod (saved as `modid:*`). Give anything on it a value with `BaseValues` in `ModConfig/vintagee.json` (or `/emc set` while holding it), then `/emc recalc`. If you really want *every* listed block and item to have some value, set `FallbackValue` — but anything valued that way can be created for that price, so a small number makes rare loot cheap.
 
-Deliberately left without a value (so they can't be duplicated or burned): creative/debug/technical blocks, work-in-progress items, loot containers, liquid blocks, and story-progression devices (Jonas parts, the return-base items, the night vision device, etc.). The list is the `blacklist` in the default value file.
+Deliberately left without a value (so they can't be duplicated or burned): creative/debug/technical blocks, work-in-progress items, loot containers, liquid blocks, and story-progression devices (the return-base items, etc.), creatures and NPCs from any mod (live butterflies and fish excepted, since you can catch them), and maps. The list is the `blacklist` in the default value file.
 
 ## For modpack makers and mod authors
 
@@ -94,7 +94,7 @@ Value files can also hold:
 - `blacklist` and `allow` (exceptions to the blacklist);
 - the philosopher's stone rules (`worldTransmutation`: `swaps` and `variantCycles`).
 
-`/emc dump` (or `DumpValuesOnStart`) writes every value to `emc-values.csv` together with **what it was worked out from** (`grid: 1 game:log-placed-oak-ud -> 12 game:plank-oak`, `trader price: …`, `same as its variant …`), which makes it easy to see why something costs what it does.
+`/emc dump` (or `DumpValuesOnStart`) writes every value to `emc-values.csv` (with each block/item's name) and the blacklist to `emc-blacklisted.csv`, together with **what it was worked out from** (`grid: 1 game:log-placed-oak-ud -> 12 game:plank-oak`, `trader price: …`, `same as its variant …`), which makes it easy to see why something costs what it does.
 
 ### Commands
 
@@ -106,7 +106,8 @@ Value files can also hold:
 | `/emc clear` | admin | Remove that pin |
 | `/emc recalc` | admin | Re-run the mapper |
 | `/emc dump` | admin | Write every value, and where it came from, to `VintagestoryData/ModData/vintagee/emc-values.csv` |
-| `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can also give them one or blacklist them (also written to `emc-missing.csv`) |
+| `/emc dump hand` | admin | Show the held item's value, how it was worked out and what its ingredients are worth (also written to `emc-dump-<item>.txt`) |
+| `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can give one or many of them a value, blacklist them, or blacklist a whole mod (also written to `emc-missing.csv`) |
 | `/emc blacklist` | admin | Open the same window for everything on the blacklist: give something a value or take it off the blacklist |
 | `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
 | `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
@@ -166,7 +167,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 See [CHANGELOG.md](CHANGELOG.md) (also shown on each [release](https://github.com/demonic69/Vintage-E/releases)) for what changed in each version.
 
-Download [`dist/vintagee_1.5.0.zip`](dist/vintagee_1.5.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.6.0.zip`](dist/vintagee_1.6.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

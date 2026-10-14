@@ -145,6 +145,11 @@
       "ratio": 1
     },
     {
+      "code": "game:lore-paper",
+      "of": "game:paper-parchment",
+      "ratio": 1
+    },
+    {
       "code": "game:metalbit-*",
       "of": "game:ingot-*",
       "ratio": 0.05
@@ -218,6 +223,9 @@
     "game:jonasframes-*": 2048,
     "game:nightvisiondevice": 4096,
     "game:nightvisionupgrades-*": 1024,
+    "game:metal-scraps": 64,
+    "game:metal-parts": 64,
+    "*:shield-*": 256,
     "game:aquatic-*": 4,
     "game:aquaticplant-*": 2,
     "game:seaweed-*": 1,
@@ -394,10 +402,11 @@
     "game:ember",
     "game:genericwood"
   ],
-  "//allow": "Exceptions to the blacklist: live butterflies (bug net) and live fish (fishing) can really be caught, unlike other creature items (spawners, traders and other NPCs).",
+  "//allow": "Exceptions to the blacklist: live butterflies (bug net) and live fish (fishing) can really be caught, unlike other creature items (spawners, traders and other NPCs). Loose paper found in ruins is worth the same as parchment.",
   "allow": [
     "game:creature-butterfly-*",
-    "game:creature-fish-*"
+    "game:creature-fish-*",
+    "game:lore-paper"
   ],
   "worldTransmutation": {
     "swaps": [

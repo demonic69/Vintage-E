@@ -1,2 +1,1 @@
-tree:humanoid/seraph.json
-attachedShape
+# one term per line; "path:x" matches file paths, "tree:x" gives a shape's element outline

@@ -130,7 +130,8 @@ namespace VintageE
         {
             foreach (var (code, expectMin, expectMax) in new[] { ("game:fat", 1.0, 64.0), ("game:fat-rendered", 1.0, 64.0), ("game:gem-emerald-rough", 2048.0, 2048.0), ("game:gem-diamond-rough", 8192.0, 8192.0),
                 ("game:creature-fish-freshwater-bass-largemouth-adult", 112.0, 112.0), ("game:jonasparts-tank01", 1024.0, 1024.0),
-                ("game:creature-trader-female-artisan-cold", 0.0, 0.0), ("game:locatormap-treasures", 0.0, 0.0) })
+                ("game:creature-trader-female-artisan-cold", 0.0, 0.0), ("game:locatormap-treasures", 0.0, 0.0),
+                ("game:lore-paper", 1.0, 1000.0), ("game:metal-parts", 1.0, 1000.0), ("game:nightvisiondevice", 4096.0, 4096.0) })
             {
                 CollectibleObject c = (CollectibleObject)sapi.World.GetItem(new AssetLocation(code)) ?? sapi.World.GetBlock(new AssetLocation(code));
                 double v = c == null ? -1 : mod.Emc.GetValue(c);
@@ -156,7 +157,7 @@ namespace VintageE
             foreach (string name in new[] { "UpperTorso", "Head", "LowerArmL", "LowerArmR" })
             {
                 ShapeElement e = seraph.GetElementByName(name);
-                Line($"  {name}: " + (e == null ? "missing" : Describe(e)));
+                Line($"  {name}: " + (e == null ? "missing" : $"{Describe(e)} (own box {string.Join(",", e.From)} to {string.Join(",", e.To)}, rotation {e.RotationX},{e.RotationY},{e.RotationZ})"));
             }
             foreach (var (code, dress, path, root) in new[] {
                 ("vintagee:kleinstar-omega", EnumCharacterDressType.Emblem, (string)null, "vintageekleinstar"),
@@ -179,8 +180,9 @@ namespace VintageE
                 worn.ResolveReferences(sapi.Logger, shapeBase);
                 Shape target = seraph.Clone();
                 target.ResolveReferences(sapi.Logger, "seraph");
-                bool added = target.StepParentShape(worn, "vintageetest", shapeBase, "seraph", sapi.Logger, (a, b) => { });
-                ShapeElement r = target.GetElementByName(root);
+                // Step-parenting prefixes the worn model's element and texture names.
+                bool added = target.StepParentShape(worn, "vintageetest-", shapeBase, "seraph", sapi.Logger, (a, b) => { });
+                ShapeElement r = target.GetElementByName("vintageetest-" + root);
                 if (code != null) Check(added && r?.ParentElement != null, $"{code} worn model hangs on {r?.ParentElement?.Name ?? "nothing"}");
                 else Line($"  {shapeBase} hangs on {r?.ParentElement?.Name ?? "nothing"}");
                 var all = new List<ShapeElement>();
