@@ -309,7 +309,7 @@ namespace VintageE
             try
             {
                 string file = System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-values.csv");
-                var sb = new System.Text.StringBuilder("type,code,emc,emc_per_litre,via\n");
+                var sb = new System.Text.StringBuilder("type,code,emc,emc_per_litre,via,name\n");
                 foreach (var kv in Emc.All.OrderBy(k => k.Key.Code.ToString(), StringComparer.Ordinal))
                 {
                     string via = report == null ? "" : report.FromCache ? "cached - run /emc recalc to see sources" : report.Origins.TryGetValue(kv.Key, out string o) ? o : "";
@@ -318,9 +318,23 @@ namespace VintageE
                       .Append(kv.Key.Code).Append(',')
                       .Append(kv.Value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
                       .Append(perLitre > 0 ? (kv.Value * perLitre).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) : "").Append(',')
-                      .Append(Csv(via)).Append('\n');
+                      .Append(Csv(via)).Append(',')
+                      .Append(Csv(NameOf(kv.Key))).Append('\n');
                 }
                 System.IO.File.WriteAllText(file, sb.ToString());
+
+                // Everything the blacklist keeps from having a value, next to it.
+                if (report?.Blacklisted != null)
+                {
+                    var bl = new System.Text.StringBuilder("type,code,in_creative_inventory,name\n");
+                    foreach (CollectibleObject c in report.Blacklisted.OrderBy(c => c.Code.ToString(), StringComparer.Ordinal))
+                    {
+                        bool listed = (c.CreativeInventoryTabs?.Length ?? 0) > 0 || (c.CreativeInventoryStacks?.Length ?? 0) > 0;
+                        bl.Append(c.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',').Append(c.Code).Append(',')
+                          .Append(listed ? "yes" : "no").Append(',').Append(Csv(NameOf(c))).Append('\n');
+                    }
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-blacklisted.csv"), bl.ToString());
+                }
                 return file;
             }
             catch (Exception e)
@@ -328,6 +342,12 @@ namespace VintageE
                 Mod.Logger.Warning("Could not write emc-values.csv: {0}", e.Message);
                 return null;
             }
+        }
+
+        static string NameOf(CollectibleObject c)
+        {
+            try { return c.GetHeldItemName(new ItemStack(c)); }
+            catch { return c.Code?.ToShortString() ?? ""; }
         }
 
         static string Csv(string s) => string.IsNullOrEmpty(s) ? "" : s.IndexOfAny(new[] { ',', '"', '\n' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
