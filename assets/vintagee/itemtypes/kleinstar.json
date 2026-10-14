@@ -28,22 +28,70 @@
   },
   "attributesByType": {
     "*-ein": {
-      "capacity": 50000
+      "capacity": 50000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-ein"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-ein"
+      }
     },
     "*-zwei": {
-      "capacity": 200000
+      "capacity": 200000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-zwei"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-zwei"
+      }
     },
     "*-drei": {
-      "capacity": 800000
+      "capacity": 800000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-drei"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-drei"
+      }
     },
     "*-vier": {
-      "capacity": 3200000
+      "capacity": 3200000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-vier"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-vier"
+      }
     },
     "*-sphere": {
-      "capacity": 12800000
+      "capacity": 12800000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-sphere"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-sphere"
+      }
     },
     "*-omega": {
-      "capacity": 51200000
+      "capacity": 51200000,
+      "clothescategory": "emblem",
+      "attachableToEntity": {
+        "categoryCode": "emblem",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/kleinstar-omega"
+        },
+        "texturePrefixCode": "vintagee-kleinstar-omega"
+      }
     }
   },
   "materialDensity": 3000

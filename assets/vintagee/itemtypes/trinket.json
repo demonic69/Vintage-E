@@ -38,10 +38,78 @@
     }
   },
   "attributesByType": {
-    "*-gemofeternaldensity": {
-      "maxInputValue": 8
+    "*-blackholeband": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-blackholeband"
+        },
+        "texturePrefixCode": "vintagee-ring-blackholeband"
+      }
+    },
+    "*-swiftwolfsrendinggale": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-swiftwolfsrendinggale"
+        },
+        "texturePrefixCode": "vintagee-ring-swiftwolfsrendinggale"
+      }
+    },
+    "*-harvestgoddessband": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-harvestgoddessband"
+        },
+        "texturePrefixCode": "vintagee-ring-harvestgoddessband"
+      }
+    },
+    "*-ignitionring": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-ignitionring"
+        },
+        "texturePrefixCode": "vintagee-ring-ignitionring"
+      }
+    },
+    "*-zeroring": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-zeroring"
+        },
+        "texturePrefixCode": "vintagee-ring-zeroring"
+      }
+    },
+    "*-ringofarcana": {
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-ringofarcana"
+        },
+        "texturePrefixCode": "vintagee-ring-ringofarcana"
+      }
     },
     "*-voidring": {
+      "maxInputValue": 8,
+      "clothescategory": "arm",
+      "attachableToEntity": {
+        "categoryCode": "arm",
+        "attachedShape": {
+          "base": "vintagee:entity/worn/ring-voidring"
+        },
+        "texturePrefixCode": "vintagee-ring-voidring"
+      }
+    },
+    "*-gemofeternaldensity": {
       "maxInputValue": 8
     }
   },

@@ -1,0 +1,438 @@
+{
+  "textureWidth": 32,
+  "textureHeight": 32,
+  "textures": {
+    "ring": "vintagee:item/trinket/harvestgoddessband"
+  },
+  "elements": [
+    {
+      "name": "vintageering",
+      "stepParentName": "LowerArmL",
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        0,
+        0,
+        0
+      ],
+      "rotationOrigin": [
+        0,
+        0,
+        0
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        },
+        "east": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        },
+        "south": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        },
+        "west": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        },
+        "up": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        },
+        "down": {
+          "texture": "#ring",
+          "uv": [
+            0,
+            0,
+            0.5,
+            0.5
+          ],
+          "enabled": false
+        }
+      },
+      "children": [
+        {
+          "name": "bandW",
+          "from": [
+            -0.3,
+            1.3,
+            -0.3
+          ],
+          "to": [
+            0.1,
+            2.1,
+            2.3
+          ],
+          "faces": {
+            "north": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "east": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "south": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "west": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "up": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "down": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            }
+          }
+        },
+        {
+          "name": "bandE",
+          "from": [
+            2.4,
+            1.3,
+            -0.3
+          ],
+          "to": [
+            2.8,
+            2.1,
+            2.3
+          ],
+          "faces": {
+            "north": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "east": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "south": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "west": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "up": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "down": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            }
+          }
+        },
+        {
+          "name": "bandN",
+          "from": [
+            0.1,
+            1.3,
+            -0.3
+          ],
+          "to": [
+            2.4,
+            2.1,
+            0.1
+          ],
+          "faces": {
+            "north": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "east": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "south": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "west": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "up": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "down": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            }
+          }
+        },
+        {
+          "name": "bandS",
+          "from": [
+            0.1,
+            1.3,
+            1.9
+          ],
+          "to": [
+            2.4,
+            2.1,
+            2.3
+          ],
+          "faces": {
+            "north": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "east": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "south": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "west": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "up": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            },
+            "down": {
+              "texture": "#ring",
+              "uv": [
+                13,
+                24,
+                19,
+                27
+              ]
+            }
+          }
+        },
+        {
+          "name": "gem",
+          "from": [
+            -0.55,
+            1.35,
+            0.65
+          ],
+          "to": [
+            -0.25,
+            2.0500000000000003,
+            1.35
+          ],
+          "faces": {
+            "north": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            },
+            "east": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            },
+            "south": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            },
+            "west": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            },
+            "up": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            },
+            "down": {
+              "texture": "#ring",
+              "uv": [
+                14,
+                5,
+                18,
+                9
+              ]
+            }
+          },
+          "glow": 40
+        }
+      ]
+    }
+  ]
+}

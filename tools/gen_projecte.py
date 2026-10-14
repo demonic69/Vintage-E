@@ -44,12 +44,23 @@ STAR_CAP = {"ein": 50000, "zwei": 200000, "drei": 800000, "vier": 3200000, "sphe
 TRINKETS = ["blackholeband", "swiftwolfsrendinggale", "harvestgoddessband", "ignitionring", "zeroring", "ringofarcana",
             "bodystone", "soulstone", "lifestone", "repairtalisman", "gemofeternaldensity", "evertideamulet",
             "volcaniteamulet", "watchofflowingtime", "voidring"]
+RINGS = ["blackholeband", "swiftwolfsrendinggale", "harvestgoddessband", "ignitionring", "zeroring", "ringofarcana", "voidring"]
 GADGETS = ["destructioncatalyst", "hyperkineticlens", "catalyticlens", "mercurialeye", "archangelssmite",
            "tomeofknowledge", "diviningrodlow", "diviningrodmedium", "diviningrodhigh"]
 BAGS = ["white", "plain", "gray", "black", "brown", "red", "orange", "yellow", "green", "blue", "purple", "pink"]
 ARMOR_MATS = ["dark", "red", "gem"]
 PARTS = ["head", "body", "legs"]
 FUELS = ["alchemicalcoal", "mobiusfuel", "aeternalisfuel"]
+
+
+def worn(category, shape):
+    """Attributes that let an item go in a character (clothing) slot and show on the player there. No Wearable
+    behaviour, so right-click keeps doing what the item does."""
+    return O([
+        ("clothescategory", category),
+        ("attachableToEntity", O([("categoryCode", category), ("attachedShape", O([("base", f"vintagee:entity/worn/{shape}")])),
+                                  ("texturePrefixCode", f"vintagee-{shape}")])),
+    ])
 
 
 def items():
@@ -68,7 +79,8 @@ def items():
         ("maxstacksize", 1),
         ("creativeinventory", CREATIVE),
         ("texture", O([("base", "item/kleinstar-{tier}")])),
-        ("attributesByType", O((f"*-{s}", O([("capacity", STAR_CAP[s])])) for s in STARS)),
+        # Worn in the emblem slot (and still counted as carried EMC there).
+        ("attributesByType", O((f"*-{s}", O([("capacity", STAR_CAP[s])]) | worn("emblem", f"kleinstar-{s}")) for s in STARS)),
         ("materialDensity", 3000),
     ]))
     write("itemtypes/ironband.json", O([
@@ -85,7 +97,9 @@ def items():
         ("maxstacksize", 1),
         ("creativeinventory", CREATIVE),
         ("textureByType", O([("*", O([("base", "item/trinket/{type}")]))])),
-        ("attributesByType", O([("*-gemofeternaldensity", O([("maxInputValue", 8)])), ("*-voidring", O([("maxInputValue", 8)]))])),
+        # Rings can be worn in the arm slot, where they keep working.
+        ("attributesByType", O([(f"*-{r}", (O([("maxInputValue", 8)]) if r == "voidring" else O()) | worn("arm", f"ring-{r}")) for r in RINGS]
+                               + [("*-gemofeternaldensity", O([("maxInputValue", 8)]))])),
         # The Black Hole Band and Void Ring can target water/lava sources (right-click removes them).
         ("liquidSelectableByType", O([("*-blackholeband", True), ("*-voidring", True), ("*", False)])),
         ("materialDensity", 5000),
@@ -405,7 +419,100 @@ def furnace_shape(lit):
               ("elements", els)])
 
 
+def face(tex, uv, enabled=True):
+    f = O([("texture", tex), ("uv", uv)])
+    if not enabled:
+        f["enabled"] = False
+    return f
+
+
+def anchor(name, parent, tex, children):
+    """An invisible root element hung on one of the player model's elements (stepParentName)."""
+    return O([("name", name), ("stepParentName", parent), ("from", [0, 0, 0]), ("to", [0, 0, 0]), ("rotationOrigin", [0, 0, 0]),
+              ("faces", O((s, face(tex, [0, 0, 0.5, 0.5], False)) for s in ("north", "east", "south", "west", "up", "down"))),
+              ("children", children)])
+
+
+def plain(name, frm, to, tex, uv, glow=0):
+    e = O([("name", name), ("from", frm), ("to", to),
+           ("faces", O((s, face(tex, uv)) for s in ("north", "east", "south", "west", "up", "down")))])
+    if glow:
+        e["glow"] = glow
+    return e
+
+
+# Worn models. Coordinates are in the seraph's element space: the emblem sits on the front of "UpperTorso" (where the
+# game's own emblems hang), the ring is a band round "LowerArmL" near the wrist (where the game's bracelets sit).
+EMBLEM_FRONT_X = 0.0      # the chest surface; the badge stands just in front of it (towards -x)
+EMBLEM_CENTER = (3.2, 1.55)  # (y, z) of the badge centre
+EMBLEM_SIZE = 2.6
+ARM_BOX = (0.0, 2.5, 0.0, 2.0)  # lower arm cross-section: x from/to, z from/to
+RING_Y = (1.3, 2.1)
+RING_GEM_SIDE = "west"
+
+
+def central_opaque_pixel(png):
+    """A solid pixel near the middle of a texture, used to colour the thin edges of the worn Klein star."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return [7, 7, 8, 8]
+    im = Image.open(png).convert("RGBA")
+    w, h = im.size
+    best = None
+    for y in range(h):
+        for x in range(w):
+            if im.getpixel((x, y))[3] > 200:
+                d = (x - w / 2 + 0.5) ** 2 + (y - h / 2 + 0.5) ** 2
+                if best is None or d < best[0]:
+                    best = (d, x, y)
+    return [best[1], best[2], best[1] + 1, best[2] + 1] if best else [7, 7, 8, 8]
+
+
+def worn_shapes():
+    tex_root = os.path.join(ROOT, "textures", "item")
+    cy, cz = EMBLEM_CENTER
+    half = EMBLEM_SIZE / 2
+    for s in STARS:
+        edge = central_opaque_pixel(os.path.join(tex_root, f"kleinstar-{s}.png"))
+        badge = O([("name", "badge"), ("from", [EMBLEM_FRONT_X - 0.3, cy - half, cz - half]), ("to", [EMBLEM_FRONT_X + 0.05, cy + half, cz + half]),
+                   ("faces", O([("north", face("#star", edge)), ("east", face("#star", [16, 0, 0, 16])), ("south", face("#star", edge)),
+                                ("west", face("#star", [0, 0, 16, 16])), ("up", face("#star", edge)), ("down", face("#star", edge))])),
+                   ("glow", 30)])
+        write(f"shapes/entity/worn/kleinstar-{s}.json", O([
+            ("textureWidth", 16), ("textureHeight", 16),
+            ("textures", O([("star", f"vintagee:item/kleinstar-{s}")])),
+            ("elements", [anchor("vintageekleinstar", "UpperTorso", "#star", [badge])]),
+        ]))
+
+    x0, x1, z0, z1 = ARM_BOX
+    y0, y1 = RING_Y
+    t = 0.3  # band thickness outside the arm
+    band_uv, gem_uv = [13, 24, 19, 27], [14, 5, 18, 9]  # bottom of the ring / its gem, in the 32x32 ring textures
+    ym, zm, xm = (y0 + y1) / 2, (z0 + z1) / 2, (x0 + x1) / 2
+    gem = {
+        "west": ([x0 - t - 0.25, ym - 0.35, zm - 0.35], [x0 - t + 0.05, ym + 0.35, zm + 0.35]),
+        "east": ([x1 + t - 0.05, ym - 0.35, zm - 0.35], [x1 + t + 0.25, ym + 0.35, zm + 0.35]),
+        "north": ([xm - 0.35, ym - 0.35, z0 - t - 0.25], [xm + 0.35, ym + 0.35, z0 - t + 0.05]),
+        "south": ([xm - 0.35, ym - 0.35, z1 + t - 0.05], [xm + 0.35, ym + 0.35, z1 + t + 0.25]),
+    }[RING_GEM_SIDE]
+    for r in RINGS:
+        els = [
+            plain("bandW", [x0 - t, y0, z0 - t], [x0 + 0.1, y1, z1 + t], "#ring", band_uv),
+            plain("bandE", [x1 - 0.1, y0, z0 - t], [x1 + t, y1, z1 + t], "#ring", band_uv),
+            plain("bandN", [x0 + 0.1, y0, z0 - t], [x1 - 0.1, y1, z0 + 0.1], "#ring", band_uv),
+            plain("bandS", [x0 + 0.1, y0, z1 - 0.1], [x1 - 0.1, y1, z1 + t], "#ring", band_uv),
+            plain("gem", gem[0], gem[1], "#ring", gem_uv, glow=40),
+        ]
+        write(f"shapes/entity/worn/ring-{r}.json", O([
+            ("textureWidth", 32), ("textureHeight", 32),
+            ("textures", O([("ring", f"vintagee:item/trinket/{r}")])),
+            ("elements", [anchor("vintageering", "LowerArmL", "#ring", els)]),
+        ]))
+
+
 def shapes():
+    worn_shapes()
     write("shapes/block/matterfurnace-cold.json", furnace_shape(False))
     write("shapes/block/matterfurnace-lit.json", furnace_shape(True))
     write("shapes/block/interdictiontorch.json", O([

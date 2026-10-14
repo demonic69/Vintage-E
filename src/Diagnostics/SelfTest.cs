@@ -60,6 +60,7 @@ namespace VintageE
             try
             {
                 CheckValues();
+                CheckWorn();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -140,6 +141,66 @@ namespace VintageE
                 CollectibleObject c = (CollectibleObject)sapi.World.GetBlock(new AssetLocation(code)) ?? sapi.World.GetItem(new AssetLocation(code));
                 Line($"  value of {code} = {(c == null ? "missing" : mod.Emc.GetValue(c).ToString())}");
             }
+        }
+
+        /// <summary>
+        /// The worn Klein star and rings: they fit their clothing slots, their models load and hang on the player model.
+        /// Also prints where they end up next to the game's own emblem and bracelet, to compare positions.
+        /// </summary>
+        void CheckWorn()
+        {
+            Shape seraph = Shape.TryGet(sapi, new AssetLocation("game:shapes/entity/humanoid/seraph.json"));
+            Check(seraph != null, "player model loads");
+            if (seraph == null) return;
+            seraph.ResolveReferences(sapi.Logger, "seraph");
+            foreach (string name in new[] { "UpperTorso", "Head", "LowerArmL", "LowerArmR" })
+            {
+                ShapeElement e = seraph.GetElementByName(name);
+                Line($"  {name}: " + (e == null ? "missing" : Describe(e)));
+            }
+            foreach (var (code, dress, path, root) in new[] {
+                ("vintagee:kleinstar-omega", EnumCharacterDressType.Emblem, (string)null, "vintageekleinstar"),
+                ("vintagee:trinket-voidring", EnumCharacterDressType.Arm, null, "vintageering"),
+                (null, EnumCharacterDressType.Emblem, "game:entity/humanoid/seraph/clothing/emblem/silver-star", "origin"),
+                (null, EnumCharacterDressType.Arm, "game:entity/humanoid/seraph/clothing/arm/copper-bracelet", "hidelowerarm") })
+            {
+                string shapeBase = path;
+                if (code != null)
+                {
+                    Item item = sapi.World.GetItem(new AssetLocation(code));
+                    Check(item != null, code + " exists");
+                    if (item == null) continue;
+                    Check(ItemSlotCharacter.IsDressType(new ItemStack(item), dress), $"{code} fits the {dress} slot");
+                    shapeBase = item.Attributes?["attachableToEntity"]["attachedShape"]["base"].AsString();
+                }
+                Shape worn = shapeBase == null ? null : Shape.TryGet(sapi, new AssetLocation(shapeBase).WithPathPrefixOnce("shapes/").WithPathAppendixOnce(".json"));
+                if (code != null) Check(worn != null, $"{code} worn model {shapeBase} loads");
+                if (worn == null) { Line($"  {shapeBase}: not found"); continue; }
+                worn.ResolveReferences(sapi.Logger, shapeBase);
+                Shape target = seraph.Clone();
+                target.ResolveReferences(sapi.Logger, "seraph");
+                bool added = target.StepParentShape(worn, "vintageetest", shapeBase, "seraph", sapi.Logger, (a, b) => { });
+                ShapeElement r = target.GetElementByName(root);
+                if (code != null) Check(added && r?.ParentElement != null, $"{code} worn model hangs on {r?.ParentElement?.Name ?? "nothing"}");
+                else Line($"  {shapeBase} hangs on {r?.ParentElement?.Name ?? "nothing"}");
+                var all = new List<ShapeElement>();
+                void Collect(ShapeElement e) { all.Add(e); if (e.Children != null) foreach (var c in e.Children) Collect(c); }
+                if (r != null) Collect(r);
+                foreach (ShapeElement e in all) if (e != r) Line($"    {e.Name}: {Describe(e)}");
+            }
+        }
+
+        /// <summary>An element's box in model space at rest, in voxels.</summary>
+        static string Describe(ShapeElement e)
+        {
+            var chain = new List<ShapeElement>();
+            for (ShapeElement p = e; p != null; p = p.ParentElement) chain.Insert(0, p);
+            float[] m = Mat4f.Create();
+            foreach (ShapeElement p in chain) m = Mat4f.Mul(Mat4f.Create(), m, p.GetLocalTransformMatrix(0, Mat4f.Create()));
+            float[] a = Mat4f.MulWithVec4(m, 0, 0, 0, 1);
+            float[] b = Mat4f.MulWithVec4(m, (float)((e.To[0] - e.From[0]) / 16), (float)((e.To[1] - e.From[1]) / 16), (float)((e.To[2] - e.From[2]) / 16), 1);
+            string V(float[] v) => $"[{v[0] * 16:0.##}, {v[1] * 16:0.##}, {v[2] * 16:0.##}]";
+            return $"{V(a)} to {V(b)}";
         }
 
         BlockEntityFirepit PlaceFurnace(BlockPos pos, string type)

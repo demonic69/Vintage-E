@@ -161,8 +161,22 @@ with open(os.path.join(out, "boards.json"), "w") as f:
 
 # 5. Whole asset files that mention any term in tools/ci_grep.txt (one per line; "path:x" matches file paths instead),
 #    for looking into recipes/values.
+def shape_tree(path):
+    data = load(path)
+    if not isinstance(data, dict):
+        return None
+
+    def el(e):
+        keep = {k: e[k] for k in ("name", "stepParentName", "from", "to", "rotationOrigin", "rotationX", "rotationY", "rotationZ") if k in e}
+        if e.get("children"):
+            keep["children"] = [el(c) for c in e["children"]]
+        return keep
+    return {"textureWidth": data.get("textureWidth"), "textureHeight": data.get("textureHeight"),
+            "elements": [el(e) for e in data.get("elements") or []]}
+
+
 grep_terms = []
-grep_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci_grep.txt")
+grep_list =os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci_grep.txt")
 if os.path.exists(grep_list):
     with open(grep_list) as f:
         grep_terms = [t.strip() for t in f if t.strip() and not t.startswith("#")]
@@ -176,6 +190,10 @@ if grep_terms:
             except Exception:  # noqa: BLE001
                 continue
             for t in grep_terms:
+                if t.startswith("tree:"):  # a shape's element outline (positions, rotations, no faces/animations)
+                    if t[5:] in rel(path):
+                        found[t].append({"file": rel(path), "tree": shape_tree(path)})
+                    continue
                 hit = t[5:] in rel(path) if t.startswith("path:") else ("/lang/" not in rel(path) and t in text)
                 if hit:
                     if len(text) <= 60000 or (t.startswith("path:") and len(text) <= 600000):
