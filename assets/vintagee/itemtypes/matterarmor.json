@@ -114,8 +114,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-dark-body": {
       "clothescategory": "armorbody",
@@ -135,8 +134,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-dark-legs": {
       "clothescategory": "armorlegs",
@@ -160,8 +158,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-red-head": {
       "clothescategory": "armorhead",
@@ -197,8 +194,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-red-body": {
       "clothescategory": "armorbody",
@@ -220,8 +216,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-red-legs": {
       "clothescategory": "armorlegs",
@@ -247,8 +242,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-gem-head": {
       "clothescategory": "armorhead",
@@ -285,8 +279,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-gem-body": {
       "clothescategory": "armorbody",
@@ -309,8 +302,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     },
     "*-gem-legs": {
       "clothescategory": "armorlegs",
@@ -337,8 +329,7 @@
           0.03,
           0.15
         ]
-      },
-      "footStepSound": "game:wearable/plate*"
+      }
     }
   },
   "guiTransformByType": {

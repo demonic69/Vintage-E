@@ -42,6 +42,12 @@ namespace VintageE
 
         public static readonly string[] ArcanaModes = { "zero", "ignition", "harvest", "swiftwolf" };
         public static readonly string[] GaleModes = { "both", "flight", "shield" };
+        /// <summary>Swiftwolf's Rending Gale speed choices (× running and flying speed; the EMC cost of moving scales with it).</summary>
+        public static readonly float[] GaleSpeeds = { 1, 1.5f, 2, 3 };
+        public const string SpeedKey = "vintageeSpeed";
+
+        /// <summary>Index into <see cref="GaleSpeeds"/> picked on this Swiftwolf's Rending Gale.</summary>
+        public static int GetSpeedLevel(ItemStack stack) => GameMath.Clamp(stack?.Attributes?.GetInt(SpeedKey) ?? 0, 0, GaleSpeeds.Length - 1);
         public static readonly string[] WatchModes = { "faster", "slower" };
         public static readonly string[] DensityTargets = { "game:ingot-iron", "game:ingot-gold", "game:gem-diamond-rough", "vintagee:matter-dark", "vintagee:matter-red" };
 
@@ -52,6 +58,7 @@ namespace VintageE
 
         SkillItem[] modes;
         SkillItem[] arcanaOn, arcanaOff;
+        SkillItem[] galeOn, galeOff; // flight/shield choices then speeds, each drawn picked (on) or not
 
         public string Kind => Variant?["type"] ?? "";
 
@@ -95,11 +102,28 @@ namespace VintageE
             }
             else if (Kind == "swiftwolfsrendinggale")
             {
-                modes = new SkillItem[GaleModes.Length];
-                for (int i = 0; i < modes.Length; i++)
+                int n = GaleModes.Length + GaleSpeeds.Length;
+                galeOn = new SkillItem[n];
+                galeOff = new SkillItem[n];
+                for (int i = 0; i < n; i++)
                 {
-                    modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "gale-" + GaleModes[i]), Name = Lang.Get("vintagee:gale-" + GaleModes[i]) }
-                        .WithLetterIcon(capi, i == 0 ? "F+S" : i == 1 ? "F" : "S");
+                    string name, letter;
+                    if (i < GaleModes.Length)
+                    {
+                        name = Lang.Get("vintagee:gale-" + GaleModes[i]);
+                        letter = i == 0 ? "F+S" : i == 1 ? "F" : "S";
+                    }
+                    else
+                    {
+                        float sp = GaleSpeeds[i - GaleModes.Length];
+                        name = Lang.Get("vintagee:gale-speed", sp.ToString("0.#"), (sp * TrinketEffects.FlightCostPerSecond).ToString("0.#"));
+                        letter = sp.ToString("0.#") + "x";
+                    }
+                    string l = letter;
+                    galeOn[i] = new SkillItem { Code = new AssetLocation("vintagee", "gale" + i + "-on"), Name = name }
+                        .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, l, true));
+                    galeOff[i] = new SkillItem { Code = new AssetLocation("vintagee", "gale" + i + "-off"), Name = name }
+                        .WithIcon(capi, (ctx, x, y, w, h, rgba) => ModeIcons.Letter(capi, ctx, x, y, w, h, l, false, faded: true));
                 }
             }
             else if (Kind == "watchofflowingtime")
@@ -128,6 +152,8 @@ namespace VintageE
             if (modes != null) foreach (SkillItem m in modes) m?.Dispose();
             if (arcanaOn != null) foreach (SkillItem m in arcanaOn) m?.Dispose();
             if (arcanaOff != null) foreach (SkillItem m in arcanaOff) m?.Dispose();
+            if (galeOn != null) foreach (SkillItem m in galeOn) m?.Dispose();
+            if (galeOff != null) foreach (SkillItem m in galeOff) m?.Dispose();
             base.OnUnloaded(api);
         }
 
@@ -139,6 +165,19 @@ namespace VintageE
 
         public override SkillItem[] GetToolModes(ItemSlot slot, IClientPlayer forPlayer, BlockSelection blockSel)
         {
+            if (galeOn != null)
+            {
+                // Flight/shield choice, then the speed; the picked one of each is drawn bright.
+                int mode = GameMath.Clamp(GetMode(slot?.Itemstack), 0, GaleModes.Length - 1);
+                int speed = GetSpeedLevel(slot?.Itemstack);
+                var gl = new SkillItem[galeOn.Length];
+                for (int i = 0; i < gl.Length; i++)
+                {
+                    bool picked = i < GaleModes.Length ? i == mode : i - GaleModes.Length == speed;
+                    gl[i] = picked ? galeOn[i] : galeOff[i];
+                }
+                return gl;
+            }
             if (arcanaOn == null) return modes;
             // One entry per effect, showing whether it is on; picking one switches it.
             var list = new SkillItem[ArcanaModes.Length];
@@ -156,6 +195,12 @@ namespace VintageE
                 int off = slot.Itemstack.Attributes.GetInt(ArcanaOffKey) ^ (1 << toolMode);
                 if (off == 0) slot.Itemstack.Attributes.RemoveAttribute(ArcanaOffKey);
                 else slot.Itemstack.Attributes.SetInt(ArcanaOffKey, off);
+            }
+            if (Kind == "swiftwolfsrendinggale" && toolMode >= GaleModes.Length)
+            {
+                slot.Itemstack.Attributes.SetInt(SpeedKey, GameMath.Clamp(toolMode - GaleModes.Length, 0, GaleSpeeds.Length - 1));
+                slot.MarkDirty();
+                return;
             }
             slot.Itemstack.Attributes.SetInt(ModeKey, toolMode);
             slot.MarkDirty();
@@ -242,6 +287,7 @@ namespace VintageE
             else if (Kind == "swiftwolfsrendinggale")
             {
                 dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:gale-" + GaleModes[GameMath.Clamp(GetMode(stack), 0, GaleModes.Length - 1)])));
+                dsc.AppendLine(Lang.Get("vintagee:gale-speed-current", GaleSpeeds[GetSpeedLevel(stack)].ToString("0.#")));
             }
             else if (Kind == "watchofflowingtime")
             {
@@ -263,7 +309,7 @@ namespace VintageE
             if (Kind == "harvestgoddessband") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-plant", MouseButton = EnumMouseButton.Right });
             if (Kind == "voidring") list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-teleport", HotKeyCode = "sneak", MouseButton = EnumMouseButton.Right });
             if (CanShoot(inSlot)) list.Add(new WorldInteraction { ActionLangCode = "vintagee:heldhelp-trinket-shoot-" + (Kind == "ringofarcana" ? "ignitionring" : Kind), HotKeyCode = VintageEModSystem.FireHotkey, MouseButton = EnumMouseButton.None });
-            if (modes != null || arcanaOn != null) list.Add(new WorldInteraction { ActionLangCode = arcanaOn != null ? "vintagee:heldhelp-arcana-toggle" : "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
+            if (modes != null || arcanaOn != null || galeOn != null) list.Add(new WorldInteraction { ActionLangCode = arcanaOn != null ? "vintagee:heldhelp-arcana-toggle" : "vintagee:heldhelp-trinket-mode", HotKeyCodes = new[] { "toolmodeselect" }, MouseButton = EnumMouseButton.None });
             return list.ToArray();
         }
     }

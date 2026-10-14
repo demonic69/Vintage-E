@@ -387,7 +387,7 @@ namespace VintageE
         /// Pins an item's EMC value (saved to ModConfig FixedValues, like /emc set) and remaps. Returns the config key
         /// used, or null if the code didn't resolve.
         /// </summary>
-        public string SetFixedValue(CollectibleObject collectible, double? value)
+        public string SetFixedValue(CollectibleObject collectible, double? value, bool save = true)
         {
             if (collectible?.Code == null) return null;
             string key = ConfigKey(collectible);
@@ -397,7 +397,7 @@ namespace VintageE
                 if (value.Value > 0) Config.Blacklist.Remove(key); // a value takes it off the blacklist
             }
             else Config.FixedValues.Remove(key);
-            SaveConfig();
+            if (save) SaveConfig();
             return key;
         }
 
@@ -407,9 +407,11 @@ namespace VintageE
         /// Puts a block/item on the server blacklist (ModConfig Blacklist) or takes it off: removed from Blacklist if
         /// it was added there, otherwise added to Allow so the built-in blacklist no longer applies. Remaps.
         /// </summary>
-        public void SetBlacklisted(CollectibleObject c, bool blacklisted)
+        public void SetBlacklisted(CollectibleObject c, bool blacklisted, bool save = true) => SetBlacklistedPattern(ConfigKey(c), blacklisted, save);
+
+        /// <summary>Same as <see cref="SetBlacklisted"/> for a config pattern (a code, or "modid:*" for a whole mod).</summary>
+        public void SetBlacklistedPattern(string key, bool blacklisted, bool save = true)
         {
-            string key = ConfigKey(c);
             if (blacklisted)
             {
                 Config.Allow.Remove(key);
@@ -420,7 +422,7 @@ namespace VintageE
             {
                 Config.Allow.Add(key);
             }
-            SaveConfig();
+            if (save) SaveConfig();
         }
 
         void OnBlacklistRequest(IServerPlayer player, EmcBlacklistPacket packet)
@@ -431,18 +433,53 @@ namespace VintageE
                 player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
                 return;
             }
-            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet.Key);
-            if (c?.Code == null) return;
-            SetBlacklisted(c, packet.Add);
+            string msg;
+            if (!string.IsNullOrEmpty(packet.Domain))
+            {
+                // A whole mod. Not the base game: blacklisting it would remove every vanilla value, and taking it off
+                // wholesale would give values to creative-only and technical blocks.
+                if (packet.Domain == "game")
+                {
+                    player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:missing-nogame"), EnumChatType.CommandError);
+                    return;
+                }
+                SetBlacklistedPattern(packet.Domain + ":*", packet.Add);
+                msg = Lang.GetL(lang, packet.Add ? "vintagee:cmd-blacklistedmod" : "vintagee:cmd-unblacklistedmod", packet.Domain);
+            }
+            else
+            {
+                List<CollectibleObject> items = ResolveKeys(Sapi.World, packet.Key, packet.Keys);
+                if (items.Count == 0) return;
+                foreach (CollectibleObject c in items) SetBlacklisted(c, packet.Add, save: false);
+                SaveConfig();
+                msg = items.Count > 1 ? Lang.GetL(lang, packet.Add ? "vintagee:cmd-blacklistedmany" : "vintagee:cmd-unblacklistedmany", items.Count) : null;
+                if (items.Count == 1)
+                {
+                    CollectibleObject c = items[0];
+                    msg = packet.Add ? Lang.GetL(lang, "vintagee:cmd-blacklisted", NameOf(c), c.Code) : null;
+                }
+            }
             EmcMappingReport report = RecalculateEmc(packet.Add ? "blacklisted from the /emc missing window" : "removed from the blacklist");
-            string name;
-            try { name = c.GetHeldItemName(new ItemStack(c)); } catch { name = c.Code.ToShortString(); }
-            double v = Emc.GetValue(c);
-            string msg = packet.Add ? Lang.GetL(lang, "vintagee:cmd-blacklisted", name, c.Code)
-                : v > 0 ? Lang.GetL(lang, "vintagee:cmd-unblacklisted-value", name, c.Code, EmcFormat.Format(v))
-                : Lang.GetL(lang, "vintagee:cmd-unblacklisted", name, c.Code);
+            if (msg == null)
+            {
+                CollectibleObject c = ResolveKeys(Sapi.World, packet.Key, packet.Keys)[0];
+                double v = Emc.GetValue(c);
+                msg = v > 0 ? Lang.GetL(lang, "vintagee:cmd-unblacklisted-value", NameOf(c), c.Code, EmcFormat.Format(v))
+                    : Lang.GetL(lang, "vintagee:cmd-unblacklisted", NameOf(c), c.Code);
+            }
             player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
             if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
+        }
+
+        static List<CollectibleObject> ResolveKeys(IWorldAccessor world, string key, string[] keys)
+        {
+            var list = new List<CollectibleObject>();
+            foreach (string k in keys != null && keys.Length > 0 ? keys : new[] { key })
+            {
+                CollectibleObject c = PlayerEmc.Resolve(world, k);
+                if (c?.Code != null && !list.Contains(c)) list.Add(c);
+            }
+            return list;
         }
 
         void OnSetValueRequest(IServerPlayer player, EmcSetValuePacket packet)
@@ -453,13 +490,16 @@ namespace VintageE
                 player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
                 return;
             }
-            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet.Key);
-            if (c == null || double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0) return;
-            SetFixedValue(c, packet.Value);
+            if (double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0) return;
+            List<CollectibleObject> items = ResolveKeys(Sapi.World, packet.Key, packet.Keys);
+            if (items.Count == 0) return;
+            foreach (CollectibleObject c in items) SetFixedValue(c, packet.Value, save: false);
+            SaveConfig();
             EmcMappingReport report = RecalculateEmc("/emc missing window");
-            string name;
-            try { name = c.GetHeldItemName(new ItemStack(c)); } catch { name = c.Code.ToShortString(); }
-            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:cmd-itemvalue", name, c.Code, EmcFormat.Format(Emc.GetValue(c))), EnumChatType.CommandSuccess);
+            string msg = items.Count == 1
+                ? Lang.GetL(lang, "vintagee:cmd-itemvalue", NameOf(items[0]), items[0].Code, EmcFormat.Format(Emc.GetValue(items[0])))
+                : Lang.GetL(lang, "vintagee:cmd-setmany", items.Count, EmcFormat.Format(packet.Value));
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
             if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
         }
 
@@ -541,8 +581,9 @@ namespace VintageE
         {
             GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() && missingDialog.IsBlacklist == packet.Blacklist ? missingDialog : null;
             var dialog = new GuiDialogEmcMissing(Capi, packet, previous,
-                (key, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Key = key, Value = value, FromBlacklist = packet.Blacklist }),
-                (key, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Key = key, Add = add, FromBlacklist = packet.Blacklist }));
+                (keys, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = keys, Value = value, FromBlacklist = packet.Blacklist }),
+                (keys, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Keys = keys, Add = add, FromBlacklist = packet.Blacklist }),
+                (domain, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Domain = domain, Add = add, FromBlacklist = packet.Blacklist }));
             missingDialog?.TryClose();
             missingDialog?.Dispose();
             missingDialog = dialog;

@@ -132,6 +132,8 @@ Value files can also hold:
 | 2× Copper ingot | shapeless: 1× Philosopher's Stone + 1× Iron ingot | |
 | 2× Iron ingot | shapeless: 1× Philosopher's Stone + 1× Silver ingot | |
 | 4× Silver ingot | shapeless: 1× Philosopher's Stone + 1× Gold ingot | |
+| 1× Diamond (rough) | shapeless: 1× Philosopher's Stone + 4× Emerald (rough) | |
+| 4× Emerald (rough) | shapeless: 1× Philosopher's Stone + 1× Diamond (rough) | |
 | 1× Dark Matter | `AAA / ATA / AAA` | A = Aeternalis Fuel, T = Temporal gear |
 | 1× Red Matter | `AAA / DDD / AAA` | A = Aeternalis Fuel, D = Dark Matter |
 | 1× Dark Matter Block | `DD / DD` | D = Dark Matter |

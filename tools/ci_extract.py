@@ -176,7 +176,7 @@ if grep_terms:
             except Exception:  # noqa: BLE001
                 continue
             for t in grep_terms:
-                hit = t[5:] in rel(path) if t.startswith("path:") else t in text
+                hit = t[5:] in rel(path) if t.startswith("path:") else ("/lang/" not in rel(path) and t in text)
                 if hit:
                     if len(text) <= 60000:
                         found[t].append({"file": rel(path), "text": text})

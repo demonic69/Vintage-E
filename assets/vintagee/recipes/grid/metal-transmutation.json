@@ -133,5 +133,50 @@
     },
     "name": "vintagee:gold-to-silver",
     "shapeless": true
+  },
+  {
+    "ingredientPattern": "PEE,EE_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "E": {
+        "type": "item",
+        "code": "game:gem-emerald-rough"
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "item",
+      "code": "game:gem-diamond-rough"
+    },
+    "name": "vintagee:emerald-to-diamond",
+    "shapeless": true
+  },
+  {
+    "ingredientPattern": "PD",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "vintagee:philosophersstone",
+        "consume": false
+      },
+      "D": {
+        "type": "item",
+        "code": "game:gem-diamond-rough"
+      }
+    },
+    "width": 2,
+    "height": 1,
+    "output": {
+      "type": "item",
+      "code": "game:gem-emerald-rough",
+      "quantity": 4
+    },
+    "name": "vintagee:diamond-to-emerald",
+    "shapeless": true
   }
 ]

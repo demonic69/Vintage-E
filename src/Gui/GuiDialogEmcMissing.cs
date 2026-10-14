@@ -12,14 +12,17 @@ namespace VintageE
     /// Window opened by /emc missing (every block/item that still has no EMC value) and /emc blacklist (everything
     /// the blacklist keeps from having one): a scrollable list with icons, a search bar, a mod filter and a
     /// blocks/items filter. Click an icon to open its handbook page; "Copy codes" puts the filtered list on the
-    /// clipboard ready to paste into BaseValues. Admins can click a name and then type a value and press "Set value"
-    /// (saved like /emc set; it also takes a blacklisted item off the blacklist), or press "Blacklist" (missing
-    /// window) / "Remove from blacklist" (blacklist window). The list refreshes after each change.
+    /// clipboard ready to paste into BaseValues.
+    /// Admins click names to select them (click again to unselect; "Select shown" picks everything the filters show),
+    /// then type a value and press "Set value" (saved like /emc set; it also takes blacklisted items off the
+    /// blacklist), or press "Blacklist" / "Remove from blacklist". With a mod picked in the mod filter,
+    /// "Blacklist whole mod" / "Unblacklist whole mod" does the same for everything from that mod. The list refreshes
+    /// after each change and the selection is kept where it still applies.
     /// </summary>
     public class GuiDialogEmcMissing : GuiDialog
     {
         const double ListWidth = 560;
-        const double ListHeight = 360;
+        const double ListHeight = 340;
         const int PerPage = 40; // keeps the rendered text small; page with the arrows for more
 
         sealed class Entry
@@ -33,12 +36,14 @@ namespace VintageE
         }
 
         readonly EmcMissingPacket packet;
-        readonly Action<string, double> onSetValue;
-        readonly Action<string, bool> onBlacklist;
+        readonly Action<string[], double> onSetValue;
+        readonly Action<string[], bool> onBlacklist;
+        readonly Action<string, bool> onBlacklistMod;
 
         /// <summary>True for the /emc blacklist window.</summary>
         public bool IsBlacklist => packet.Blacklist;
-        Entry selected;
+
+        readonly HashSet<string> selected = new HashSet<string>();
         readonly List<Entry> all = new List<Entry>();
         List<Entry> shown = new List<Entry>();
         string search = "";
@@ -50,18 +55,13 @@ namespace VintageE
 
         public override string ToggleKeyCombinationCode => null;
 
-        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null, Action<string, double> onSetValue = null, Action<string, bool> onBlacklist = null) : base(capi)
+        public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null,
+            Action<string[], double> onSetValue = null, Action<string[], bool> onBlacklist = null, Action<string, bool> onBlacklistMod = null) : base(capi)
         {
             this.packet = packet;
             this.onSetValue = onSetValue;
             this.onBlacklist = onBlacklist;
-            if (previous != null)
-            {
-                search = previous.search;
-                domainFilter = previous.domainFilter;
-                typeFilter = previous.typeFilter;
-                page = previous.page;
-            }
+            this.onBlacklistMod = onBlacklistMod;
             foreach (string key in packet.Keys ?? Array.Empty<string>())
             {
                 CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
@@ -80,6 +80,15 @@ namespace VintageE
                 });
             }
             all.Sort((a, b) => string.Compare(a.Code, b.Code, StringComparison.Ordinal));
+            if (previous != null)
+            {
+                search = previous.search;
+                domainFilter = all.Any(e => e.Domain == previous.domainFilter) ? previous.domainFilter : "*";
+                typeFilter = previous.typeFilter;
+                page = previous.page;
+                var keys = new HashSet<string>(all.Select(e => e.Key));
+                foreach (string k in previous.selected) if (keys.Contains(k)) selected.Add(k);
+            }
             Compose();
         }
 
@@ -105,16 +114,25 @@ namespace VintageE
             ElementBounds nextBounds = ElementBounds.Fixed(300, bottom, 36, 30);
             ElementBounds copyBounds = ElementBounds.Fixed(ListWidth - 230, bottom, 130, 30);
             ElementBounds closeBounds = ElementBounds.Fixed(ListWidth - 90, bottom, 90, 30);
-            double editRow = bottom + 40;
-            ElementBounds selectedBounds = ElementBounds.Fixed(0, editRow + 6, 330, 24);
-            ElementBounds valueBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 120, 30);
-            ElementBounds setBounds = ElementBounds.Fixed(ListWidth - 100, editRow, 100, 30);
-            ElementBounds listButtonBounds = ElementBounds.Fixed(ListWidth - 230, editRow + 38, 230, 30);
+
+            double selRow = bottom + 40;
+            ElementBounds selectedBounds = ElementBounds.Fixed(0, selRow + 6, 330, 24);
+            ElementBounds selectAllBounds = ElementBounds.Fixed(ListWidth - 230, selRow, 130, 30);
+            ElementBounds clearBounds = ElementBounds.Fixed(ListWidth - 90, selRow, 90, 30);
+
+            double editRow = selRow + 38;
+            ElementBounds valueBounds = ElementBounds.Fixed(0, editRow, 120, 30);
+            ElementBounds setBounds = ElementBounds.Fixed(130, editRow, 100, 30);
+            ElementBounds listButtonBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 230, 30);
+
+            double modRow = editRow + 38;
+            ElementBounds modButtonBounds = ElementBounds.Fixed(ListWidth - 230, modRow, 230, 30);
+            ElementBounds modHintBounds = ElementBounds.Fixed(0, modRow + 6, ListWidth - 240, 24);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
             bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds,
-                selectedBounds, valueBounds, setBounds, listButtonBounds);
+                selectedBounds, selectAllBounds, clearBounds, valueBounds, setBounds, listButtonBounds, modButtonBounds, modHintBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
@@ -156,10 +174,14 @@ namespace VintageE
                     .AddSmallButton(">", OnNext, nextBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-copy"), OnCopy, copyBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-close"), () => TryClose(), closeBounds)
-                    .AddDynamicText(Lang.Get("vintagee:missing-select"), CairoFont.WhiteDetailText(), selectedBounds, "selected")
+                    .AddDynamicText("", CairoFont.WhiteDetailText(), selectedBounds, "selected")
+                    .AddSmallButton(Lang.Get("vintagee:missing-selectshown"), OnSelectShown, selectAllBounds)
+                    .AddSmallButton(Lang.Get("vintagee:missing-clearselection"), OnClearSelection, clearBounds)
                     .AddTextInput(valueBounds, null, CairoFont.WhiteSmallText(), "value")
                     .AddSmallButton(Lang.Get("vintagee:missing-set"), OnSet, setBounds)
                     .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklist" : "vintagee:missing-blacklist"), OnBlacklistButton, listButtonBounds)
+                    .AddDynamicText("", CairoFont.WhiteDetailText(), modHintBounds, "modhint")
+                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistmod" : "vintagee:missing-blacklistmod"), OnModButton, modButtonBounds)
                 .EndChildElements()
                 .Compose();
 
@@ -186,6 +208,7 @@ namespace VintageE
 
                 var comps = new List<RichTextComponentBase>();
                 CairoFont nameFont = CairoFont.WhiteSmallText();
+                CairoFont pickedFont = CairoFont.WhiteSmallText().WithColor(new double[] { 0.55, 1, 0.55, 1 }).WithWeight(Cairo.FontWeight.Bold);
                 CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
                 foreach (Entry e in shown.Skip(page * PerPage).Take(PerPage))
                 {
@@ -195,7 +218,8 @@ namespace VintageE
                     // Inline icons, one entry per line - the same layout the handbook uses for item lists.
                     if (stack != null) comps.Add(new ItemstackTextComponent(capi, stack, 32, 6, EnumFloat.Inline, OpenHandbook) { VerticalAlign = EnumVerticalAlign.Middle });
                     Entry entry = e;
-                    comps.Add(new LinkTextComponent(capi, e.Name + "  ", nameFont, _ => Select(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
+                    bool picked = selected.Contains(e.Key);
+                    comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : nameFont, _ => Toggle(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
                     comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont) { VerticalAlign = EnumVerticalAlign.Middle });
                 }
                 if (shown.Count == 0)
@@ -205,8 +229,8 @@ namespace VintageE
 
                 GuiElementRichtext list = SingleComposer.GetRichtext("list");
                 if (list == null) return;
+                float scroll = (float)-list.Bounds.fixedY;
                 list.SetNewText(comps.ToArray());
-                list.Bounds.fixedY = 0;
                 list.Bounds.CalcWorldBounds();
 
                 GuiElementScrollbar bar = SingleComposer.GetScrollbar("scrollbar");
@@ -214,46 +238,97 @@ namespace VintageE
                 {
                     bar.Bounds.CalcWorldBounds();
                     bar.SetHeights((float)ListHeight, (float)Math.Max(ListHeight, list.Bounds.fixedHeight));
+                    float max = (float)Math.Max(0, list.Bounds.fixedHeight - ListHeight);
+                    scroll = Math.Clamp(scroll, 0, max);
+                    bar.CurrentYPosition = scroll;
                 }
+                list.Bounds.fixedY = -scroll;
+                list.Bounds.CalcWorldBounds();
 
                 SingleComposer.GetDynamicText("count")?.SetNewText(Lang.Get("vintagee:missing-page", page + 1, pages, shown.Count, all.Count));
+                UpdateStatus();
             }
             catch (Exception ex)
             {
-                capi.Logger.Error("Vintage-E: could not fill the missing-EMC list: {0}", ex);
+                capi.Logger.Error("Vintage-E: could not fill the EMC list: {0}", ex);
             }
         }
 
-        void Select(Entry e)
+        void UpdateStatus(string text = null)
         {
-            selected = e;
-            SingleComposer?.GetDynamicText("selected")?.SetNewText(Lang.Get("vintagee:missing-selected", e.Name));
+            if (SingleComposer == null) return;
+            if (text == null)
+            {
+                if (selected.Count == 0) text = Lang.Get("vintagee:missing-select");
+                else if (selected.Count == 1)
+                {
+                    Entry e = all.FirstOrDefault(x => selected.Contains(x.Key));
+                    text = Lang.Get("vintagee:missing-selected", e?.Name ?? selected.First());
+                }
+                else text = Lang.Get("vintagee:missing-selectedmany", selected.Count);
+            }
+            SingleComposer.GetDynamicText("selected")?.SetNewText(text);
+            SingleComposer.GetDynamicText("modhint")?.SetNewText(domainFilter == "*"
+                ? Lang.Get("vintagee:missing-modhint-pick")
+                : Lang.Get("vintagee:missing-modhint", domainFilter));
         }
+
+        void Toggle(Entry e)
+        {
+            if (!selected.Remove(e.Key)) selected.Add(e.Key);
+            Refill();
+        }
+
+        bool OnSelectShown()
+        {
+            foreach (Entry e in shown) selected.Add(e.Key);
+            Refill();
+            return true;
+        }
+
+        bool OnClearSelection()
+        {
+            selected.Clear();
+            Refill();
+            return true;
+        }
+
+        string[] SelectedKeys => all.Where(e => selected.Contains(e.Key)).Select(e => e.Key).ToArray();
 
         bool OnSet()
         {
             if (SingleComposer == null) return true;
-            var status = SingleComposer.GetDynamicText("selected");
-            if (selected == null) { status?.SetNewText(Lang.Get("vintagee:missing-select")); return true; }
+            string[] keys = SelectedKeys;
+            if (keys.Length == 0) { UpdateStatus(Lang.Get("vintagee:missing-select")); return true; }
             string text = (SingleComposer.GetTextInput("value")?.GetText() ?? "").Trim().Replace(',', '.');
             if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v) || v < 0 || double.IsInfinity(v))
             {
-                status?.SetNewText(Lang.Get("vintagee:missing-badvalue"));
+                UpdateStatus(Lang.Get("vintagee:missing-badvalue"));
                 return true;
             }
             if (onSetValue == null) return true;
-            onSetValue(selected.Key, v);
-            status?.SetNewText(Lang.Get("vintagee:missing-sending", selected.Name, text));
+            onSetValue(keys, v);
+            UpdateStatus(Lang.Get("vintagee:missing-sendingmany", keys.Length, text));
             return true;
         }
 
         bool OnBlacklistButton()
         {
-            var status = SingleComposer?.GetDynamicText("selected");
-            if (selected == null) { status?.SetNewText(Lang.Get("vintagee:missing-select")); return true; }
+            string[] keys = SelectedKeys;
+            if (keys.Length == 0) { UpdateStatus(Lang.Get("vintagee:missing-select")); return true; }
             if (onBlacklist == null) return true;
-            onBlacklist(selected.Key, !IsBlacklist);
-            status?.SetNewText(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklisting" : "vintagee:missing-blacklisting", selected.Name));
+            onBlacklist(keys, !IsBlacklist);
+            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistingmany" : "vintagee:missing-blacklistingmany", keys.Length));
+            return true;
+        }
+
+        bool OnModButton()
+        {
+            if (domainFilter == "*") { UpdateStatus(Lang.Get("vintagee:missing-modhint-pick")); return true; }
+            if (domainFilter == "game") { UpdateStatus(Lang.Get("vintagee:missing-nogame")); return true; }
+            if (onBlacklistMod == null) return true;
+            onBlacklistMod(domainFilter, !IsBlacklist);
+            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistingmod" : "vintagee:missing-blacklistingmod", domainFilter));
             return true;
         }
 
@@ -268,6 +343,7 @@ namespace VintageE
         bool OnPrev()
         {
             page--;
+            ResetScroll();
             Refill();
             return true;
         }
@@ -275,8 +351,15 @@ namespace VintageE
         bool OnNext()
         {
             page++;
+            ResetScroll();
             Refill();
             return true;
+        }
+
+        void ResetScroll()
+        {
+            GuiElementRichtext list = SingleComposer?.GetRichtext("list");
+            if (list != null) list.Bounds.fixedY = 0;
         }
 
         void OnSearch(string text)
@@ -284,20 +367,23 @@ namespace VintageE
             if ((text ?? "") == search) return;
             search = text ?? "";
             page = 0;
+            ResetScroll();
             Refill();
         }
 
-        void OnDomain(string code, bool selected)
+        void OnDomain(string code, bool sel)
         {
             domainFilter = code ?? "*";
             page = 0;
+            ResetScroll();
             Refill();
         }
 
-        void OnType(string code, bool selected)
+        void OnType(string code, bool sel)
         {
             typeFilter = code ?? "*";
             page = 0;
+            ResetScroll();
             Refill();
         }
 

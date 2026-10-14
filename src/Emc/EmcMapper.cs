@@ -271,13 +271,18 @@ namespace VintageE
             {
                 excluded.UnionWith(index.Match(pattern));
             }
-            foreach (string pattern in rules.Allow.Concat(config.Allow))
+            foreach (string pattern in rules.Allow)
             {
                 excluded.ExceptWith(index.Match(pattern));
             }
+            // The server's own lists last: its blacklist (single items or whole mods), then its exceptions.
             foreach (string pattern in config.Blacklist)
             {
                 excluded.UnionWith(index.Match(pattern));
+            }
+            foreach (string pattern in config.Allow)
+            {
+                excluded.ExceptWith(index.Match(pattern));
             }
 
             // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.

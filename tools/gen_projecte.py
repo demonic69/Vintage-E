@@ -140,14 +140,14 @@ def armor():
                 ate["disableElements"] = hide_head
             elif p == "legs":
                 ate["disableElements"] = ["shoeL", "shoeR"]
-            attrs[f"*-{m}-{p}"] = O([
+            a = O([
                 ("clothescategory", "armor" + p),
                 ("attachableToEntity", ate),
                 ("protectionModifiers", prot[m]),
                 ("statModifiers", stats[m]),
                 ("defaultProtLoss", O([("perTierRelativeProtectionLoss", [0.03, 0.15])])),
-                ("footStepSound", "game:wearable/plate*"),
             ])
+            attrs[f"*-{m}-{p}"] = a  # no footStepSound: matter and gem armour are silent
     write("itemtypes/matterarmor.json", O([
         ("code", "matterarmor"),
         ("variantgroups", [O([("code", "material"), ("states", ARMOR_MATS)]), O([("code", "bodypart"), ("states", PARTS)])]),
@@ -673,6 +673,25 @@ LANG = O([
     ("cmd-blacklisted", "{0} ({1}) is now blacklisted and has no EMC value. Saved to ModConfig/vintagee.json."),
     ("cmd-unblacklisted", "{0} ({1}) is off the blacklist but nothing gives it a value yet; it is on /emc missing now."),
     ("cmd-unblacklisted-value", "{0} ({1}) is off the blacklist and now worth {2} EMC."),
+    # 1.6.0
+    ("gale-speed", "Speed {0}x (flying costs {1} EMC/s)"), ("gale-speed-current", "Speed: {0}x"),
+    ("missing-selectshown", "Select shown"), ("missing-clearselection", "Clear"),
+    ("missing-selectedmany", "{0} selected"), ("missing-sendingmany", "Setting {0} to {1} EMC..."),
+    ("missing-blacklistingmany", "Blacklisting {0}..."), ("missing-unblacklistingmany", "Taking {0} off the blacklist..."),
+    ("missing-blacklistmod", "Blacklist whole mod"), ("missing-unblacklistmod", "Unblacklist whole mod"),
+    ("missing-modhint-pick", "Pick a mod in the mod filter to do the whole mod at once."), ("missing-modhint", "Whole mod: {0}"),
+    ("missing-nogame", "The base game can't be blacklisted or unblacklisted as a whole; select its blocks and items instead."),
+    ("missing-blacklistingmod", "Blacklisting everything from {0}..."), ("missing-unblacklistingmod", "Taking everything from {0} off the blacklist..."),
+    ("cmd-setmany", "{0} blocks/items are now worth {1} EMC each. Saved to ModConfig/vintagee.json."),
+    ("cmd-blacklistedmany", "{0} blocks/items are now blacklisted. Saved to ModConfig/vintagee.json."),
+    ("cmd-unblacklistedmany", "{0} blocks/items are off the blacklist."),
+    ("cmd-blacklistedmod", "Everything from {0} is now blacklisted (saved as \"{0}:*\" in ModConfig/vintagee.json)."),
+    ("cmd-unblacklistedmod", "Everything from {0} is off the blacklist."),
+    ("cmdhelp-dumphand", "Show the held item's value and how it was worked out, with its ingredients (also written to ModData/vintagee)"),
+    ("dump-held", "{0} ({1}): {2} EMC"), ("dump-stack", "This stack of {0}: {1} EMC in total (its condition or contents count too)"),
+    ("dump-cached", "These values came from the cache: run /emc recalc to see where they came from."),
+    ("dump-noorigin", "set directly (a value file, the server config or /emc set)"), ("dump-blacklisted", "blacklisted: never has a value"),
+    ("dump-novalue", "no value"), ("dump-from", "from: {0}"), ("dump-part", "{0} ({1}): {2} EMC"),
 ])
 
 

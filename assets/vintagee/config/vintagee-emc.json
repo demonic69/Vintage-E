@@ -140,6 +140,11 @@
   "//relativeValues": "Items worth a fixed fraction of another item. '*' in code is carried into 'of'. Only used for items that got no value from recipes. A metal bit is 5 of an ingot's 100 metal units.",
   "relativeValues": [
     {
+      "code": "game:creature-fish-*",
+      "of": "game:fishraw-*",
+      "ratio": 1
+    },
+    {
       "code": "game:metalbit-*",
       "of": "game:ingot-*",
       "ratio": 0.05
@@ -209,6 +214,10 @@
     "//": "Only used for blocks/items that no recipe, trader price, relative rule or variant could value - mostly natural blocks, ruin decorations and loot. Recipes always win over these.",
     "game:coral-*": 8,
     "game:altar-*": 64,
+    "game:jonasparts-*": 1024,
+    "game:jonasframes-*": 2048,
+    "game:nightvisiondevice": 4096,
+    "game:nightvisionupgrades-*": 1024,
     "game:aquatic-*": 4,
     "game:aquaticplant-*": 2,
     "game:seaweed-*": 1,
@@ -321,7 +330,7 @@
     "game:ingotpile",
     "game:platepile",
     "game:lore-*",
-    "game:creature-*",
+    "*:creature-*",
     "game:basereturnteleporter-*",
     "game:locustnest-*",
     "game:debug*",
@@ -336,11 +345,7 @@
     "game:slopetestobj-*",
     "game:clayworkitem-*",
     "game:lootvessel-*",
-    "game:jonasframes-*",
-    "game:jonasparts-*",
     "game:eidolongearbox",
-    "game:nightvisiondevice",
-    "game:nightvisionupgrades-*",
     "game:returnbase-*",
     "game:returndeath-*",
     "game:rustypart-*",
@@ -366,7 +371,7 @@
     "game:basereturnteleporter",
     "game:corpsereturnteleporter-*",
     "game:tobtlocator-*",
-    "game:locatormap-*",
+    "*:locatormap-*",
     "game:decorlore-*",
     "game:clutteredbookshelfwithlore",
     "game:letter-*",
@@ -389,9 +394,10 @@
     "game:ember",
     "game:genericwood"
   ],
-  "//allow": "Exceptions to the blacklist: live butterflies are caught with a bug net, unlike other creature items (spawners).",
+  "//allow": "Exceptions to the blacklist: live butterflies (bug net) and live fish (fishing) can really be caught, unlike other creature items (spawners, traders and other NPCs).",
   "allow": [
-    "game:creature-butterfly-*"
+    "game:creature-butterfly-*",
+    "game:creature-fish-*"
   ],
   "worldTransmutation": {
     "swaps": [

@@ -23,6 +23,8 @@ namespace VintageE
         public const string GaleStatCode = "vintageegale";
         /// <summary>On the player entity: flight was switched on by a ring (so only we switch it off again).</summary>
         public const string FlightKey = "vintageeFlight";
+        /// <summary>On the player entity: their move speed before Swiftwolf's Rending Gale sped them up (restored afterwards).</summary>
+        public const string SpeedBaseKey = "vintageeSpeedBase";
         const float Interval = 0.5f;
 
         // ProjectE: 0.32 EMC a tick each for flying and for the shield.
@@ -205,6 +207,7 @@ namespace VintageE
             if (statsCleaned.Add(uid)) entity.Stats?.Remove("walkspeed", GaleStatCode);
 
             bool wantFlight = false, wantShield = false, flightFree = false, shieldFree = false;
+            float speed = 1;
             var paidGaleSlots = new List<ItemSlot>();
             var done = new HashSet<string>(); // the same effect twice doesn't stack
 
@@ -220,7 +223,11 @@ namespace VintageE
                         wantFlight |= flight;
                         wantShield |= shield;
                         if (free) { flightFree |= flight; shieldFree |= shield; }
-                        else paidGaleSlots.Add(slot);
+                        else
+                        {
+                            paidGaleSlots.Add(slot);
+                            speed = Math.Max(speed, ItemEmcTrinket.GaleSpeeds[ItemEmcTrinket.GetSpeedLevel(slot.Itemstack)]);
+                        }
                         continue;
                     }
                     string key = effect + (effect == "gemofeternaldensity" ? slot.GetHashCode().ToString() : "");
@@ -295,8 +302,12 @@ namespace VintageE
                 }
                 else outOfEmc = true;
             }
+            // Moving costs more the faster you go: flying 6.4 EMC/s × speed, running 6.4 EMC/s × (speed - 1).
             bool airborne = !entity.OnGround && !entity.Swimming;
-            if (wantFlight && !flightFree && airborne && player.WorldData.FreeMove && !EmcWallet.TryPay(player, Cost(FlightCostPerSecond * Interval)))
+            bool flying = wantFlight && airborne && player.WorldData.FreeMove;
+            double moveCost = flying && !flightFree ? FlightCostPerSecond * speed
+                : !flying && speed > 1 && entity.Controls.TriesToMove ? FlightCostPerSecond * (speed - 1) : 0;
+            if (moveCost > 0 && !EmcWallet.TryPay(player, Cost(moveCost * Interval)))
             {
                 outOfEmc = true;
             }
@@ -309,8 +320,40 @@ namespace VintageE
                 }
                 ItemEmcGadget.Tell(player, Lang.GetL(player.LanguageCode, "vintagee:gale-outofemc"));
                 wantFlight = false;
+                speed = 1;
             }
             SetFlight(player, wantFlight);
+            SetSpeed(player, paidGaleSlots.Count > 0 && !outOfEmc ? speed : 1);
+        }
+
+        /// <summary>
+        /// Swiftwolf's speed: multiplies the player's move speed (running and flying) by <paramref name="factor"/>,
+        /// remembering what it was so it can be put back. Creative and spectator players are left alone.
+        /// </summary>
+        void SetSpeed(IServerPlayer player, float factor)
+        {
+            IWorldPlayerData wd = player.WorldData;
+            if (wd == null || player.Entity == null) return;
+            if (wd.CurrentGameMode == EnumGameMode.Creative || wd.CurrentGameMode == EnumGameMode.Spectator) return;
+            SyncedTreeAttribute attrs = player.Entity.WatchedAttributes;
+            bool ours = attrs.HasAttribute(SpeedBaseKey);
+            if (factor > 1.001f)
+            {
+                float baseMul = ours ? attrs.GetFloat(SpeedBaseKey, 1) : wd.MoveSpeedMultiplier;
+                if (!ours) attrs.SetFloat(SpeedBaseKey, baseMul);
+                float want = baseMul * factor;
+                if (Math.Abs(wd.MoveSpeedMultiplier - want) > 0.001f)
+                {
+                    wd.MoveSpeedMultiplier = want;
+                    player.BroadcastPlayerData();
+                }
+            }
+            else if (ours)
+            {
+                wd.MoveSpeedMultiplier = attrs.GetFloat(SpeedBaseKey, 1);
+                attrs.RemoveAttribute(SpeedBaseKey);
+                player.BroadcastPlayerData();
+            }
         }
 
         /// <summary>Switches flying (the game's free move) on or off for a survival player. Only undoes flight it switched on.</summary>

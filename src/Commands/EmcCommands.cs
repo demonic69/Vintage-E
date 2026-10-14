@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -53,9 +54,10 @@ namespace VintageE
                     .HandleWith(args => Recalc(mod))
                 .EndSubCommand()
                 .BeginSubCommand("dump")
-                    .WithDescription("Write all EMC values to a CSV file")
+                    .WithDescription("Write all EMC values to a CSV file, or with 'hand' show how the held item's value was worked out")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Dump(mod, sapi))
+                    .WithArgs(parsers.OptionalWordRange("what", "hand"))
+                    .HandleWith(args => (args[0] as string) == "hand" ? DumpHeld(mod, sapi, args) : Dump(mod, sapi))
                 .EndSubCommand()
                 .BeginSubCommand("missing")
                     .WithDescription("List blocks/items that ended up without an EMC value")
@@ -110,6 +112,7 @@ namespace VintageE
             ("/emc clear", "cmdhelp-clear", true),
             ("/emc recalc", "cmdhelp-recalc", true),
             ("/emc dump", "cmdhelp-dump", true),
+            ("/emc dump hand", "cmdhelp-dumphand", true),
             ("/emc add <amount> [player]", "cmdhelp-add", true),
             ("/emc remove <amount> [player]", "cmdhelp-remove", true),
             ("/emc learn", "cmdhelp-learn", true),
@@ -226,6 +229,69 @@ namespace VintageE
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Success(report.Blacklisted.Count + " blacklisted: " + string.Join(", ", report.Blacklisted.Take(40).Select(c => c.Code.ToString())));
+        }
+
+        static readonly System.Text.RegularExpressions.Regex CodeToken = new System.Text.RegularExpressions.Regex(@"\b([a-z0-9_]+:[a-z0-9_.\-/]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// /emc dump hand: the held item's value and where it came from, then the same for each block/item that
+        /// source mentions (two levels). Shown in chat and written to ModData/vintagee/emc-dump-&lt;code&gt;.txt.
+        /// </summary>
+        static TextCommandResult DumpHeld(VintageEModSystem mod, ICoreServerAPI sapi, TextCommandCallingArgs args)
+        {
+            string lang = args.LanguageCode;
+            ItemStack held = args.Caller.Player?.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+            if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
+            EmcMappingReport report = mod.LastReport;
+            var sb = new StringBuilder();
+            double stackValue = mod.Emc.GetValue(held);
+            double baseValue = mod.Emc.GetValue(held.Collectible);
+            sb.AppendLine(Lang.GetL(lang, "vintagee:dump-held", held.GetName(), held.Collectible.Code, EmcFormat.Format(baseValue)));
+            if (Math.Abs(stackValue - baseValue * held.StackSize) > 0.0001 && held.StackSize > 0)
+            {
+                sb.AppendLine(Lang.GetL(lang, "vintagee:dump-stack", held.StackSize, EmcFormat.Format(stackValue)));
+            }
+            if (report == null || report.FromCache)
+            {
+                sb.AppendLine(Lang.GetL(lang, "vintagee:dump-cached"));
+            }
+            else
+            {
+                var seen = new HashSet<CollectibleObject> { held.Collectible };
+                Explain(mod, sapi, report, held.Collectible, sb, "  ", 0, seen, lang);
+            }
+            string text = sb.ToString().TrimEnd();
+            try
+            {
+                string safe = held.Collectible.Code.ToString().Replace(':', '_').Replace('/', '_').Replace('*', '_');
+                string file = System.IO.Path.Combine(sapi.GetOrCreateDataPath("vintagee"), "emc-dump-" + safe + ".txt");
+                System.IO.File.WriteAllText(file, text + "\n");
+            }
+            catch (Exception e) { sapi.Logger.Warning("Vintage-E: could not write the dump file: {0}", e.Message); }
+            return TextCommandResult.Success(text);
+        }
+
+        static void Explain(VintageEModSystem mod, ICoreServerAPI sapi, EmcMappingReport report, CollectibleObject c, StringBuilder sb, string indent, int depth, HashSet<CollectibleObject> seen, string lang)
+        {
+            if (!report.Origins.TryGetValue(c, out string origin) || string.IsNullOrEmpty(origin))
+            {
+                sb.AppendLine(indent + Lang.GetL(lang, mod.Emc.GetValue(c) > 0 ? "vintagee:dump-noorigin" : (report.Blacklisted.Contains(c) ? "vintagee:dump-blacklisted" : "vintagee:dump-novalue")));
+                return;
+            }
+            sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-from", origin));
+            if (depth >= 1) return;
+            int shown = 0;
+            foreach (System.Text.RegularExpressions.Match m in CodeToken.Matches(origin))
+            {
+                var loc = new AssetLocation(m.Groups[1].Value);
+                CollectibleObject part = (CollectibleObject)sapi.World.GetItem(loc) ?? sapi.World.GetBlock(loc);
+                if (part == null || !seen.Add(part)) continue;
+                if (++shown > 8) break;
+                string name;
+                try { name = part.GetHeldItemName(new ItemStack(part)); } catch { name = part.Code.ToShortString(); }
+                sb.AppendLine(indent + "- " + Lang.GetL(lang, "vintagee:dump-part", name, part.Code, EmcFormat.Format(mod.Emc.GetValue(part))));
+                Explain(mod, sapi, report, part, sb, indent + "    ", depth + 1, seen, lang);
+            }
         }
 
         static TextCommandResult Dump(VintageEModSystem mod, ICoreServerAPI sapi)

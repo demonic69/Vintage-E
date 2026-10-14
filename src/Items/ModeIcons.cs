@@ -6,16 +6,16 @@ namespace VintageE
     /// <summary>Icons for the tool-mode menu that can show an on/off state.</summary>
     public static class ModeIcons
     {
-        /// <summary>A letter; switched-off entries are drawn faded and struck through.</summary>
-        public static void Letter(ICoreClientAPI capi, Context ctx, int x, int y, float w, float h, string letter, bool on)
+        /// <summary>A letter; switched-off entries are drawn faded and struck through (or only faded, for choices that aren't picked).</summary>
+        public static void Letter(ICoreClientAPI capi, Context ctx, int x, int y, float w, float h, string letter, bool on, bool faded = false)
         {
-            double alpha = on ? 1 : 0.35;
+            double alpha = on ? 1 : faded ? 0.45 : 0.35;
             CairoFont font = CairoFont.WhiteMediumText().WithColor(new double[] { 1, 1, 1, alpha });
             font.SetupContext(ctx);
             TextExtents size = font.GetTextExtents(letter);
             double asc = font.GetFontExtents().Ascent;
             capi.Gui.Text.DrawTextLine(ctx, font, letter, x + (w - size.Width) / 2, y + (h - asc) / 2);
-            if (on) return;
+            if (on || faded) return;
             ctx.SetSourceRGBA(1, 0.35, 0.3, 0.9);
             ctx.LineWidth = 3;
             ctx.MoveTo(x + w * 0.15, y + h * 0.85);

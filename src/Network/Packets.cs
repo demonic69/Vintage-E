@@ -65,6 +65,8 @@ namespace VintageE
         [ProtoMember(2)] public double Value;
         /// <summary>Sent from the blacklist window (the reply reopens that one).</summary>
         [ProtoMember(3)] public bool FromBlacklist;
+        /// <summary>Several blocks/items at once (Key is then unused).</summary>
+        [ProtoMember(4)] public string[] Keys;
     }
 
     /// <summary>Client → server: put a block/item on the blacklist (Add) or take it off, from the missing/blacklist windows (admins only).</summary>
@@ -74,6 +76,10 @@ namespace VintageE
         [ProtoMember(1)] public string Key;
         [ProtoMember(2)] public bool Add;
         [ProtoMember(3)] public bool FromBlacklist;
+        /// <summary>Several blocks/items at once (Key is then unused).</summary>
+        [ProtoMember(4)] public string[] Keys;
+        /// <summary>A whole mod (its domain) instead of single blocks/items.</summary>
+        [ProtoMember(5)] public string Domain;
     }
 
     /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>

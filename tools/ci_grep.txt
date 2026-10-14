@@ -1,7 +1,6 @@
-# Terms whose asset files the CI run copies into grep.json ("path:..." matches the file path), one per line.
-path:seraph/clothes/emblem
-path:seraph/clothes/arm
-path:itemtypes/wearable/clothes
-path:itemtypes/clothing
-emblem-flyingfishfigurine
-clothes-arm-maple
+# Terms whose asset files the CI run copies into grep.json ("path:..." matches the file path; text terms skip lang files), one per line.
+path:seraphclothes/emblem
+path:seraphclothes/arm
+path:humanoid/seraph.json
+path:itemtypes/wearable
+flyingfishfigurine
