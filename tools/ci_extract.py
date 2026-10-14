@@ -178,7 +178,7 @@ if grep_terms:
             for t in grep_terms:
                 hit = t[5:] in rel(path) if t.startswith("path:") else ("/lang/" not in rel(path) and t in text)
                 if hit:
-                    if len(text) <= 60000:
+                    if len(text) <= 60000 or (t.startswith("path:") and len(text) <= 600000):
                         found[t].append({"file": rel(path), "text": text})
                     else:
                         lines = text.splitlines()

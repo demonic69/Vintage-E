@@ -27,7 +27,8 @@ ITEM = {
                              "On a pedestal: pulls in items within 10 blocks and puts them into containers next to the pedestal.\n"
                              "Works from your hotbar or backpack; right-click to switch on/off.",
     "trinket-swiftwolfsrendinggale": "While on: you can fly (jump to rise, sneak to sink) and/or a shield pushes hostile creatures and arrows away within 5 blocks; pick flight + shield, flight or shield with the tool-mode key.\n"
-                                     "Flying costs 6.4 EMC a second while you are in the air, the shield 6.4 EMC a second. No fall damage while it's on and for 15 seconds after you stop flying. It switches off when you run out of EMC.\n"
+                                     "The tool-mode key also picks your speed, running and flying: 1x, 1.5x, 2x or 3x.\n"
+                                     "Flying costs 6.4 EMC a second x your speed while you are in the air; running faster than normal costs 6.4 EMC a second x (speed - 1) while you move; the shield costs 6.4 EMC a second. No fall damage while it's on and for 15 seconds after you stop flying. It switches off when you run out of EMC.\n"
                                      "On a pedestal: strikes hostile creatures within 10 blocks for 4 damage a second.",
     "trinket-harvestgoddessband": "While on: crops within 5 blocks grow (6 tries a second, 4 EMC per stage) and ripe ones are harvested. Switched off it still grows nearby crops slowly, for free.\n"
                                   "Right-click farmland to plant the seeds you carry on empty farmland up to 8 blocks around.\n"
@@ -85,7 +86,7 @@ ITEM = {
 for tier, cap in KLEIN:
     ITEM["kleinstar-" + tier] = (f"Holds up to {cap} EMC. Rings, amulets and gadgets draw from the stars you carry once your own EMC runs out.\n"
                                  "Right-click: empty it into your EMC. Sneak + right-click: fill it from your EMC. Sneak + right-click a collector or relay with it to charge it.\n"
-                                 "Four stars craft into the next size and keep their EMC.")
+                                 "Four stars craft into the next size and keep their EMC. Can be worn in your emblem slot.")
 
 TOOLS = {
     "dark": {"tier": 5, "speed": 9, "sword": 8, "axe": 5, "hammer": 5, "other": 3.5, "hammerspeed": 8, "shears": 12, "hoe": 5, "area": "3x3"},
@@ -145,3 +146,7 @@ for m, name, heat, burn, speed, emc in (("dark", "Dark", 1.4, 3, 4, 2), ("red", 
             f"Collectors and relays next to it can power it instead: with nothing burning it lights itself on EMC, {emc} EMC a second at {int(1300 * heat):,} °C.")
     for state in ("cold", "lit", "extinct"):
         BLOCK[f"furnace-{m}-{state}"] = text
+
+# Rings can be worn in the arm slot and keep working there.
+for _ring in ("blackholeband", "swiftwolfsrendinggale", "harvestgoddessband", "ignitionring", "zeroring", "ringofarcana", "voidring"):
+    ITEM["trinket-" + _ring] += "\nCan be worn in your arm slot, where it keeps working."
