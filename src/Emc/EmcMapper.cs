@@ -200,6 +200,18 @@ namespace VintageE
                 foreach (var kv in extra) k[kv.Key] = kv.Value;
                 return k;
             }
+
+            // Ratio rules again, now that trader prices may have valued what they're relative to (cheese slices of a
+            // traded cheese, say).
+            int relativeAgain = 0;
+            foreach (var kv in RelativeValues(index, Known(), excluded, extraOrigin))
+            {
+                if (extra.ContainsKey(kv.Key) || solver.Values.ContainsKey(kv.Key)) continue;
+                extra[kv.Key] = kv.Value;
+                relativeAgain++;
+            }
+            report.RelativeCount += relativeAgain;
+            solver = Stage(solver);
             void Take(Dictionary<CollectibleObject, double> found, ref int counter)
             {
                 foreach (var kv in found)

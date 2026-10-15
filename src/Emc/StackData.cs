@@ -221,7 +221,7 @@ namespace VintageE
             if (c == null || c is IEmcStorageItem) return null;
             if (HasClass(c, "BlockMicroBlock") || HasClass(c, "BlockChisel")) return StackDataKind.Chiseled;
             if (HasClass(c, "BlockLiquidContainerBase") || HasClass(c, "BlockCookedContainerBase") || HasClass(c, "BlockMeal") ||
-                HasClass(c, "BlockCrock") || HasClass(c, "BlockPie") || HasClass(c, "BlockBarrel"))
+                HasClass(c, "BlockCrock") || HasClass(c, "BlockPie") || HasClass(c, "BlockBarrel") || HasClass(c, "BlockSmeltedContainer"))
             {
                 return StackDataKind.Contents;
             }

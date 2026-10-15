@@ -101,6 +101,12 @@ namespace VintageE
         /// </summary>
         public double ContentsValue(ItemStack stack, int depth = 0)
         {
+            // A crucible of molten metal holds "units" of its output (100 units = one ingot).
+            if (stack.Attributes?["units"] is IntAttribute units && stack.Attributes.GetItemstack("output") is ItemStack metal)
+            {
+                if (metal.Collectible == null && (World == null || !metal.ResolveBlockOrItem(World))) return 0;
+                return GetValue(metal, depth + 1) * units.value / 100.0;
+            }
             double sum = 0;
             foreach (ItemStack inner in StackContents.NestedStacks(stack))
             {

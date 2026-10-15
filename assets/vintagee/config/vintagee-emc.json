@@ -145,6 +145,21 @@
       "ratio": 1
     },
     {
+      "code": "game:cheese-*-3slice",
+      "of": "game:cheese-*-4slice",
+      "ratio": 0.75
+    },
+    {
+      "code": "game:cheese-*-2slice",
+      "of": "game:cheese-*-4slice",
+      "ratio": 0.5
+    },
+    {
+      "code": "game:cheese-*-1slice",
+      "of": "game:cheese-*-4slice",
+      "ratio": 0.25
+    },
+    {
       "code": "game:lore-paper",
       "of": "game:paper-parchment",
       "ratio": 1
@@ -467,7 +482,8 @@
       "arrow:material",
       "spear:material",
       "crushed:material",
-      "slantedroofing*:material"
+      "slantedroofing*:material",
+      "cheese:part"
     ],
     "otherGroups": "copy"
   },

@@ -238,6 +238,9 @@ namespace VintageE
             string boat = OriginOf("game:boat-sailed-oak");
             Line("  oak sailboat: " + ValueOf("game:boat-sailed-oak") + " (" + (boat.Length > 120 ? boat.Substring(0, 120) + "..." : boat) + ")");
             Check(boat.StartsWith("built in stages") && ValueOf("game:boat-sailed-oak") > ValueOf("game:boat-raft-oak"), "sailboats are valued from their build stages");
+            double four = ValueOf("game:cheese-cheddar-4slice"), two = ValueOf("game:cheese-cheddar-2slice");
+            Line($"  cheddar: 4 slices {four}, 2 slices {two} ({OriginOf("game:cheese-cheddar-2slice")})");
+            Check(four > 0 && Math.Abs(two - four / 2) < 1e-6, "half a cheese is worth half a cheese");
             string mold = OriginOf("game:toolmold-black-fired-axe");
             Line("  black axe mold: " + ValueOf("game:toolmold-black-fired-axe") + " (" + mold + ")");
             Check(!mold.Contains("anvil"), "the axe mold isn't priced like the anvil mold");
@@ -300,6 +303,23 @@ namespace VintageE
                 double full = mod.Emc.GetValue(Chiseled(16)), half = mod.Emc.GetValue(Chiseled(8)), rock = mod.Emc.GetValue(granite);
                 Line($"  chiseled granite: full {full}, half {half}, rock {rock}");
                 Check(rock > 0 && Math.Abs(full - rock) < 1e-6 && Math.Abs(half - rock / 2) < 1e-6, "chiseled blocks are worth their voxels of material");
+            }
+
+            // A crucible holding 2 ingots' worth of molten copper (200 units).
+            Block crucible = sapi.World.GetBlock(new AssetLocation("game:crucible-blue-smelted"));
+            Item copper = sapi.World.GetItem(new AssetLocation("game:ingot-copper"));
+            if (crucible != null && copper != null)
+            {
+                var st = new ItemStack(crucible);
+                st.Attributes.SetItemstack("output", new ItemStack(copper));
+                st.Attributes.SetInt("units", 200);
+                StackDataMode before = data.ModeOf(crucible);
+                data.Modes[crucible] = StackDataMode.Full;
+                double full = mod.Emc.GetValue(st);
+                data.Modes[crucible] = before;
+                double expect = mod.Emc.GetValue(crucible) + 2 * mod.Emc.GetValue(copper);
+                Line($"  crucible with 200 units of copper, item + contents: {full} (expected {expect}); kind {data.KindOf(crucible)}");
+                Check(data.CarriesData(crucible) && Math.Abs(full - expect) < 1e-6, "a crucible of molten metal counts its metal units");
             }
 
             // A bucket of water: item only by default; item + contents adds the water.

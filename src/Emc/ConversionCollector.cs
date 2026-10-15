@@ -868,7 +868,7 @@ namespace VintageE
         /// </summary>
         void CollectFromAttributes()
         {
-            int baking = 0, juicing = 0, distilling = 0, kiln = 0;
+            int baking = 0, juicing = 0, distilling = 0, kiln = 0, carburizing = 0;
             foreach (CollectibleObject c in index.All)
             {
                 JsonObject attrs = c.Attributes;
@@ -910,6 +910,14 @@ namespace VintageE
                         }
                     }
 
+                    // Carburizing in the stone coffin (cementation): iron turns into blister steel, one for one.
+                    JsonObject carb = attrs["carburizableProps"]?["carburizedOutput"];
+                    if (carb != null && carb.Exists)
+                    {
+                        var (steel, size) = ResolveStack(carb, c.Code.Domain);
+                        if (steel != null && steel != c && AddProcessing(c, 1, steel, Math.Max(1, size), "carburizing")) carburizing++;
+                    }
+
                     JsonObject distill = attrs["distillationProps"];
                     if (distill != null && distill.Exists)
                     {
@@ -927,6 +935,7 @@ namespace VintageE
             Count("attributes: fruit press", juicing);
             Count("attributes: distillation", distilling);
             Count("attributes: beehive kiln", kiln);
+            Count("attributes: carburizing", carburizing);
         }
 
         (CollectibleObject, int) ResolveStack(JsonObject spec, string defaultDomain)

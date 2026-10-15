@@ -124,7 +124,7 @@ namespace VintageE
                 }
                 if (c.Attributes != null)
                 {
-                    foreach (string key in new[] { "emcValue", "bakingProperties", "juiceableProperties", "distillationProps", "waterTightContainerProps", "drop", "drops", "requiredUnits", "breaksWhenFilled", "beehivekiln" })
+                    foreach (string key in new[] { "emcValue", "bakingProperties", "juiceableProperties", "distillationProps", "waterTightContainerProps", "drop", "drops", "requiredUnits", "breaksWhenFilled", "beehivekiln", "carburizableProps" })
                     {
                         var a = c.Attributes[key];
                         if (a != null && a.Exists) sb.Append('|').Append(key).Append('=').Append(a.Token?.ToString(Formatting.None));

@@ -232,7 +232,8 @@ namespace VintageE
             double rate = Median(rates);
             foreach (CollectibleObject c in index.All)
             {
-                if (values.ContainsKey(c) || skip(c)) continue;
+                // Only real inventory items: a growing crop, a pit kiln or a firewood pile isn't something you burn as fuel.
+                if (values.ContainsKey(c) || skip(c) || !CollectibleIndex.IsListed(c)) continue;
                 var props = c.CombustibleProps;
                 if (props == null || props.SmeltedStack != null) continue; // things that smelt into something are valued from that
                 double energy = Energy(c);
@@ -270,7 +271,7 @@ namespace VintageE
             double overall = Median(all);
             foreach (CollectibleObject c in index.All)
             {
-                if (values.ContainsKey(c) || skip(c)) continue;
+                if (values.ContainsKey(c) || skip(c) || !CollectibleIndex.IsListed(c)) continue;
                 var n = c.NutritionProps;
                 if (n == null || n.Satiety <= 0) continue;
                 double rate = byCategory.TryGetValue(n.FoodCategory, out var list) && list.Count >= 3 ? Median(list) : overall;
