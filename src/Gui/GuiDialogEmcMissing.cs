@@ -11,7 +11,9 @@ namespace VintageE
     /// <summary>
     /// Window opened by /emc missing (every block/item that still has no EMC value) and /emc blacklist (everything
     /// the blacklist keeps from having one): a scrollable list with icons, a search bar, a mod filter and a
-    /// blocks/items filter. Click an icon to open its handbook page; "Copy codes" puts the filtered list on the
+    /// blocks/items filter. Each window can mix in the other list: "Show blacklisted" in the missing window,
+    /// unticking "Hide missing" in the blacklist window; those entries are tagged and get their own button
+    /// ("Remove from blacklist" / "Blacklist it"). Click an icon to open its handbook page; "Copy codes" puts the filtered list on the
     /// clipboard ready to paste into BaseValues.
     /// Admins click names to select them (click again to unselect; "Select shown" picks everything the filters show),
     /// then type a value and press "Set value" (saved like /emc set; it also takes blacklisted items off the
@@ -34,7 +36,17 @@ namespace VintageE
             public string Domain;
             public bool IsBlock;
             public string Why;
+            /// <summary>From the other list: blacklisted (missing window) or missing (blacklist window).</summary>
+            public bool Other;
         }
+
+        /// <summary>"Show blacklisted" in the missing window; remembered while the game runs.</summary>
+        static bool showBlacklisted;
+        /// <summary>"Hide missing" in the blacklist window; ticked at first so the window opens with just the blacklist.</summary>
+        static bool hideMissing = true;
+
+        /// <summary>Whether the other list's entries are listed right now.</summary>
+        bool ShowOther => IsBlacklist ? !hideMissing : showBlacklisted;
 
         readonly EmcMissingPacket packet;
         readonly Action<string[], double> onSetValue;
@@ -83,6 +95,24 @@ namespace VintageE
                     Why = packet.Why != null && ki < packet.Why.Length ? packet.Why[ki] : null
                 });
             }
+            string[] otherKeys = packet.OtherKeys ?? Array.Empty<string>();
+            var seenKeys = new HashSet<string>(all.Select(e => e.Key));
+            for (int ki = 0; ki < otherKeys.Length; ki++)
+            {
+                string key = otherKeys[ki];
+                if (!seenKeys.Add(key)) continue;
+                CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
+                if (c?.Code == null) continue;
+                string name;
+                try { name = c.GetHeldItemName(new ItemStack(c)); }
+                catch { name = c.Code.ToShortString(); }
+                all.Add(new Entry
+                {
+                    Collectible = c, Key = key, Name = name, Code = c.Code.ToString(), Domain = c.Code.Domain,
+                    IsBlock = c.ItemClass == EnumItemClass.Block, Other = true,
+                    Why = packet.OtherWhy != null && ki < packet.OtherWhy.Length ? packet.OtherWhy[ki] : null
+                });
+            }
             all.Sort((a, b) => string.Compare(a.Code, b.Code, StringComparison.Ordinal));
             if (previous != null)
             {
@@ -101,7 +131,10 @@ namespace VintageE
             ClearComposers();
             double top = GuiStyle.TitleBarHeight + 4;
 
-            ElementBounds summaryBounds = ElementBounds.Fixed(0, top, ListWidth + 30, 40);
+            bool canShowOther = all.Any(e => e.Other);
+            ElementBounds summaryBounds = ElementBounds.Fixed(0, top, canShowOther ? ListWidth - 190 : ListWidth + 30, 40);
+            ElementBounds showSwitchBounds = ElementBounds.Fixed(ListWidth - 180, top + 2, 30, 30);
+            ElementBounds showLabelBounds = ElementBounds.Fixed(ListWidth - 144, top + 7, 180, 24);
             double row = top + 46;
             ElementBounds searchBounds = ElementBounds.Fixed(0, row, 230, 30);
             ElementBounds domainBounds = ElementBounds.Fixed(240, row, 170, 30);
@@ -129,7 +162,11 @@ namespace VintageE
             ElementBounds setBounds = ElementBounds.Fixed(130, editRow, 100, 30);
             ElementBounds listButtonBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 230, 30);
 
-            double modRow = editRow + 38;
+            bool unblacklistRow = canShowOther && ShowOther;
+            double unblRow = editRow + 38;
+            ElementBounds unblButtonBounds = ElementBounds.Fixed(ListWidth - 230, unblRow, 230, 30);
+            ElementBounds unblHintBounds = ElementBounds.Fixed(0, unblRow + 6, ListWidth - 240, 24);
+            double modRow = unblacklistRow ? unblRow + 38 : editRow + 38;
             ElementBounds modButtonBounds = ElementBounds.Fixed(ListWidth - 230, modRow, 230, 30);
             ElementBounds modHintBounds = ElementBounds.Fixed(0, modRow + 6, ListWidth - 240, 24);
 
@@ -137,29 +174,34 @@ namespace VintageE
             bgBounds.BothSizing = ElementSizing.FitToChildren;
             bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds,
                 selectedBounds, selectAllBounds, clearBounds, valueBounds, setBounds, listButtonBounds, modButtonBounds, modHintBounds);
+            if (canShowOther) bgBounds.WithChildren(showSwitchBounds, showLabelBounds);
+            if (unblacklistRow) bgBounds.WithChildren(unblButtonBounds, unblHintBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
-            string[] domains = all.Select(e => e.Domain).Distinct().OrderBy(d => d == "game" ? "" : d, StringComparer.Ordinal).ToArray();
+            // Counts and filters cover what can be listed right now (the other list only while it's shown).
+            List<Entry> listable = all.Where(e => !e.Other || ShowOther).ToList();
+            int mainCount = all.Count(e => !e.Other), otherCount = all.Count - mainCount;
+            string[] domains = listable.Select(e => e.Domain).Distinct().OrderBy(d => d == "game" ? "" : d, StringComparer.Ordinal).ToArray();
             string[] domainValues = new[] { "*" }.Concat(domains).ToArray();
             string[] domainNames = new[] { Lang.Get("vintagee:missing-allmods") }
-                .Concat(domains.Select(d => d + " (" + all.Count(e => e.Domain == d) + ")")).ToArray();
+                .Concat(domains.Select(d => d + " (" + listable.Count(e => e.Domain == d) + ")")).ToArray();
             string[] typeValues = { "*", "block", "item" };
             string[] typeNames =
             {
                 Lang.Get("vintagee:missing-alltypes"),
-                Lang.Get("vintagee:missing-blocks") + " (" + all.Count(e => e.IsBlock) + ")",
-                Lang.Get("vintagee:missing-items") + " (" + all.Count(e => !e.IsBlock) + ")"
+                Lang.Get("vintagee:missing-blocks") + " (" + listable.Count(e => e.IsBlock) + ")",
+                Lang.Get("vintagee:missing-items") + " (" + listable.Count(e => !e.IsBlock) + ")"
             };
 
             string summary = IsBlacklist
-                ? Lang.Get(all.Count == 0 ? "vintagee:blacklist-summary-none" : "vintagee:blacklist-summary", all.Count, packet.ValueCount, packet.Version)
-                : all.Count == 0
+                ? Lang.Get(mainCount == 0 ? "vintagee:blacklist-summary-none" : "vintagee:blacklist-summary", mainCount, packet.ValueCount, packet.Version)
+                : mainCount == 0
                     ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
-                    : Lang.Get("vintagee:missing-summary", all.Count, packet.CreativeTotal, packet.ValueCount, packet.Version);
+                    : Lang.Get("vintagee:missing-summary", mainCount, packet.CreativeTotal, packet.ValueCount, packet.Version);
 
             composing = true;
-            SingleComposer = capi.Gui
+            GuiComposer composer = capi.Gui
                 .CreateCompo(IsBlacklist ? "vintagee-blacklist" : "vintagee-missing", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
                 .AddDialogTitleBar(Lang.Get(IsBlacklist ? "vintagee:blacklist-title" : "vintagee:missing-title"), () => TryClose())
@@ -185,9 +227,20 @@ namespace VintageE
                     .AddSmallButton(Lang.Get("vintagee:missing-set"), OnSet, setBounds)
                     .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklist" : "vintagee:missing-blacklist"), OnBlacklistButton, listButtonBounds)
                     .AddDynamicText("", CairoFont.WhiteDetailText(), modHintBounds, "modhint")
-                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistmod" : "vintagee:missing-blacklistmod"), OnModButton, modButtonBounds)
-                .EndChildElements()
-                .Compose();
+                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistmod" : "vintagee:missing-blacklistmod"), OnModButton, modButtonBounds);
+            if (canShowOther)
+            {
+                composer.AddSwitch(OnToggleOther, showSwitchBounds, "showother", 26)
+                        .AddStaticText(Lang.Get(IsBlacklist ? "vintagee:blacklist-hidemissing" : "vintagee:missing-showblacklisted", otherCount), CairoFont.WhiteDetailText(), showLabelBounds);
+            }
+            if (unblacklistRow)
+            {
+                // Its own button for the mixed-in entries: take blacklisted ones off the blacklist, or blacklist missing ones.
+                composer.AddStaticText(Lang.Get(IsBlacklist ? "vintagee:blacklist-blacklisthint" : "vintagee:missing-unblacklisthint"), CairoFont.WhiteDetailText(), unblHintBounds)
+                        .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-blacklist" : "vintagee:missing-unblacklist"), OnOtherButton, unblButtonBounds);
+            }
+            SingleComposer = composer.EndChildElements().Compose();
+            SingleComposer.GetSwitch("showother")?.SetValue(IsBlacklist ? hideMissing : showBlacklisted);
 
             composing = false;
             SingleComposer.GetTextInput("search")?.SetPlaceHolderText(Lang.Get("vintagee:gui-search-missing"));
@@ -203,6 +256,7 @@ namespace VintageE
             {
                 string needle = search.Trim().ToLowerInvariant();
                 shown = all.Where(e =>
+                        (!e.Other || ShowOther) &&
                         (domainFilter == "*" || e.Domain == domainFilter) &&
                         (typeFilter == "*" || (typeFilter == "block") == e.IsBlock) &&
                         (needle.Length == 0 || e.Code.ToLowerInvariant().Contains(needle) || e.Name.ToLowerInvariant().Contains(needle)))
@@ -215,6 +269,9 @@ namespace VintageE
                 CairoFont pickedFont = CairoFont.WhiteSmallText().WithColor(new double[] { 0.55, 1, 0.55, 1 }).WithWeight(Cairo.FontWeight.Bold);
                 CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
                 CairoFont whyFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.85, 0.75, 0.5, 1 });
+                // Mixed-in entries: red for blacklisted ones, amber for missing ones.
+                CairoFont otherFont = CairoFont.WhiteSmallText().WithColor(IsBlacklist ? new double[] { 1, 0.8, 0.4, 1 } : new double[] { 1, 0.55, 0.5, 1 });
+                string otherTag = Lang.Get(IsBlacklist ? "vintagee:blacklist-missingtag" : "vintagee:missing-blacklistedtag") + "  ";
                 foreach (Entry e in shown.Skip(page * PerPage).Take(PerPage))
                 {
                     ItemStack stack = null;
@@ -224,13 +281,15 @@ namespace VintageE
                     if (stack != null) comps.Add(new ItemstackTextComponent(capi, stack, 32, 6, EnumFloat.Inline, OpenHandbook) { VerticalAlign = EnumVerticalAlign.Middle });
                     Entry entry = e;
                     bool picked = selected.Contains(e.Key);
-                    comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : nameFont, _ => Toggle(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
+                    comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : e.Other ? otherFont : nameFont, _ => Toggle(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
+                    if (e.Other) comps.Add(new RichTextComponent(capi, otherTag, otherFont) { VerticalAlign = EnumVerticalAlign.Middle });
                     comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont) { VerticalAlign = EnumVerticalAlign.Middle });
                     if (!string.IsNullOrEmpty(e.Why)) comps.Add(new RichTextComponent(capi, "      " + e.Why + "\n", whyFont));
                 }
+                int listable = all.Count(e => !e.Other || ShowOther);
                 if (shown.Count == 0)
                 {
-                    comps.Add(new RichTextComponent(capi, Lang.Get(all.Count == 0 ? (IsBlacklist ? "vintagee:blacklist-empty" : "vintagee:missing-empty") : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
+                    comps.Add(new RichTextComponent(capi, Lang.Get(listable == 0 ? (IsBlacklist ? "vintagee:blacklist-empty" : "vintagee:missing-empty") : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
                 }
 
                 GuiElementRichtext list = SingleComposer.GetRichtext("list");
@@ -251,7 +310,7 @@ namespace VintageE
                 list.Bounds.fixedY = -scroll;
                 list.Bounds.CalcWorldBounds();
 
-                SingleComposer.GetDynamicText("count")?.SetNewText(Lang.Get("vintagee:missing-page", page + 1, pages, shown.Count, all.Count));
+                SingleComposer.GetDynamicText("count")?.SetNewText(Lang.Get("vintagee:missing-page", page + 1, pages, shown.Count, listable));
                 UpdateStatus();
             }
             catch (Exception ex)
@@ -318,9 +377,32 @@ namespace VintageE
             return true;
         }
 
+        /// <summary>"Show blacklisted" (missing window) / "Hide missing" (blacklist window).</summary>
+        void OnToggleOther(bool on)
+        {
+            if (composing) return;
+            if (IsBlacklist) hideMissing = on;
+            else showBlacklisted = on;
+            page = 0;
+            // Recompose after the click (the switch belongs to the current layout): adds or removes the extra button row.
+            capi.Event.EnqueueMainThreadTask(() => { if (IsOpened()) Compose(); }, "vintagee-missing");
+        }
+
+        /// <summary>The mixed-in entries' button: takes blacklisted ones off the blacklist, or blacklists missing ones.</summary>
+        bool OnOtherButton()
+        {
+            string[] keys = all.Where(e => selected.Contains(e.Key) && e.Other).Select(e => e.Key).ToArray();
+            if (keys.Length == 0) { UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:blacklist-selectmissing" : "vintagee:missing-selectblacklisted")); return true; }
+            if (onBlacklist == null) return true;
+            onBlacklist(keys, IsBlacklist);
+            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-blacklistingmany" : "vintagee:missing-unblacklistingmany", keys.Length));
+            return true;
+        }
+
         bool OnBlacklistButton()
         {
-            string[] keys = SelectedKeys;
+            // The window's own button only acts on its own list's entries (not the mixed-in ones).
+            string[] keys = all.Where(e => selected.Contains(e.Key) && !e.Other).Select(e => e.Key).ToArray();
             if (keys.Length == 0) { UpdateStatus(Lang.Get("vintagee:missing-select")); return true; }
             if (onBlacklist == null) return true;
             onBlacklist(keys, !IsBlacklist);

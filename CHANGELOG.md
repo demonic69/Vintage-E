@@ -19,6 +19,7 @@ All notable changes to Vintage-E. Each GitHub release uses its section from this
 - Ratio rules are applied again after trader prices, and fuel/food estimates only apply to real inventory items (not a growing crop or a pit kiln).
 - **Why something has no value**: `/emc missing` shows a reason under each entry (nothing makes it, or which ingredient has no value), and `emc-missing.csv` has a `why` column. In the base game only 19 items are left, and none of them can be crafted. They are the Erel and bone arrows, the Erel spear, four boss-themed figureheads, platinum, uranium and stainless steel items, cupronickel nails, crushed peridotite and the translocator schematic.
 - `/emc dump` says which step valued each item, and why a guess was made (`differs in: rock`).
+- **Show blacklisted / Hide missing.** The `/emc missing` window has a **Show blacklisted** switch that mixes everything on the blacklist into the list, tagged in red, with a **Remove from blacklist** button for them. The `/emc blacklist` window has the mirror: untick **Hide missing** to mix in everything that has no value, tagged in amber with the reason, and blacklist them from there. Both switches are remembered until you quit.
 
 ### Added — items that hold things or keep their material
 - **Three modes** for every block/item that holds things (buckets, jugs, pots, bowls, crocks, barrels, bags) or keeps what it's made of on the item (round shields, lanterns, chests, clutter, chiseled blocks):

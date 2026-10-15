@@ -471,5 +471,13 @@
   "cfg-revert": "Undo",
   "cfg-saving": "Saving...",
   "cfg-saved": "{0} saved.",
-  "cfg-badline": "This line needs to be \"key = value\": {0}"
+  "cfg-badline": "This line needs to be \"key = value\": {0}",
+  "missing-showblacklisted": "Show blacklisted ({0})",
+  "missing-blacklistedtag": "(blacklisted)",
+  "missing-unblacklisthint": "Blacklisted entries (red): select them, then take them off the blacklist.",
+  "missing-selectblacklisted": "Select blacklisted (red) entries first.",
+  "blacklist-hidemissing": "Hide missing ({0})",
+  "blacklist-missingtag": "(missing)",
+  "blacklist-blacklisthint": "Missing entries (amber): select them, then blacklist them.",
+  "blacklist-selectmissing": "Select missing (amber) entries first."
 }

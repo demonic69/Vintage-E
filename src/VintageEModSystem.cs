@@ -680,10 +680,15 @@ namespace VintageE
         public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file, bool blacklist = false)
         {
             var shownItems = (blacklist ? report.Blacklisted : report.Missing).Where(c => PlayerEmc.KeyOf(c) != null).ToList();
+            // The other list goes along so the window can mix it in: blacklisted items in the missing window, missing ones in the blacklist window.
+            var otherItems = (blacklist ? report.Missing : report.Blacklisted).Where(c => PlayerEmc.KeyOf(c) != null).ToList();
+            string WhyOf(CollectibleObject c) => report.MissingWhy != null && report.MissingWhy.TryGetValue(c, out string w) ? w : "";
             serverChannel.SendPacket(new EmcMissingPacket
             {
                 Keys = shownItems.Select(PlayerEmc.KeyOf).ToArray(),
-                Why = blacklist ? null : shownItems.Select(c => report.MissingWhy != null && report.MissingWhy.TryGetValue(c, out string w) ? w : "").ToArray(),
+                Why = blacklist ? null : shownItems.Select(WhyOf).ToArray(),
+                OtherKeys = otherItems.Select(PlayerEmc.KeyOf).ToArray(),
+                OtherWhy = blacklist ? otherItems.Select(WhyOf).ToArray() : null,
                 CreativeTotal = report.CreativeTotal,
                 ValueCount = report.Values.Count,
                 Version = Version,

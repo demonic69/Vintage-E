@@ -64,6 +64,13 @@ namespace VintageE
         [ProtoMember(6)] public bool Blacklist;
         /// <summary>Why each one has no value (same order as Keys; missing window only).</summary>
         [ProtoMember(7)] public string[] Why;
+        /// <summary>
+        /// The other list, mixed in on request: in the missing window everything blacklisted ("Show blacklisted"),
+        /// in the blacklist window everything missing (untick "Hide missing").
+        /// </summary>
+        [ProtoMember(8)] public string[] OtherKeys;
+        /// <summary>Why each of <see cref="OtherKeys"/> has no value (blacklist window only, same order).</summary>
+        [ProtoMember(9)] public string[] OtherWhy;
     }
 
     /// <summary>Client → server: set a block/item's EMC value from the /emc missing window (admins only). Key is "i:code" / "b:code".</summary>

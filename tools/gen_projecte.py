@@ -854,6 +854,12 @@ LANG = O([
     ("cfg-saved", "{0} saved."),
     ("cfg-badline", "This line needs to be \"key = value\": {0}"),
     ("announce-configure", "Vintage-E can be configured in game: <strong>/emc configure</strong> opens a window with every setting, what it does, and a way to change it. /emc help lists every command."),
+    ("missing-showblacklisted", "Show blacklisted ({0})"), ("missing-blacklistedtag", "(blacklisted)"),
+    ("missing-unblacklisthint", "Blacklisted entries (red): select them, then take them off the blacklist."),
+    ("missing-selectblacklisted", "Select blacklisted (red) entries first."),
+    ("blacklist-hidemissing", "Hide missing ({0})"), ("blacklist-missingtag", "(missing)"),
+    ("blacklist-blacklisthint", "Missing entries (amber): select them, then blacklist them."),
+    ("blacklist-selectmissing", "Select missing (amber) entries first."),
 ])
 
 
