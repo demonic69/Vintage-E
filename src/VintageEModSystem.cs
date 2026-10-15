@@ -129,7 +129,7 @@ namespace VintageE
                 }
                 SendEmcTable(player);
                 if (Trinkets != null && Trinkets.WatchTimeModifier != 0) serverChannel.SendPacket(new WatchSpeedPacket { Modifier = Trinkets.WatchTimeModifier }, player);
-                Announce(player, LastReport);
+                Announce(player, LastReport, joining: true);
             };
 
             EmcCommands.Register(this, sapi);
@@ -320,12 +320,17 @@ namespace VintageE
             return string.IsNullOrEmpty(languageCode) ? Lang.Get(key, args) : Lang.GetL(languageCode, key, args);
         }
 
-        void Announce(IServerPlayer player, EmcMappingReport report)
+        void Announce(IServerPlayer player, EmcMappingReport report, bool joining = false)
         {
             if (player == null || report == null || !Config.AnnounceInChat) return;
             try
             {
                 player.SendMessage(GlobalConstants.GeneralChatGroup, AnnouncementText(report, player.LanguageCode), EnumChatType.Notification);
+                // Admins joining are told the settings can be changed in game.
+                if (joining && player.HasPrivilege(Privilege.controlserver))
+                {
+                    player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(player.LanguageCode, "vintagee:announce-configure"), EnumChatType.Notification);
+                }
             }
             catch (Exception e)
             {

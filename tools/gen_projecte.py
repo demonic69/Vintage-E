@@ -841,6 +841,7 @@ LANG = O([
     ("cfg-remapped", "Saved; EMC values were worked out again."),
     ("cfg-applied", "Saved and applied."),
     ("cfg-restart", "Saved; it takes effect the next time the server starts."),
+    ("announce-configure", "Vintage-E can be configured in game with <strong>/emc configure</strong> (every setting, what it does, and how to change it). /emc help lists every command."),
 ])
 
 
