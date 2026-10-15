@@ -82,8 +82,51 @@ namespace VintageE
         public static CollectibleObject Resolve(IWorldAccessor world, string key)
         {
             if (string.IsNullOrEmpty(key) || key.Length < 3 || key[1] != ':') return null;
+            if (IsExact(key)) return Resolve(world, PlainKeyOf(key));
             var code = new AssetLocation(key.Substring(2));
             return key[0] == 'b' ? world.GetBlock(code) : (CollectibleObject)world.GetItem(code);
         }
+
+        /// <summary>
+        /// Exact versions (a filled bucket, a gold round shield, a chiseled block) are known as
+        /// "e:" + the plain key + "|" + their stored data (base64), so each version is its own entry.
+        /// </summary>
+        public const string ExactPrefix = "e:";
+
+        public static bool IsExact(string key) => key != null && key.StartsWith(ExactPrefix, StringComparison.Ordinal) && key.IndexOf('|') > 2;
+
+        public static string ExactKey(CollectibleObject c, TreeAttribute data)
+        {
+            string plain = KeyOf(c);
+            return plain == null || data == null ? plain : ExactPrefix + plain + "|" + StackDataUtil.Encode(data);
+        }
+
+        /// <summary>"i:game:bucket" for both "i:game:bucket" and an exact "e:i:game:bucket|...".</summary>
+        public static string PlainKeyOf(string key)
+        {
+            if (!IsExact(key)) return key;
+            int bar = key.IndexOf('|');
+            return key.Substring(ExactPrefix.Length, bar - ExactPrefix.Length);
+        }
+
+        /// <summary>A single item for a knowledge key, with its stored data for exact versions (null if it no longer exists).</summary>
+        public static ItemStack ResolveStack(IWorldAccessor world, string key)
+        {
+            CollectibleObject c = Resolve(world, key);
+            if (c == null) return null;
+            ItemStack stack;
+            try { stack = new ItemStack(c, 1); }
+            catch { return null; }
+            if (IsExact(key))
+            {
+                TreeAttribute data = StackDataUtil.Decode(key.Substring(key.IndexOf('|') + 1));
+                if (data == null) return null;
+                foreach (var kv in data) stack.Attributes[kv.Key] = kv.Value.Clone();
+                StackDataUtil.ResolveNested(world, stack);
+            }
+            return stack;
+        }
+
+        public static int CountExact(IPlayer player) => GetKnown(player).Count(IsExact);
     }
 }

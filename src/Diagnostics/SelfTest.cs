@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -61,6 +63,8 @@ namespace VintageE
             {
                 CheckValues();
                 CheckWorn();
+                CheckGuesses();
+                CheckContents();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -189,6 +193,124 @@ namespace VintageE
                 void Collect(ShapeElement e) { all.Add(e); if (e.Children != null) foreach (var c in e.Children) Collect(c); }
                 if (r != null) Collect(r);
                 foreach (ShapeElement e in all) if (e != r) Line($"    {e.Name}: {Describe(e)}");
+            }
+        }
+
+        string OriginOf(string code)
+        {
+            CollectibleObject c = (CollectibleObject)sapi.World.GetBlock(new AssetLocation(code)) ?? sapi.World.GetItem(new AssetLocation(code));
+            if (c is Block b && b.Id == 0) c = sapi.World.GetItem(new AssetLocation(code));
+            if (c == null) return "missing";
+            return mod.LastReport?.Origins != null && mod.LastReport.Origins.TryGetValue(c, out string o) ? o : (mod.Emc.HasValue(c) ? "?" : "no value");
+        }
+
+        double ValueOf(string code)
+        {
+            CollectibleObject c = (CollectibleObject)sapi.World.GetBlock(new AssetLocation(code));
+            if (c == null || c.Id == 0) c = sapi.World.GetItem(new AssetLocation(code));
+            return c == null ? -1 : mod.Emc.GetValue(c);
+        }
+
+        /// <summary>1.7.0 value methods: placement states, smarter variant guesses, staged solving, fuel/food.</summary>
+        void CheckGuesses()
+        {
+            EmcMappingReport r = mod.LastReport;
+            if (r == null) { Check(false, "values are mapped"); return; }
+            Line($"  guesses: {r.SiblingCount} look/placement variants, {r.OtherModCount} other mods' variants, {r.FuelCount} fuel, {r.FoodCount} food, {r.GuessCount} other variants, {r.DefaultCount} defaults; {r.Missing.Count} missing");
+            string cinnabar = OriginOf("game:ore-cinnabar-andesite");
+            Line("  cinnabar ore: " + ValueOf("game:ore-cinnabar-andesite") + " (" + cinnabar + ")");
+            Check(!cinnabar.Contains("quartz"), "cinnabar ore isn't priced like quartz");
+            string loose = OriginOf("game:looseores-cinnabar-andesite-free");
+            Line("  loose cinnabar: " + ValueOf("game:looseores-cinnabar-andesite-free") + " (" + loose + ")");
+            Check(!loose.Contains("nativegold"), "loose cinnabar isn't priced like gold-bearing quartz");
+            string lens = OriginOf("vintagee:gadget-hyperkineticlens");
+            Line("  hyperkinetic lens: " + ValueOf("vintagee:gadget-hyperkineticlens") + " (" + lens + ")");
+            Check(lens.StartsWith("grid"), "the lenses are valued from their recipes");
+            string fence = OriginOf("game:woodenfence-acacia-e-free");
+            Line("  fence piece: " + ValueOf("game:woodenfence-acacia-e-free") + " (" + fence + ")");
+            Check(fence.Contains("placement state") && Math.Abs(ValueOf("game:woodenfence-acacia-e-free") - ValueOf("game:woodenfence-acacia-ew-free")) < 1e-6, "fence pieces are worth the fence");
+            string mold = OriginOf("game:toolmold-black-fired-axe");
+            Line("  black axe mold: " + ValueOf("game:toolmold-black-fired-axe") + " (" + mold + ")");
+            Check(!mold.Contains("anvil"), "the axe mold isn't priced like the anvil mold");
+        }
+
+        /// <summary>1.7.0 contents/material modes: kinds, material-specific values, exact copies, chiseled blocks, filled containers.</summary>
+        void CheckContents()
+        {
+            StackDataTable data = mod.Emc.StackData;
+            Line($"  contents: {data.Kinds.Count} carry data ({data.Kinds.Values.Count(k => k == StackDataKind.Contents)} containers, {data.Kinds.Values.Count(k => k == StackDataKind.Material)} material, {data.Kinds.Values.Count(k => k == StackDataKind.Chiseled)} chiseled); {data.Variants.Count} with material values");
+            foreach (var (code, kind, mode) in new[] {
+                ("game:shield-woodmetal", StackDataKind.Material, StackDataMode.Full),
+                ("game:woodbucket", StackDataKind.Contents, StackDataMode.Item),
+                ("game:chiseledblock", StackDataKind.Chiseled, StackDataMode.Full) })
+            {
+                CollectibleObject c = (CollectibleObject)sapi.World.GetItem(new AssetLocation(code)) ?? sapi.World.GetBlock(new AssetLocation(code));
+                bool ok = c != null && data.CarriesData(c) && data.KindOf(c) == kind && data.ModeOf(c) == mode;
+                Check(ok, $"{code} is {kind}, {mode} ({(c == null ? "missing" : data.CarriesData(c) ? data.KindOf(c) + ", " + data.ModeOf(c) : "not listed")})");
+            }
+
+            // Round shields: each metal its own value, and an exact copy is worth the same.
+            Item shield = sapi.World.GetItem(new AssetLocation("game:shield-woodmetal"));
+            var shieldValues = new List<(string, double)>();
+            ItemStack goldShield = null;
+            foreach (var tab in shield?.CreativeInventoryStacks ?? Array.Empty<CreativeTabAndStackList>())
+            {
+                foreach (JsonItemStack js in tab.Stacks ?? Array.Empty<JsonItemStack>())
+                {
+                    ItemStack st = js.ResolvedItemstack;
+                    if (st == null) continue;
+                    string metal = st.Attributes.GetString("metal");
+                    if (metal == null || shieldValues.Any(v => v.Item1 == metal)) continue;
+                    shieldValues.Add((metal, mod.Emc.GetValue(st)));
+                    if (metal == "gold") goldShield = st;
+                }
+            }
+            Line("  round shields by metal: " + string.Join(", ", shieldValues.Select(v => v.Item1 + " " + EmcFormat.Format(v.Item2))));
+            Check(shieldValues.Count > 1 && shieldValues.Max(v => v.Item2) > shieldValues.Min(v => v.Item2), "round shields made of different metals are worth different amounts");
+            if (goldShield != null)
+            {
+                var kept = StackDataUtil.KeptData(goldShield);
+                string key = PlayerEmc.ExactKey(goldShield.Collectible, kept);
+                ItemStack copy = TransmutationService.Prototype(mod, sapi.World, key);
+                Check(copy != null && copy.Attributes.GetString("metal") == "gold" && Math.Abs(mod.Emc.GetValue(copy) - mod.Emc.GetValue(goldShield)) < 1e-6, "an exact copy of a gold shield is a gold shield at the same price");
+            }
+
+            // Chiseled block: a full block of granite is worth a granite block, half of one half.
+            Block chiseled = sapi.World.GetBlock(new AssetLocation("game:chiseledblock"));
+            Block granite = sapi.World.GetBlock(new AssetLocation("game:rock-granite"));
+            if (chiseled != null && granite != null)
+            {
+                ItemStack Chiseled(int y2)
+                {
+                    var st = new ItemStack(chiseled);
+                    st.Attributes["materials"] = new IntArrayAttribute(new[] { granite.Id });
+                    uint cuboid = (15u << 12) | ((uint)(y2 - 1) << 16) | (15u << 20);
+                    st.Attributes["cuboids"] = new IntArrayAttribute(new[] { (int)cuboid });
+                    return st;
+                }
+                double full = mod.Emc.GetValue(Chiseled(16)), half = mod.Emc.GetValue(Chiseled(8)), rock = mod.Emc.GetValue(granite);
+                Line($"  chiseled granite: full {full}, half {half}, rock {rock}");
+                Check(rock > 0 && Math.Abs(full - rock) < 1e-6 && Math.Abs(half - rock / 2) < 1e-6, "chiseled blocks are worth their voxels of material");
+            }
+
+            // A bucket of water: item only by default; item + contents adds the water.
+            Block bucket = sapi.World.GetBlock(new AssetLocation("game:woodbucket"));
+            Item water = sapi.World.GetItem(new AssetLocation("game:waterportion"));
+            if (bucket != null && water != null)
+            {
+                var st = new ItemStack(bucket);
+                var contents = new TreeAttribute();
+                contents["0"] = new ItemstackAttribute(new ItemStack(water, 1000));
+                st.Attributes["contents"] = contents;
+                double plain = mod.Emc.GetValue(st);
+                StackDataMode before = data.ModeOf(bucket);
+                data.Modes[bucket] = StackDataMode.Full;
+                double full = mod.Emc.GetValue(st);
+                data.Modes[bucket] = StackDataMode.ItemPrice;
+                double price = mod.Emc.GetValue(st);
+                data.Modes[bucket] = before;
+                Line($"  bucket of 10 L water: item only {plain}, item + contents {full}, item price {price}");
+                Check(full > plain && Math.Abs(price - plain) < 1e-6, "filled buckets count their water only in item + contents mode");
             }
         }
 

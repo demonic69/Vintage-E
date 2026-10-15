@@ -28,6 +28,12 @@ namespace VintageE
         public int TraderCount;
         /// <summary>Items valued by "defaultValues" rules (nothing else could value them).</summary>
         public int DefaultCount;
+        /// <summary>Items valued as fuel (burn heat × time) or food (satiety) because nothing else could value them.</summary>
+        public int FuelCount, FoodCount;
+        /// <summary>Other mods' items valued like the base game's variant of the same family; items guessed across other variant groups.</summary>
+        public int OtherModCount, GuessCount;
+        /// <summary>Material-specific values (a gold round shield...) from recipes that put data on what they make.</summary>
+        public Dictionary<CollectibleObject, List<VariantValue>> Variants = new Dictionary<CollectibleObject, List<VariantValue>>();
         public double TraderRate;
         public long Milliseconds;
         public SortedDictionary<string, int> Sources;
@@ -162,15 +168,70 @@ namespace VintageE
                     logger.Warning("EMC: could not read trader prices: {0}", e.Message);
                 }
             }
-            if (config.InferFromVariantSiblings)
+            // Every stage below only fills what is still unvalued, and the graph is solved again after it, so anything
+            // made from the newly valued things gets its real recipe value before a rougher stage guesses at it.
+            int extraBefore = 0;
+            EmcSolver<CollectibleObject> Stage(EmcSolver<CollectibleObject> previous)
             {
-                foreach (var kv in SiblingValues(index, solver.Values, excluded, extraOrigin))
+                if (extra.Count == extraBefore) return previous;
+                extraBefore = extra.Count;
+                var seeded = new Dictionary<CollectibleObject, double>(fixedValues);
+                foreach (var kv in extra) seeded[kv.Key] = kv.Value;
+                EmcSolver<CollectibleObject> next = Solve(seeded, excluded, edges, joints);
+                // Backward inference depends on what's known when it runs, so a later solve can occasionally miss
+                // something an earlier one valued. Keep those earlier values.
+                foreach (var kv in previous.Values)
                 {
-                    if (extra.ContainsKey(kv.Key)) continue;
+                    if (next.Values.ContainsKey(kv.Key) || excluded.Contains(kv.Key) || next.Unstable.Contains(kv.Key)) continue;
+                    next.Values[kv.Key] = kv.Value;
+                    if (previous.Via.TryGetValue(kv.Key, out object via)) next.Via[kv.Key] = via;
+                    if (previous.Inferred.ContainsKey(kv.Key)) next.Inferred[kv.Key] = kv.Value;
+                }
+                return next;
+            }
+            solver = Stage(solver); // ratios and trader prices
+
+            bool Skip(CollectibleObject c) => excluded.Contains(c) || extra.ContainsKey(c);
+            Dictionary<CollectibleObject, double> Known()
+            {
+                var k = new Dictionary<CollectibleObject, double>(solver.Values);
+                foreach (var kv in extra) k[kv.Key] = kv.Value;
+                return k;
+            }
+            void Take(Dictionary<CollectibleObject, double> found, ref int counter)
+            {
+                foreach (var kv in found)
+                {
+                    if (extra.ContainsKey(kv.Key) || solver.Values.ContainsKey(kv.Key)) continue;
                     extra[kv.Key] = kv.Value;
-                    report.SiblingCount++;
+                    counter++;
                 }
             }
+
+            // Variant guesses across look/placement groups (and other mods' variants of base-game families), then
+            // estimates from what a thing does (fuel, food), then - if allowed - guesses across the remaining groups.
+            var guesser = new VariantGuesser(rules);
+            int guessed = 0;
+            if (config.InferFromVariantSiblings)
+            {
+                Take(guesser.Guess(index, Known(), Skip, extraOrigin, otherGroups: false), ref guessed);
+                solver = Stage(solver);
+            }
+            if (config.EstimateFuelAndFood)
+            {
+                Take(UseEstimates.Fuel(index, Known(), rules.FuelReference, Skip, extraOrigin), ref report.FuelCount);
+                Take(UseEstimates.Food(index, Known(), Skip, extraOrigin), ref report.FoodCount);
+                solver = Stage(solver);
+            }
+            if (config.InferFromVariantSiblings && rules.CopyAcrossOtherGroups)
+            {
+                Take(guesser.Guess(index, Known(), Skip, extraOrigin, otherGroups: true), ref guessed);
+                solver = Stage(solver);
+            }
+            report.SiblingCount = guesser.SameFamilyCount;
+            report.OtherModCount = guesser.OtherModCount;
+            report.GuessCount = guesser.OtherGroupCount;
+
             // Family-level guesses from the value files, for things no recipe, trader or variant could value.
             var defaults = new Dictionary<CollectibleObject, (double value, string pattern)>();
             foreach (EmcValueRule rule in rules.Defaults)
@@ -201,22 +262,7 @@ namespace VintageE
                     }
                 }
             }
-            EmcSolver<CollectibleObject> firstSolver = solver;
-            if (extra.Count > 0)
-            {
-                var seeded = new Dictionary<CollectibleObject, double>(fixedValues);
-                foreach (var kv in extra) seeded[kv.Key] = kv.Value;
-                solver = Solve(seeded, excluded, edges, joints);
-                // Backward inference depends on what's known when it runs, so the second solve can occasionally
-                // miss something the first one valued. Keep those first values.
-                foreach (var kv in firstSolver.Values)
-                {
-                    if (solver.Values.ContainsKey(kv.Key) || excluded.Contains(kv.Key) || solver.Unstable.Contains(kv.Key)) continue;
-                    solver.Values[kv.Key] = kv.Value;
-                    if (firstSolver.Via.TryGetValue(kv.Key, out object via)) solver.Via[kv.Key] = via;
-                    if (firstSolver.Inferred.ContainsKey(kv.Key)) solver.Inferred[kv.Key] = kv.Value;
-                }
-            }
+            solver = Stage(solver);
 
             report.Values = new Dictionary<CollectibleObject, double>();
             foreach (var kv in solver.Values)
@@ -225,7 +271,9 @@ namespace VintageE
             }
             report.BaseCount = fixedValues.Count;
             report.InferredCount = solver.Inferred.Keys.Count(k => report.Values.ContainsKey(k));
-            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount - report.DefaultCount;
+            report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount - report.DefaultCount
+                - report.FuelCount - report.FoodCount - report.OtherModCount - report.GuessCount;
+            report.Variants = VariantValues(collector.Conversions, report.Values, excluded);
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
@@ -338,8 +386,7 @@ namespace VintageE
             }
         }
 
-        /// <summary>Real, obtainable content: anything shown in a creative inventory tab.</summary>
-        static bool IsListed(CollectibleObject c) => (c.CreativeInventoryTabs?.Length ?? 0) > 0 || (c.CreativeInventoryStacks?.Length ?? 0) > 0;
+        static bool IsListed(CollectibleObject c) => CollectibleIndex.IsListed(c);
 
         EmcSolver<CollectibleObject> Solve(Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, List<EmcSolver<CollectibleObject>.Edge> edges, List<EmcSolver<CollectibleObject>.JointEdge> joints)
         {
@@ -369,6 +416,55 @@ namespace VintageE
                 if (index.Match(key).Contains(c)) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Material-specific values: every recipe that puts data on what it makes (a round shield's metal and wood, a
+        /// chest's wood) gives that exact version a value - its own ingredients, not the cheapest recipe's.
+        /// </summary>
+        static Dictionary<CollectibleObject, List<VariantValue>> VariantValues(List<Conversion> conversions, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded)
+        {
+            var best = new Dictionary<CollectibleObject, Dictionary<string, VariantValue>>();
+            foreach (Conversion conv in conversions)
+            {
+                if (conv.OutputData == null || conv.JointOutputs != null || conv.Output == null || excluded.Contains(conv.Output) || conv.OutputQuantity <= 0) continue;
+                double cost = conv.ExtraCost;
+                bool ok = true;
+                foreach (ConversionInput input in conv.Inputs)
+                {
+                    double cheapest = double.MaxValue;
+                    foreach (CollectibleObject choice in input.Choices)
+                    {
+                        if (values.TryGetValue(choice, out double v) && v > 0 && v < cheapest) cheapest = v;
+                    }
+                    if (cheapest == double.MaxValue) { ok = false; break; }
+                    cost += cheapest * input.Quantity;
+                }
+                if (!ok) continue;
+                if (conv.Returned != null)
+                {
+                    foreach (var r in conv.Returned)
+                    {
+                        if (values.TryGetValue(r.Key, out double v)) cost -= v * r.Value;
+                    }
+                }
+                double each = Tidy(cost / conv.OutputQuantity);
+                if (each <= 0) continue;
+                string key = StackDataUtil.Encode(conv.OutputData);
+                if (!best.TryGetValue(conv.Output, out var byData)) best[conv.Output] = byData = new Dictionary<string, VariantValue>();
+                if (!byData.TryGetValue(key, out VariantValue prev) || each < prev.Value)
+                {
+                    byData[key] = new VariantValue { Attributes = conv.OutputData, Value = each, Origin = Describe(conv) };
+                }
+            }
+            var result = new Dictionary<CollectibleObject, List<VariantValue>>();
+            foreach (var kv in best)
+            {
+                // Only worth keeping when the versions differ (otherwise the plain value says it all).
+                if (kv.Value.Count < 2 && !(values.TryGetValue(kv.Key, out double plain) && kv.Value.Values.Any(v => Math.Abs(v.Value - plain) > 1e-6))) continue;
+                result[kv.Key] = kv.Value.Values.ToList();
+            }
+            return result;
         }
 
         /// <summary>"grid: 1 game:log-placed-oak-ud (+11 more) -> 12" — a short, human-readable description of a conversion.</summary>
@@ -425,38 +521,6 @@ namespace VintageE
         /// For each unvalued collectible, find valued ones whose code differs in exactly one dash-separated part,
         /// trying the last part first (rock type, colour, orientation...) and never the first (the item family).
         /// </summary>
-        static Dictionary<CollectibleObject, double> SiblingValues(CollectibleIndex index, Dictionary<CollectibleObject, double> values, HashSet<CollectibleObject> excluded, Dictionary<CollectibleObject, string> origin)
-        {
-            var groups = new Dictionary<string, (double value, CollectibleObject from)>();
-            foreach (var kv in values)
-            {
-                if (kv.Value <= 0 || kv.Key.Code == null) continue;
-                string[] parts = kv.Key.Code.Path.Split('-');
-                for (int k = 1; k < parts.Length; k++)
-                {
-                    string key = SiblingKey(kv.Key, parts, k);
-                    if (!groups.TryGetValue(key, out var prev) || kv.Value > prev.value) groups[key] = (kv.Value, kv.Key);
-                }
-            }
-
-            var result = new Dictionary<CollectibleObject, double>();
-            foreach (CollectibleObject c in index.All)
-            {
-                if (values.ContainsKey(c) || excluded.Contains(c)) continue;
-                string[] parts = c.Code.Path.Split('-');
-                for (int k = parts.Length - 1; k >= 1; k--)
-                {
-                    if (groups.TryGetValue(SiblingKey(c, parts, k), out var g))
-                    {
-                        result[c] = g.value;
-                        origin[c] = "same as its variant " + g.from.Code + " (differs in: " + DifferingGroups(c, g.from) + ")";
-                        break;
-                    }
-                }
-            }
-            return result;
-        }
-
         /// <summary>The variant group codes (as the block/item type defines them) whose states differ between two variants.</summary>
         internal static string DifferingGroups(CollectibleObject a, CollectibleObject b)
         {
@@ -469,18 +533,6 @@ namespace VintageE
                 if (!vb.TryGetValue(kv.Key, out string other) || other != kv.Value) diff.Add(kv.Key);
             }
             return diff.Count == 0 ? "?" : string.Join("+", diff);
-        }
-
-        static string SiblingKey(CollectibleObject c, string[] parts, int skip)
-        {
-            var sb = new System.Text.StringBuilder();
-            sb.Append(c.ItemClass == EnumItemClass.Block ? 'b' : 'i').Append('|').Append(c.Code.Domain).Append('|').Append(parts.Length).Append('|').Append(skip).Append('|');
-            for (int i = 0; i < parts.Length; i++)
-            {
-                if (i != skip) sb.Append(parts[i]);
-                sb.Append('-');
-            }
-            return sb.ToString();
         }
 
         static bool Apply(CollectibleIndex index, string pattern, double value, Dictionary<CollectibleObject, double> fixedValues, HashSet<CollectibleObject> excluded, bool overrideBlacklist, bool perLitre = false)

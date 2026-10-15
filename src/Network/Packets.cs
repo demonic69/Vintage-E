@@ -11,6 +11,13 @@ namespace VintageE
         [ProtoMember(3, IsPacked = true)] public int[] BlockIds;
         [ProtoMember(4, IsPacked = true)] public double[] BlockValues;
         [ProtoMember(5)] public bool DurabilityScales;
+        /// <summary>Blocks/items that carry contents or a material: "i:code"/"b:code" keys, with kind × 4 + mode.</summary>
+        [ProtoMember(6)] public string[] DataKeys;
+        [ProtoMember(7)] public byte[] DataKindModes;
+        /// <summary>Material-specific values: key, the data it applies to (base64 tree attributes), value.</summary>
+        [ProtoMember(8)] public string[] VariantKeys;
+        [ProtoMember(9)] public string[] VariantData;
+        [ProtoMember(10, IsPacked = true)] public double[] VariantValues;
     }
 
     public enum TransmuteAction
@@ -80,6 +87,31 @@ namespace VintageE
         [ProtoMember(4)] public string[] Keys;
         /// <summary>A whole mod (its domain) instead of single blocks/items.</summary>
         [ProtoMember(5)] public string Domain;
+    }
+
+    /// <summary>Server → client: every block/item that can hold contents or carry a material, for the /emc contents window.</summary>
+    [ProtoContract]
+    public class EmcContentsPacket
+    {
+        /// <summary>"i:code" / "b:code".</summary>
+        [ProtoMember(1)] public string[] Keys;
+        /// <summary>StackDataKind per key.</summary>
+        [ProtoMember(2)] public byte[] Kinds;
+        /// <summary>StackDataMode in effect per key.</summary>
+        [ProtoMember(3)] public byte[] Modes;
+        /// <summary>The mode it would have without the server config (built-in default or value file).</summary>
+        [ProtoMember(4)] public byte[] DefaultModes;
+        /// <summary>True where the server config sets the mode.</summary>
+        [ProtoMember(5)] public bool[] FromConfig;
+        [ProtoMember(6)] public string Version;
+    }
+
+    /// <summary>Client → server: switch blocks/items to a contents mode from the /emc contents window (admins only). Mode -1 = back to the default.</summary>
+    [ProtoContract]
+    public class EmcContentsSetPacket
+    {
+        [ProtoMember(1)] public string[] Keys;
+        [ProtoMember(2)] public int Mode;
     }
 
     /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>

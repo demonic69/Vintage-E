@@ -799,6 +799,29 @@ LANG = O([
     ("dump-cached", "These values came from the cache: run /emc recalc to see where they came from."),
     ("dump-noorigin", "set directly (a value file, the server config or /emc set)"), ("dump-blacklisted", "blacklisted: never has a value"),
     ("dump-novalue", "no value"), ("dump-from", "from: {0}"), ("dump-part", "{0} ({1}): {2} EMC"),
+    # 1.7.0
+    ("tooltip-data-full-contents", "Transmutes with its contents (counted in its EMC)"),
+    ("tooltip-data-full", "Transmutes as exactly this version"),
+    ("tooltip-data-itemprice-contents", "Transmutes with its contents, for the item's price only"),
+    ("tooltip-data-item", "Transmutes as the plain item (what it holds or is made of isn't kept)"),
+    ("error-toomanyexact", "You already know {0} exact versions (filled containers, chiseled blocks...), the most allowed. Ctrl + right-click entries you don't need to forget them."),
+    ("gui-create-hint", "Left-click: take one  ·  Right-click: take a stack  ·  Shift-click: stack straight into your inventory  ·  Ctrl + right-click: forget"),
+    ("contents-title", "Contents and materials"),
+    ("contents-help", "{0} blocks/items hold things or keep what they're made of on the item. Item only: burns and is created as the plain item (containers that hold something won't burn). "
+                      "Item + contents: worth the item plus its contents or material, and you learn and create exactly that version. "
+                      "Item price only: exactly that version, but it costs and burns for the item alone; its contents are free. (Vintage-E {1})"),
+    ("contents-mode-item", "Item only"), ("contents-mode-full", "Item + contents"), ("contents-mode-itemprice", "Item price only"), ("contents-mode-default", "Default"),
+    ("contents-kind-contents", "Holds things"), ("contents-kind-material", "Material on item"), ("contents-kind-chiseled", "Chiseled"),
+    ("contents-allkinds", "All kinds"), ("contents-allmodes", "All modes"),
+    ("contents-setbyyou", "(set by you; default {0})"), ("contents-isdefault", "(default)"),
+    ("contents-empty", "Nothing here holds contents or keeps a material."),
+    ("contents-select", "Click names to select them, then pick a mode below."),
+    ("contents-sending", "Switching {0}..."),
+    ("cmd-contents-set", "{0}: now {1}. Saved to ModConfig/vintagee.json."),
+    ("cmd-contents-setmany", "{0} blocks/items: now {1}. Saved to ModConfig/vintagee.json."),
+    ("cmd-contents-kleinstar", "Klein stars always keep their stored EMC; there's nothing to change."),
+    ("cmdhelp-contents", "Open the list of everything that holds things or keeps its material on the item, and switch how each is transmuted"),
+    ("cmdhelp-contentsset", "Set the held item: item only, item + contents (full), item price only, or back to the default"),
 ])
 
 

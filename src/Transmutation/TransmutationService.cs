@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -85,8 +86,12 @@ namespace VintageE
             ItemSlot mouse = player.InventoryManager.MouseItemSlot;
             if (mouse?.Itemstack == null) return;
             ItemStack stack = mouse.Itemstack;
+            StackDataTable data = mod.Emc.StackData;
+            StackDataMode mode = data.ModeOf(stack.Collectible);
+            bool keepsData = data.CarriesData(stack.Collectible) && mode != StackDataMode.Item;
 
-            if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack))
+            // Item only: what's inside would be lost, so containers that hold something are refused.
+            if (!keepsData && mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack))
             {
                 Fail(player, "hascontents", stack.GetName());
                 return;
@@ -99,17 +104,42 @@ namespace VintageE
                 return;
             }
 
+            // Items that keep their contents/material are learned as exactly this version.
+            TreeAttribute kept = keepsData ? StackDataUtil.KeptData(stack) : null;
+            string key = kept != null ? PlayerEmc.ExactKey(stack.Collectible, kept) : PlayerEmc.KeyOf(stack.Collectible);
+            if (kept != null && !PlayerEmc.Knows(player, key) && PlayerEmc.CountExact(player) >= mod.Config.MaxExactKnowledge)
+            {
+                Fail(player, "toomanyexact", mod.Config.MaxExactKnowledge.ToString());
+                return;
+            }
+
             int count = onlyOne ? 1 : stack.StackSize;
             ItemStack taken = mouse.TakeOut(count);
             if (taken == null || taken.StackSize <= 0) return;
             mouse.MarkDirty();
 
             PlayerEmc.AddEmc(player, each * taken.StackSize);
-            string key = PlayerEmc.KeyOf(taken.Collectible);
             bool learned = PlayerEmc.Learn(player, key);
+            // A container also teaches the plain (empty) container.
+            if (kept != null && data.KindOf(stack.Collectible) == StackDataKind.Contents && mod.Emc.GetValue(stack.Collectible) > 0)
+            {
+                learned |= PlayerEmc.Learn(player, PlayerEmc.KeyOf(stack.Collectible));
+            }
 
             sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/timeswitch"), player.Entity, null, true, 8, 0.5f);
             mod.SendResult(player, new TransmuteResultPacket { LearnedKey = learned ? key : null });
+        }
+
+        /// <summary>
+        /// What a knowledge entry makes: the plain item, or exactly the version that was learned. If an item has since
+        /// been switched to "item only", its exact versions make the plain item.
+        /// </summary>
+        public static ItemStack Prototype(VintageEModSystem mod, IWorldAccessor world, string key)
+        {
+            ItemStack stack = PlayerEmc.ResolveStack(world, key);
+            if (stack == null) return null;
+            if (PlayerEmc.IsExact(key) && mod.Emc.StackData.ModeOf(stack.Collectible) == StackDataMode.Item) return new ItemStack(stack.Collectible, 1);
+            return stack;
         }
 
         /// <param name="mode">0 = one onto cursor, 1 = stack onto cursor, 2 = stack into inventory</param>
@@ -120,13 +150,14 @@ namespace VintageE
                 Fail(player, "unknown");
                 return;
             }
-            CollectibleObject collectible = PlayerEmc.Resolve(sapi.World, key);
-            double each = mod.Emc.GetValue(collectible);
-            if (collectible == null || each <= 0)
+            ItemStack proto = Prototype(mod, sapi.World, key);
+            double each = proto == null ? 0 : mod.Emc.GetValue(proto);
+            if (proto == null || each <= 0)
             {
-                Fail(player, "novalue", key);
+                Fail(player, "novalue", proto?.GetName() ?? key);
                 return;
             }
+            CollectibleObject collectible = proto.Collectible;
 
             double emc = PlayerEmc.GetEmc(player);
             int maxStack = Math.Max(1, collectible.MaxStackSize);
@@ -139,8 +170,7 @@ namespace VintageE
             }
             else
             {
-                var probe = new ItemStack(collectible, 1);
-                if (!mouse.Empty && !mouse.Itemstack.Equals(sapi.World, probe, GlobalConstants.IgnoredStackAttributes))
+                if (!mouse.Empty && !mouse.Itemstack.Equals(sapi.World, proto, GlobalConstants.IgnoredStackAttributes))
                 {
                     Fail(player, "cursorbusy");
                     return;
@@ -158,7 +188,8 @@ namespace VintageE
                 return;
             }
 
-            var made = new ItemStack(collectible, amount);
+            ItemStack made = proto.Clone();
+            made.StackSize = amount;
             if (mode == 2)
             {
                 // Same pattern as vanilla: whatever could not be given is dropped at the player's feet.

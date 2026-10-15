@@ -31,6 +31,9 @@ namespace VintageE
             }
         }
 
+        /// <summary>Real, obtainable content: anything shown in a creative inventory tab.</summary>
+        public static bool IsListed(CollectibleObject c) => (c.CreativeInventoryTabs?.Length ?? 0) > 0 || (c.CreativeInventoryStacks?.Length ?? 0) > 0;
+
         static void Add(Dictionary<string, List<CollectibleObject>> dict, string key, CollectibleObject c)
         {
             if (!dict.TryGetValue(key, out var list)) dict[key] = list = new List<CollectibleObject>();

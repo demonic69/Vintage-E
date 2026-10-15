@@ -48,7 +48,7 @@ ITEM = {
                          "On a pedestal: heals players within 6 blocks 0.5 health a second, free.",
     "trinket-lifestone": "Body Stone and Soul Stone in one: feeds you (0.5 EMC per saturation) and heals you (64 EMC per health) while on.\n"
                          "On a pedestal: feeds and heals players within 6 blocks, free.",
-    "trinket-repairtalisman": "Always works while you carry it: repairs 1 durability a second on every damaged tool, weapon and piece of armour you carry or wear. Free.\n"
+    "trinket-repairtalisman": "Always works while you carry it: repairs 1 durability a second on every damaged tool, weapon and piece of armour you carry or wear, and restores clothing condition (1% a minute by default; the server can change or turn that off). Free.\n"
                               "On a pedestal: does the same for players within 6 blocks.",
     "trinket-gemofeternaldensity": "While on: every 2 seconds it eats cheap junk you carry (anything worth 8 EMC or less: stone, soil, sand, gravel, sticks...) and turns it into the target.\n"
                                    "Targets (tool-mode key): iron ingot, gold ingot, diamond, dark matter, red matter. Leftover EMC is kept for next time.",

@@ -61,6 +61,7 @@ namespace VintageE
             CollectFromModSystems();
             CollectFromCollectibleProperties();
             CollectFromBlockDrops();
+            CollectPlacementStates();
             CollectFromAttributes();
             CollectFromMolds();
             CollectFromBehaviors();
@@ -197,7 +198,8 @@ namespace VintageE
                 Output = output.Collectible,
                 OutputQuantity = RecipeOutputQuantity(recipe.RecipeOutput, output),
                 Kind = ConversionKind.Crafting,
-                Source = label
+                Source = label,
+                OutputData = StackContents.HasNestedStacks(output) ? null : StackDataUtil.KeptData(output)
             };
             JsonObject recipeAttributes = (recipe as RecipeBase)?.Attributes;
 
@@ -751,6 +753,52 @@ namespace VintageE
             }
             Count("block drops", blockValue);
             Count("block drops (single item)", itemValue);
+        }
+
+        /// <summary>
+        /// Placement states: blocks that only exist placed in the world (facing another way, snow-covered, a fence
+        /// joined to its neighbours, an open gate) are worth exactly the inventory item they turn back into - what the
+        /// game gives you when you pick the block (middle-click), or else what it drops. Only counted when that item is in
+        /// the same family and in the creative inventory, so a crop never takes its seeds' value.
+        /// </summary>
+        void CollectPlacementStates()
+        {
+            int count = 0;
+            var probe = new Vintagestory.API.MathTools.BlockPos(0, 0, 0, 0);
+            foreach (CollectibleObject c in index.All)
+            {
+                if (!(c is Block block) || CollectibleIndex.IsListed(block)) continue;
+                CollectibleObject target = null;
+                double qty = 1;
+                try
+                {
+                    ItemStack picked = block.OnPickBlock(sapi.World, probe);
+                    if (picked?.Collectible != null && picked.Collectible != block)
+                    {
+                        target = picked.Collectible;
+                        qty = Math.Max(1, picked.StackSize);
+                    }
+                }
+                catch
+                {
+                    // some blocks need their block entity to say what they are; fall back to drops
+                }
+                if (target == null && block.Drops?.Length == 1)
+                {
+                    ItemStack drop = block.Drops[0]?.ResolvedItemstack;
+                    if (drop?.Collectible != null && drop.Collectible != block && (block.Drops[0].Quantity?.var ?? 0) == 0)
+                    {
+                        target = drop.Collectible;
+                        qty = (block.Drops[0].Quantity?.avg ?? 1) * Math.Max(1, drop.StackSize);
+                    }
+                }
+                if (target == null || !CollectibleIndex.IsListed(target) || target.Code.Domain != block.Code.Domain || target.FirstCodePart() != block.FirstCodePart()) continue;
+
+                var conv = new Conversion { Output = block, OutputQuantity = 1, Kind = ConversionKind.Crafting, Source = "placement state" };
+                conv.Inputs.Add(new ConversionInput { Choices = new[] { target }, Quantity = qty });
+                if (AddIfSane(conv)) count++;
+            }
+            Count("placement states", count);
         }
 
         /// <summary>

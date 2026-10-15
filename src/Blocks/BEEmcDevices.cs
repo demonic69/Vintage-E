@@ -384,13 +384,7 @@ namespace VintageE
                 }
                 if (effect == "repairtalisman")
                 {
-                    foreach (ItemSlot slot in EmcWallet.CarriedSlots(p))
-                    {
-                        CollectibleObject c = slot.Itemstack.Collectible;
-                        int max = c.GetMaxDurability(slot.Itemstack);
-                        int rem = c.GetRemainingDurability(slot.Itemstack);
-                        if (max > 0 && rem > 0 && rem < max) { c.SetDurability(slot.Itemstack, rem + 1); slot.MarkDirty(); }
-                    }
+                    foreach (ItemSlot slot in EmcWallet.CarriedSlots(p)) TrinketEffects.RepairOnce(slot, Api.ModLoader.GetModSystem<VintageEModSystem>()?.Config);
                 }
             }
         }

@@ -69,6 +69,12 @@ namespace VintageE
                     .RequiresPrivilege(Privilege.controlserver)
                     .HandleWith(args => Blacklist(mod, args))
                 .EndSubCommand()
+                .BeginSubCommand("contents")
+                    .WithDescription("Open a window of everything that holds things or keeps its material, and how each is transmuted; or set the held item: item, full, itemprice or default")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.OptionalWordRange("mode", "item", "full", "itemprice", "default"))
+                    .HandleWith(args => Contents(mod, args, args[0] as string))
+                .EndSubCommand()
                 .BeginSubCommand("add")
                     .WithDescription("Add EMC to a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -95,7 +101,7 @@ namespace VintageE
                     {
                         ItemStack held = args.Caller.Player.InventoryManager.ActiveHotbarSlot?.Itemstack;
                         if (held == null) return TextCommandResult.Error(Lang.Get("vintagee:cmd-holdsomething"));
-                        PlayerEmc.Learn(args.Caller.Player, PlayerEmc.KeyOf(held.Collectible));
+                        PlayerEmc.Learn(args.Caller.Player, KnowledgeKey(mod, held));
                         return TextCommandResult.Success(Lang.Get("vintagee:learned", held.GetName()));
                     })
                 .EndSubCommand();
@@ -108,6 +114,8 @@ namespace VintageE
             ("/emc help", "cmdhelp-help", false),
             ("/emc missing", "cmdhelp-missing", true),
             ("/emc blacklist", "cmdhelp-blacklist", true),
+            ("/emc contents", "cmdhelp-contents", true),
+            ("/emc contents <item|full|itemprice|default>", "cmdhelp-contentsset", true),
             ("/emc set <value>", "cmdhelp-set", true),
             ("/emc clear", "cmdhelp-clear", true),
             ("/emc recalc", "cmdhelp-recalc", true),
@@ -229,6 +237,47 @@ namespace VintageE
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Success(report.Blacklisted.Count + " blacklisted: " + string.Join(", ", report.Blacklisted.Take(40).Select(c => c.Code.ToString())));
+        }
+
+        /// <summary>The knowledge entry a held item teaches: the plain item, or exactly this version if it keeps its contents/material.</summary>
+        static string KnowledgeKey(VintageEModSystem mod, ItemStack stack)
+        {
+            StackDataTable data = mod.Emc.StackData;
+            if (data.CarriesData(stack.Collectible) && data.ModeOf(stack.Collectible) != StackDataMode.Item)
+            {
+                var kept = StackDataUtil.KeptData(stack);
+                if (kept != null) return PlayerEmc.ExactKey(stack.Collectible, kept);
+            }
+            return PlayerEmc.KeyOf(stack.Collectible);
+        }
+
+        /// <summary>/emc contents: the window, or with a mode, set the held item's mode.</summary>
+        static TextCommandResult Contents(VintageEModSystem mod, TextCommandCallingArgs args, string modeText)
+        {
+            string lang = args.LanguageCode;
+            if (string.IsNullOrEmpty(modeText))
+            {
+                if (args.Caller.Player is IServerPlayer sp)
+                {
+                    mod.SendContentsList(sp);
+                    return TextCommandResult.Success();
+                }
+                var table = mod.Emc.StackData;
+                return TextCommandResult.Success(string.Join(", ", new[] { StackDataMode.Item, StackDataMode.Full, StackDataMode.ItemPrice }
+                    .Select(m => StackDataTable.ModeName(m) + ": " + table.Kinds.Keys.Count(c => table.ModeOf(c) == m))));
+            }
+            ItemStack held = args.Caller.Player?.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+            if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
+            if (held.Collectible is IEmcStorageItem) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-contents-kleinstar"));
+            StackDataMode? mode = null;
+            if (modeText != "default")
+            {
+                StackDataTable.TryParseMode(modeText, out StackDataMode m);
+                mode = m;
+            }
+            mod.SetStackDataModes(new[] { held.Collectible }, mode);
+            string modeName = mode == null ? Lang.GetL(lang, "vintagee:contents-mode-default") : Lang.GetL(lang, "vintagee:contents-mode-" + StackDataTable.ModeName(mode.Value));
+            return TextCommandResult.Success(Lang.GetL(lang, "vintagee:cmd-contents-set", held.GetName(), modeName));
         }
 
         static readonly System.Text.RegularExpressions.Regex CodeToken = new System.Text.RegularExpressions.Regex(@"\b([a-z0-9_]+:[a-z0-9_.\-/]+)", System.Text.RegularExpressions.RegexOptions.Compiled);

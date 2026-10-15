@@ -27,6 +27,11 @@ namespace VintageE
 
         /// <summary>Flat EMC added to every run on top of the inputs (e.g. the drying-time bonus).</summary>
         public double ExtraCost;
+        /// <summary>
+        /// Data the recipe puts on its output (a round shield's metal and wood, a chest's wood type). The plain item takes
+        /// the cheapest recipe; this one also gives a value for that exact version.
+        /// </summary>
+        public Vintagestory.API.Datastructures.TreeAttribute OutputData;
         public ConversionKind Kind;
         public string Source;
 

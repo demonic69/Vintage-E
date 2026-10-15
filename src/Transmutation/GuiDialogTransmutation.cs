@@ -24,7 +24,17 @@ namespace VintageE
         readonly DisplayInventory burnInv;
         readonly DisplayInventory knownInv;
 
-        List<KeyValuePair<CollectibleObject, double>> entries = new List<KeyValuePair<CollectibleObject, double>>();
+        sealed class Entry
+        {
+            public string Key;
+            public ItemStack Stack;
+            public double Value;
+            public string Name;
+        }
+
+        List<Entry> entries = new List<Entry>();
+        /// <summary>The knowledge key behind each grid slot on the current page.</summary>
+        readonly string[] slotKeys = new string[PerPage];
         string search = "";
         int page;
         double shownEmc = -1;
@@ -126,8 +136,8 @@ namespace VintageE
         {
             if (packet.LearnedKey != null)
             {
-                CollectibleObject learned = PlayerEmc.Resolve(capi.World, packet.LearnedKey);
-                if (learned != null) capi.ShowChatMessage(Lang.Get("vintagee:learned", learned.GetHeldItemName(new ItemStack(learned))));
+                ItemStack learned = PlayerEmc.ResolveStack(capi.World, packet.LearnedKey);
+                if (learned != null) capi.ShowChatMessage(Lang.Get("vintagee:learned", learned.GetName()));
             }
         }
 
@@ -142,14 +152,27 @@ namespace VintageE
             if (rebuildList)
             {
                 string needle = search.Trim().ToLowerInvariant();
-                entries = known
-                    .Select(k => PlayerEmc.Resolve(capi.World, k))
-                    .Where(c => c != null)
-                    .Distinct()
-                    .Select(c => new KeyValuePair<CollectibleObject, double>(c, mod.Emc.GetValue(c)))
-                    .Where(kv => kv.Value > 0 && Matches(kv.Key, needle))
-                    .OrderByDescending(kv => kv.Value)
-                    .ThenBy(kv => kv.Key.Code.ToString(), StringComparer.Ordinal)
+                var seen = new HashSet<string>();
+                entries = new List<Entry>();
+                foreach (string k in known)
+                {
+                    ItemStack stack = TransmutationService.Prototype(mod, capi.World, k);
+                    if (stack == null) continue;
+                    // Exact versions of something switched to "item only" show as the plain item, once.
+                    string shownKey = StackDataUtil.KeptData(stack) == null ? PlayerEmc.KeyOf(stack.Collectible) : k;
+                    if (!seen.Add(shownKey)) continue;
+                    double value = mod.Emc.GetValue(stack);
+                    if (value <= 0) continue;
+                    string name;
+                    try { name = stack.GetName(); }
+                    catch { name = stack.Collectible.Code.ToShortString(); }
+                    if (!Matches(stack.Collectible, name, needle)) continue;
+                    entries.Add(new Entry { Key = k, Stack = stack, Value = value, Name = name });
+                }
+                entries = entries
+                    .OrderByDescending(e => e.Value)
+                    .ThenBy(e => e.Stack.Collectible.Code.ToString(), StringComparer.Ordinal)
+                    .ThenBy(e => e.Key, StringComparer.Ordinal)
                     .ToList();
                 shownKnownCount = known.Length;
             }
@@ -159,7 +182,8 @@ namespace VintageE
             for (int i = 0; i < PerPage; i++)
             {
                 int idx = page * PerPage + i;
-                knownInv[i].Itemstack = idx < entries.Count ? new ItemStack(entries[idx].Key, 1) : null;
+                knownInv[i].Itemstack = idx < entries.Count ? entries[idx].Stack.Clone() : null;
+                slotKeys[i] = idx < entries.Count ? entries[idx].Key : null;
             }
 
             shownEmc = emc;
@@ -167,18 +191,10 @@ namespace VintageE
             SingleComposer.GetDynamicText("page").SetNewText((page + 1) + " / " + pages);
         }
 
-        bool Matches(CollectibleObject c, string needle)
+        static bool Matches(CollectibleObject c, string name, string needle)
         {
             if (needle.Length == 0) return true;
-            if (c.Code.ToString().Contains(needle)) return true;
-            try
-            {
-                return c.GetHeldItemName(new ItemStack(c)).ToLowerInvariant().Contains(needle);
-            }
-            catch
-            {
-                return false;
-            }
+            return c.Code.ToString().Contains(needle) || (name ?? "").ToLowerInvariant().Contains(needle);
         }
 
         void OnSearchChanged(string text)
@@ -217,8 +233,14 @@ namespace VintageE
             if (click.Inventory == knownInv)
             {
                 ItemStack shown = knownInv[click.SlotId]?.Itemstack;
-                if (shown == null) return;
-                string key = PlayerEmc.KeyOf(shown.Collectible);
+                string key = click.SlotId >= 0 && click.SlotId < PerPage ? slotKeys[click.SlotId] : null;
+                if (shown == null || key == null) return;
+                if (click.Ctrl)
+                {
+                    // Ctrl + right-click forgets an entry (handy for exact versions you no longer want).
+                    if (click.Button == EnumMouseButton.Right) mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.Forget, Key = key });
+                    return;
+                }
                 int mode = click.Shift ? 2 : (click.Button == EnumMouseButton.Right ? 1 : 0);
                 if (mode != 2 && cursor?.Itemstack != null && cursor.Itemstack.Collectible != shown.Collectible)
                 {

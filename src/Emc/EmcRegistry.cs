@@ -44,14 +44,77 @@ namespace VintageE
             return perLitre > 0 ? perLitre : 1;
         }
 
-        /// <summary>Value of one item of this stack, accounting for wear.</summary>
-        public double GetValue(ItemStack stack)
+        /// <summary>Which items carry contents/materials and the mode each uses, plus material-specific values.</summary>
+        public StackDataTable StackData { get; set; } = new StackDataTable();
+
+        /// <summary>The world, for resolving what's inside stacks and chiseled blocks' materials (set on both sides).</summary>
+        public IWorldAccessor World { get; set; }
+
+        /// <summary>
+        /// Value of one item of this stack - what burning it gives and what a copy of it costs - accounting for wear and,
+        /// for items that carry data, their mode: item only (the plain item), item + contents (material and contents),
+        /// item price (material, not contents).
+        /// </summary>
+        public double GetValue(ItemStack stack) => GetValue(stack, 0);
+
+        double GetValue(ItemStack stack, int depth)
         {
-            if (stack?.Collectible == null) return 0;
+            if (stack?.Collectible == null || depth > 6) return 0;
+            CollectibleObject c = stack.Collectible;
+            StackDataMode mode = StackData.ModeOf(c);
+            if (mode == StackDataMode.Item || !StackData.CarriesData(c)) return Worn(stack, PlainValue(stack));
+
+            double own = ItemValue(stack);
+            if (own <= 0 && StackData.KindOf(c) != StackDataKind.Contents) return 0;
+            double total = Worn(stack, own);
+            if (mode == StackDataMode.Full) total += ContentsValue(stack, depth);
+            return total;
+        }
+
+        /// <summary>The plain item's value (Klein stars include what they hold); no wear applied.</summary>
+        public double PlainValue(ItemStack stack)
+        {
             double v = GetValue(stack.Collectible);
             if (stack.Collectible is IEmcStorageItem) v += StoredEmc.Get(stack); // Klein stars are worth what they hold
-            if (v <= 0 || !DurabilityScales) return v;
+            return v;
+        }
 
+        /// <summary>The item itself, made of what its data says (a gold round shield, a chiseled block's voxels), without its contents.</summary>
+        public double ItemValue(ItemStack stack)
+        {
+            CollectibleObject c = stack.Collectible;
+            switch (StackData.KindOf(c))
+            {
+                case StackDataKind.Chiseled:
+                    return StackDataUtil.ChiseledValue(World, stack, GetValue);
+                case StackDataKind.Material:
+                    VariantValue variant = StackData.FindVariant(World, stack);
+                    return variant?.Value ?? PlainValue(stack);
+                default:
+                    return PlainValue(stack);
+            }
+        }
+
+        /// <summary>
+        /// What's inside: every stack held in the data, each valued by its own mode. Meals and pies store one serving's
+        /// ingredients, so those are multiplied by the number of servings.
+        /// </summary>
+        public double ContentsValue(ItemStack stack, int depth = 0)
+        {
+            double sum = 0;
+            foreach (ItemStack inner in StackContents.NestedStacks(stack))
+            {
+                if (inner.Collectible == null && (World == null || !inner.ResolveBlockOrItem(World))) continue;
+                sum += GetValue(inner, depth + 1) * inner.StackSize;
+            }
+            double servings = stack.Attributes?.GetDecimal("quantityServings", 0) ?? 0;
+            if (servings > 0) sum *= servings;
+            return sum;
+        }
+
+        double Worn(ItemStack stack, double v)
+        {
+            if (v <= 0 || !DurabilityScales) return v;
             int max = stack.Collectible.GetMaxDurability(stack);
             if (max > 1)
             {
@@ -72,13 +135,41 @@ namespace VintageE
                 if (kv.Key.ItemClass == EnumItemClass.Block) { blockIds.Add(kv.Key.Id); blockValues.Add(kv.Value); }
                 else { itemIds.Add(kv.Key.Id); itemValues.Add(kv.Value); }
             }
+            var dataKeys = new List<string>();
+            var dataKindModes = new List<byte>();
+            foreach (var kv in StackData.Kinds)
+            {
+                string key = PlayerEmc.KeyOf(kv.Key);
+                if (key == null) continue;
+                dataKeys.Add(key);
+                dataKindModes.Add((byte)((int)kv.Value * 4 + (int)StackData.ModeOf(kv.Key)));
+            }
+            var variantKeys = new List<string>();
+            var variantData = new List<string>();
+            var variantValues = new List<double>();
+            foreach (var kv in StackData.Variants)
+            {
+                string key = PlayerEmc.KeyOf(kv.Key);
+                if (key == null) continue;
+                foreach (VariantValue v in kv.Value)
+                {
+                    variantKeys.Add(key);
+                    variantData.Add(StackDataUtil.Encode(v.Attributes));
+                    variantValues.Add(v.Value);
+                }
+            }
             return new EmcTablePacket
             {
                 ItemIds = itemIds.ToArray(),
                 ItemValues = itemValues.ToArray(),
                 BlockIds = blockIds.ToArray(),
                 BlockValues = blockValues.ToArray(),
-                DurabilityScales = DurabilityScales
+                DurabilityScales = DurabilityScales,
+                DataKeys = dataKeys.ToArray(),
+                DataKindModes = dataKindModes.ToArray(),
+                VariantKeys = variantKeys.ToArray(),
+                VariantData = variantData.ToArray(),
+                VariantValues = variantValues.ToArray()
             };
         }
 
@@ -101,6 +192,30 @@ namespace VintageE
             }
             values = fresh;
             DurabilityScales = packet.DurabilityScales;
+            World = world;
+
+            var table = new StackDataTable();
+            string[] keys = packet.DataKeys ?? Array.Empty<string>();
+            byte[] kindModes = packet.DataKindModes ?? Array.Empty<byte>();
+            for (int i = 0; i < keys.Length && i < kindModes.Length; i++)
+            {
+                CollectibleObject c = PlayerEmc.Resolve(world, keys[i]);
+                if (c == null) continue;
+                table.Kinds[c] = (StackDataKind)(kindModes[i] / 4);
+                table.Modes[c] = (StackDataMode)(kindModes[i] % 4);
+            }
+            keys = packet.VariantKeys ?? Array.Empty<string>();
+            string[] data = packet.VariantData ?? Array.Empty<string>();
+            double[] vv = packet.VariantValues ?? Array.Empty<double>();
+            for (int i = 0; i < keys.Length && i < data.Length && i < vv.Length; i++)
+            {
+                CollectibleObject c = PlayerEmc.Resolve(world, keys[i]);
+                TreeAttribute tree = StackDataUtil.Decode(data[i]);
+                if (c == null || tree == null) continue;
+                if (!table.Variants.TryGetValue(c, out var list)) table.Variants[c] = list = new List<VariantValue>();
+                list.Add(new VariantValue { Attributes = tree, Value = vv[i] });
+            }
+            StackData = table;
         }
     }
 

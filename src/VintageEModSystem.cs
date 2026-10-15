@@ -87,7 +87,9 @@ namespace VintageE
                 .RegisterMessageType<EmcSetValuePacket>()
                 .RegisterMessageType<WatchSpeedPacket>()
                 .RegisterMessageType<FireProjectilePacket>()
-                .RegisterMessageType<EmcBlacklistPacket>();
+                .RegisterMessageType<EmcBlacklistPacket>()
+                .RegisterMessageType<EmcContentsPacket>()
+                .RegisterMessageType<EmcContentsSetPacket>();
         }
 
         #region Server
@@ -111,6 +113,7 @@ namespace VintageE
             serverChannel.SetMessageHandler<EmcSetValuePacket>(OnSetValueRequest);
             serverChannel.SetMessageHandler<EmcBlacklistPacket>(OnBlacklistRequest);
             serverChannel.SetMessageHandler<FireProjectilePacket>(OnFireProjectile);
+            serverChannel.SetMessageHandler<EmcContentsSetPacket>(OnContentsSetRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
@@ -190,9 +193,10 @@ namespace VintageE
                 try
                 {
                     fingerprint = EmcCache.Fingerprint(Sapi, this, Mod.Logger);
-                    if (allowCache && EmcCache.TryLoad(Sapi, fingerprint, Mod.Logger, out EmcCacheFile cached, out var cachedValues))
+                    if (allowCache && EmcCache.TryLoad(Sapi, fingerprint, Mod.Logger, out EmcCacheFile cached, out var cachedValues, out var cachedVariants))
                     {
                         report = mapper.FromValues(cachedValues);
+                        report.Variants = cachedVariants;
                         EmcCache.CopyCounts(cached, report);
                     }
                 }
@@ -217,6 +221,8 @@ namespace VintageE
             }
             Emc.Replace(report.Values);
             Emc.DurabilityScales = Config.DurabilityScalesEmc;
+            Emc.World = Sapi.World;
+            BuildStackData(report);
             sw.Stop();
             report.Milliseconds = sw.ElapsedMilliseconds;
             if (report.FromCache)
@@ -228,11 +234,15 @@ namespace VintageE
                 "EMC mapped ({0}) in {1} ms: {2} valued collectibles ({3} base, {4} from recipes/processing, {5} inferred backwards), {6} conversions from {7} sources.",
                 reason, report.Milliseconds, report.Values.Count, report.BaseCount, report.DerivedCount, report.InferredCount,
                 report.ConversionCount, report.SourceCount);
-            if (report.RelativeCount > 0 || report.SiblingCount > 0 || report.FallbackCount > 0 || report.TraderCount > 0 || report.DefaultCount > 0)
+            if (report.RelativeCount > 0 || report.SiblingCount > 0 || report.FallbackCount > 0 || report.TraderCount > 0 || report.DefaultCount > 0 || report.GuessCount > 0)
             {
-                Mod.Logger.Notification("EMC: items with no recipe path: {0} valued by relativeValues rules, {1} from trader prices, {2} borrowed their closest variant's value, {3} from defaultValues, {4} got the configured FallbackValue.",
-                    report.RelativeCount, report.TraderCount, report.SiblingCount, report.DefaultCount, report.FallbackCount);
+                Mod.Logger.Notification("EMC: items with no recipe path: {0} valued by relativeValues rules, {1} from trader prices, {2} from a variant that only looks or sits differently, {3} other mods' variants of base-game families, {4} as fuel, {5} as food, {6} guessed from other variants, {7} from defaultValues, {8} got the configured FallbackValue.",
+                    report.RelativeCount, report.TraderCount, report.SiblingCount, report.OtherModCount, report.FuelCount, report.FoodCount, report.GuessCount, report.DefaultCount, report.FallbackCount);
             }
+            var data = Emc.StackData;
+            Mod.Logger.Notification("EMC: {0} blocks/items hold contents or keep a material ({1} item only, {2} item + contents, {3} item price only); {4} have material-specific values.",
+                data.Kinds.Count, data.Kinds.Keys.Count(c => data.ModeOf(c) == StackDataMode.Item), data.Kinds.Keys.Count(c => data.ModeOf(c) == StackDataMode.Full),
+                data.Kinds.Keys.Count(c => data.ModeOf(c) == StackDataMode.ItemPrice), data.Variants.Count);
             LogCoverage(report);
             LastReport = report;
             if (Config.DumpValuesOnStart)
@@ -253,6 +263,28 @@ namespace VintageE
                 if (online is IServerPlayer sp && sp.ConnectionState == EnumClientState.Playing) Announce(sp, report);
             }
             return report;
+        }
+
+        /// <summary>Works out which items carry contents/materials and their modes (cheap; no remapping needed).</summary>
+        public void BuildStackData(EmcMappingReport report = null)
+        {
+            report ??= LastReport;
+            try
+            {
+                Emc.StackData = StackDataTable.Build(Sapi.World, Rules, Config, report?.Variants);
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Error("Could not work out which items keep their contents: {0}", e);
+            }
+        }
+
+        /// <summary>After a change to the contents modes: rebuild them and send everyone the new table.</summary>
+        public void RefreshStackData()
+        {
+            BuildStackData();
+            serverChannel?.BroadcastPacket(Emc.ToPacket());
+            OnEmcTableUpdated?.Invoke();
         }
 
         /// <summary>The mod's version as loaded from modinfo.json (falls back to the assembly version).</summary>
@@ -335,6 +367,26 @@ namespace VintageE
                     }
                     System.IO.File.WriteAllText(System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-blacklisted.csv"), bl.ToString());
                 }
+
+                // Items that hold contents or keep a material: their kind, mode and material-specific values.
+                var data = Emc.StackData;
+                var ct = new System.Text.StringBuilder("type,code,kind,mode,set_by,data,emc,via,name\n");
+                foreach (var kv in data.Kinds.OrderBy(k => k.Key.Code.ToString(), StringComparer.Ordinal))
+                {
+                    CollectibleObject c = kv.Key;
+                    string type = c.ItemClass == EnumItemClass.Block ? "block" : "item";
+                    string head = type + "," + c.Code + "," + kv.Value.ToString().ToLowerInvariant() + "," + StackDataTable.ModeName(data.ModeOf(c)) + "," +
+                                  (data.Sources.TryGetValue(c, out string src) ? src : "") + ",";
+                    ct.Append(head).Append(",").Append(Emc.GetValue(c).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)).Append(",plain item,").Append(Csv(NameOf(c))).Append('\n');
+                    if (!data.Variants.TryGetValue(c, out var list)) continue;
+                    foreach (VariantValue v in list.OrderBy(v => v.Value))
+                    {
+                        ct.Append(head).Append(Csv(v.Attributes.ToJsonToken())).Append(',')
+                          .Append(v.Value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                          .Append(Csv(v.Origin ?? "")).Append(',').Append(Csv(NameOf(c))).Append('\n');
+                    }
+                }
+                System.IO.File.WriteAllText(System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-contents.csv"), ct.ToString());
                 return file;
             }
             catch (Exception e)
@@ -503,6 +555,71 @@ namespace VintageE
             if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
         }
 
+        /// <summary>Opens the /emc contents window for a player.</summary>
+        public void SendContentsList(IServerPlayer player)
+        {
+            StackDataTable table = Emc.StackData;
+            // What each would be without the server config: the table built with an empty StackDataModes.
+            var plainConfig = new VintageEConfig { StackDataModes = new Dictionary<string, string>() };
+            StackDataTable defaults = StackDataTable.Build(Sapi.World, Rules, plainConfig, table.Variants);
+            var keys = new List<string>();
+            var kinds = new List<byte>();
+            var modes = new List<byte>();
+            var defaultModes = new List<byte>();
+            var fromConfig = new List<bool>();
+            foreach (var kv in table.Kinds)
+            {
+                string key = PlayerEmc.KeyOf(kv.Key);
+                if (key == null) continue;
+                keys.Add(key);
+                kinds.Add((byte)kv.Value);
+                modes.Add((byte)table.ModeOf(kv.Key));
+                defaultModes.Add((byte)(defaults.CarriesData(kv.Key) ? defaults.ModeOf(kv.Key) : StackDataMode.Item));
+                fromConfig.Add(table.Sources.TryGetValue(kv.Key, out string src) && src == "server config");
+            }
+            serverChannel.SendPacket(new EmcContentsPacket
+            {
+                Keys = keys.ToArray(),
+                Kinds = kinds.ToArray(),
+                Modes = modes.ToArray(),
+                DefaultModes = defaultModes.ToArray(),
+                FromConfig = fromConfig.ToArray(),
+                Version = Version
+            }, player);
+        }
+
+        /// <summary>
+        /// Sets (or with <paramref name="mode"/> null, clears) the server config's contents mode for blocks/items and
+        /// sends everyone the new table. Values don't change, so nothing is remapped.
+        /// </summary>
+        public void SetStackDataModes(IEnumerable<CollectibleObject> items, StackDataMode? mode)
+        {
+            foreach (CollectibleObject c in items)
+            {
+                string key = ConfigKey(c);
+                if (mode == null) Config.StackDataModes.Remove(key);
+                else Config.StackDataModes[key] = StackDataTable.ModeName(mode.Value);
+            }
+            SaveConfig();
+            RefreshStackData();
+        }
+
+        void OnContentsSetRequest(IServerPlayer player, EmcContentsSetPacket packet)
+        {
+            if (packet == null || !player.HasPrivilege(Privilege.controlserver)) return;
+            string lang = player.LanguageCode;
+            var items = (packet.Keys ?? Array.Empty<string>()).Select(k => PlayerEmc.Resolve(Sapi.World, k)).Where(c => c != null && !(c is IEmcStorageItem)).Distinct().ToList();
+            if (items.Count == 0) return;
+            StackDataMode? mode = packet.Mode < 0 ? (StackDataMode?)null : (StackDataMode)Math.Clamp(packet.Mode, 0, 2);
+            SetStackDataModes(items, mode);
+            string modeName = mode == null ? Lang.GetL(lang, "vintagee:contents-mode-default") : Lang.GetL(lang, "vintagee:contents-mode-" + StackDataTable.ModeName(mode.Value));
+            string msg = items.Count == 1
+                ? Lang.GetL(lang, "vintagee:cmd-contents-set", NameOf(items[0]), modeName)
+                : Lang.GetL(lang, "vintagee:cmd-contents-setmany", items.Count, modeName);
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
+            SendContentsList(player);
+        }
+
         /// <summary>Tells every client about a change to the watch's time speed, so their clocks and skies keep up.</summary>
         public void BroadcastWatchSpeed(float modifier) => serverChannel?.BroadcastPacket(new WatchSpeedPacket { Modifier = modifier });
 
@@ -531,6 +648,7 @@ namespace VintageE
             clientChannel.SetMessageHandler<EmcTablePacket>(OnEmcTableReceived);
             clientChannel.SetMessageHandler<TransmuteResultPacket>(OnTransmuteResult);
             clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
+            clientChannel.SetMessageHandler<EmcContentsPacket>(OnContentsList);
             clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
 
             capi.Input.RegisterHotKey(FireHotkey, Lang.Get("vintagee:hotkey-fire"), GlKeys.R, HotkeyType.CharacterControls);
@@ -591,6 +709,17 @@ namespace VintageE
         }
 
         /// <summary>Opens the transmutation GUI (from a table at <paramref name="tablePos"/>, or from a tablet when null).</summary>
+        GuiDialogEmcContents contentsDialog;
+
+        void OnContentsList(EmcContentsPacket packet)
+        {
+            GuiDialogEmcContents previous = contentsDialog != null && contentsDialog.IsOpened() ? contentsDialog : null;
+            var dialog = new GuiDialogEmcContents(Capi, packet, previous, (keys, mode) => clientChannel.SendPacket(new EmcContentsSetPacket { Keys = keys, Mode = mode }));
+            previous?.TryClose();
+            contentsDialog = dialog;
+            dialog.TryOpen();
+        }
+
         public void OpenTransmutationDialog(Vintagestory.API.MathTools.BlockPos tablePos)
         {
             if (Capi == null) return;

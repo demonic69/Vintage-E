@@ -62,6 +62,17 @@ namespace VintageE
         public WorldTransmutationRules WorldTransmutation = new WorldTransmutationRules();
         public List<string> LoadedFiles = new List<string>();
 
+        /// <summary>"variantGuessing.copyAcross": variant groups that only change look or placement (rock, colour, facing...).</summary>
+        public HashSet<string> CopyAcrossGroups = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>"variantGuessing.neverAcross": variant groups that change what a thing is (ore, metal, gem...).</summary>
+        public HashSet<string> NeverAcrossGroups = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>"variantGuessing.otherGroups": copy across groups in neither list as a last resort ("copy") or not ("never").</summary>
+        public bool CopyAcrossOtherGroups = true;
+        /// <summary>"fuelReference": fuels whose value per degree-second values fuels nothing else could value.</summary>
+        public List<string> FuelReference = new List<string>();
+        /// <summary>"stackData": code/wildcard → "item" / "full" / "itemprice", the built-in modes for items that carry contents or a material.</summary>
+        public List<KeyValuePair<string, string>> StackData = new List<KeyValuePair<string, string>>();
+
         public static EmcRuleSet Load(ICoreAPI api, ILogger logger)
         {
             var set = new EmcRuleSet();
@@ -155,6 +166,31 @@ namespace VintageE
             if (root["allow"] is JArray allow)
             {
                 Allow.AddRange(allow.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["variantGuessing"] is JObject vg)
+            {
+                if (vg["copyAcross"] is JArray copy) CopyAcrossGroups.UnionWith(copy.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (vg["neverAcross"] is JArray never)
+                {
+                    foreach (string g in never.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)))
+                    {
+                        NeverAcrossGroups.Add(g);
+                        CopyAcrossGroups.Remove(g);
+                    }
+                }
+                if (vg["otherGroups"] != null) CopyAcrossOtherGroups = !string.Equals((string)vg["otherGroups"], "never", StringComparison.OrdinalIgnoreCase);
+            }
+            if (root["fuelReference"] is JArray fuel)
+            {
+                FuelReference.AddRange(fuel.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["stackData"] is JObject sd)
+            {
+                foreach (JProperty prop in sd.Properties())
+                {
+                    if (prop.Name.StartsWith("//")) continue;
+                    if (prop.Value.Type == JTokenType.String) StackData.Add(new KeyValuePair<string, string>(prop.Name, (string)prop.Value));
+                }
             }
             if (root["worldTransmutation"] is JObject wt)
             {

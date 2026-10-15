@@ -11,6 +11,7 @@ namespace VintageE
         public int SlotId;
         public EnumMouseButton Button;
         public bool Shift;
+        public bool Ctrl;
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace VintageE
 
         public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
         {
-            return new DisplaySlotClick { Inventory = this, SlotId = slotId, Button = op.MouseButton, Shift = op.ShiftDown };
+            return new DisplaySlotClick { Inventory = this, SlotId = slotId, Button = op.MouseButton, Shift = op.ShiftDown, Ctrl = op.CtrlDown };
         }
 
         public override void FromTreeAttributes(ITreeAttribute tree) { }

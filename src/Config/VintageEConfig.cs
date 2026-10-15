@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace VintageE
@@ -36,6 +37,24 @@ namespace VintageE
 
         /// <summary>As a last resort, give anything still unvalued the value of its closest variant (e.g. the same ore in a different rock). Uses the highest sibling value, so it can't be exploited.</summary>
         public bool InferFromVariantSiblings = true;
+
+        /// <summary>
+        /// For things nothing else can value: fuels by how hot and long they burn (compared with charcoal and coal),
+        /// food by how filling it is (compared with valued food of the same kind).
+        /// </summary>
+        public bool EstimateFuelAndFood = true;
+
+        /// <summary>
+        /// Blocks/items that hold things or are made of something stored on them (buckets, pots, bags, round shields,
+        /// lanterns, chiseled blocks...): code or wildcard → "item" (item only: burns and is created as the plain item),
+        /// "full" (item + contents: worth both, and you learn and create exactly that version) or "itemprice" (exactly that
+        /// version, but it costs and burns for the item only - its contents are free). Overrides the built-in choice.
+        /// Easiest to change with /emc contents.
+        /// </summary>
+        public Dictionary<string, string> StackDataModes = new Dictionary<string, string>();
+
+        /// <summary>How many exact versions (a filled bucket, a gold shield, a chiseled block...) one player can know.</summary>
+        public int MaxExactKnowledge = 500;
 
         /// <summary>
         /// Value things nothing else can value (clothes, loot armour, decorations...) from what traders buy and sell them for.
@@ -124,6 +143,18 @@ namespace VintageE
         /// <summary>Development only: builds a few test furnaces/projectiles near spawn after start-up and writes ModData/vintagee/selftest.txt. Used by the GitHub server test.</summary>
         public bool SelfTestOnStart = false;
 
+        /// <summary>The Repair Talisman also restores clothing condition (clothes you wear or carry). False turns that off.</summary>
+        public bool RepairTalismanRepairsClothing = true;
+
+        /// <summary>How fast the Repair Talisman restores clothing condition, in percent per minute.</summary>
+        public double RepairTalismanClothingPercentPerMinute = 1;
+
+        /// <summary>Clothes below this condition (percent) are left for a sewing kit. 0 = it repairs clothes in any condition.</summary>
+        public double RepairTalismanClothingMinCondition = 0;
+
+        /// <summary>The Repair Talisman stops restoring clothing at this condition (percent). 100 = good as new.</summary>
+        public double RepairTalismanClothingMaxCondition = 100;
+
         /// <summary>Multiplies the EMC that rings, stones, amulets and gadgets cost to run.</summary>
         public double TrinketCostMultiplier = 1.0;
 
@@ -135,6 +166,11 @@ namespace VintageE
             Allow ??= new List<string>();
             TransitionEmcPerDay ??= new Dictionary<string, double>();
             HostileCreatures ??= new List<string>();
+            StackDataModes ??= new Dictionary<string, string>();
+            if (MaxExactKnowledge < 0) MaxExactKnowledge = 0;
+            RepairTalismanClothingPercentPerMinute = Math.Max(0, RepairTalismanClothingPercentPerMinute);
+            RepairTalismanClothingMinCondition = Math.Clamp(RepairTalismanClothingMinCondition, 0, 100);
+            RepairTalismanClothingMaxCondition = Math.Clamp(RepairTalismanClothingMaxCondition, RepairTalismanClothingMinCondition, 100);
             if (TrinketCostMultiplier < 0) TrinketCostMultiplier = 0;
             if (WatchSpeedUp < 1) WatchSpeedUp = 1;
             if (WatchSlowDown < 1) WatchSlowDown = 1;

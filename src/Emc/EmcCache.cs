@@ -23,6 +23,16 @@ namespace VintageE
         public int ConversionCount, SourceCount, LoopFrozen, UnstableRemoved;
         /// <summary>Knowledge-style keys ("i:game:ingot-gold", "b:game:rock-granite") → EMC.</summary>
         public SortedDictionary<string, double> Values = new SortedDictionary<string, double>(StringComparer.Ordinal);
+        public int FuelCount, FoodCount, OtherModCount, GuessCount;
+        /// <summary>Material-specific values: key, the stored data they apply to (base64), value.</summary>
+        public List<CachedVariant> Variants = new List<CachedVariant>();
+    }
+
+    public class CachedVariant
+    {
+        public string Key;
+        public string Data;
+        public double Value;
     }
 
     /// <summary>
@@ -37,7 +47,7 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 7; // 2: barrel outputs counted in portions, liquid-container ingredients; 7: cooking pot recipes
+        public const int Format = 8; // 2: barrel outputs counted in portions, liquid-container ingredients; 7: cooking pot recipes; 8: material-specific values, staged guesses
 
         public static string FilePath(ICoreServerAPI sapi)
         {
@@ -156,6 +166,11 @@ namespace VintageE
                 sb.Append("r=").Append(recipe.Enabled ? '1' : '0').Append(recipe.Name);
                 ItemStack output = recipe.RecipeOutput?.ResolvedItemStack;
                 if (output != null) sb.Append("->").Append(output.Collectible?.Code).Append('*').Append(ConversionCollector.RecipeOutputQuantity(recipe.RecipeOutput, output));
+                if (output?.Attributes != null && output.Attributes.Count > 0)
+                {
+                    var data = StackDataUtil.KeptData(output);
+                    if (data != null) sb.Append("{").Append(StackDataUtil.Encode(data)).Append('}');
+                }
                 var recipeAttrs = (recipe as RecipeBase)?.Attributes?["liquidContainerProps"];
                 if (recipeAttrs != null && recipeAttrs.Exists) sb.Append("|lcp=").Append(recipeAttrs.Token?.ToString(Formatting.None));
                 foreach (IRecipeIngredient ing in recipe.RecipeIngredients)
@@ -230,9 +245,14 @@ namespace VintageE
         }
 
         public static bool TryLoad(ICoreServerAPI sapi, string fingerprint, ILogger logger, out EmcCacheFile file, out Dictionary<CollectibleObject, double> values)
+            => TryLoad(sapi, fingerprint, logger, out file, out values, out _);
+
+        public static bool TryLoad(ICoreServerAPI sapi, string fingerprint, ILogger logger, out EmcCacheFile file, out Dictionary<CollectibleObject, double> values,
+            out Dictionary<CollectibleObject, List<VariantValue>> variants)
         {
             file = null;
             values = null;
+            variants = new Dictionary<CollectibleObject, List<VariantValue>>();
             string path = FilePath(sapi);
             if (!File.Exists(path)) return false;
             try
@@ -258,6 +278,14 @@ namespace VintageE
                 }
                 values[c] = kv.Value;
             }
+            foreach (CachedVariant cv in file.Variants ?? new List<CachedVariant>())
+            {
+                CollectibleObject c = PlayerEmc.Resolve(sapi.World, cv.Key);
+                var tree = StackDataUtil.Decode(cv.Data);
+                if (c == null || tree == null) continue;
+                if (!variants.TryGetValue(c, out var list)) variants[c] = list = new List<VariantValue>();
+                list.Add(new VariantValue { Attributes = tree, Value = cv.Value });
+            }
             return true;
         }
 
@@ -282,8 +310,18 @@ namespace VintageE
                     ConversionCount = report.ConversionCount,
                     SourceCount = report.SourceCount,
                     LoopFrozen = report.LoopFrozen,
-                    UnstableRemoved = report.UnstableRemoved
+                    UnstableRemoved = report.UnstableRemoved,
+                    FuelCount = report.FuelCount,
+                    FoodCount = report.FoodCount,
+                    OtherModCount = report.OtherModCount,
+                    GuessCount = report.GuessCount
                 };
+                foreach (var kv in report.Variants)
+                {
+                    string key = PlayerEmc.KeyOf(kv.Key);
+                    if (key == null) continue;
+                    foreach (VariantValue v in kv.Value) file.Variants.Add(new CachedVariant { Key = key, Data = StackDataUtil.Encode(v.Attributes), Value = v.Value });
+                }
                 foreach (var kv in report.Values)
                 {
                     string key = PlayerEmc.KeyOf(kv.Key);
@@ -314,6 +352,10 @@ namespace VintageE
             to.SourceCount = from.SourceCount;
             to.LoopFrozen = from.LoopFrozen;
             to.UnstableRemoved = from.UnstableRemoved;
+            to.FuelCount = from.FuelCount;
+            to.FoodCount = from.FoodCount;
+            to.OtherModCount = from.OtherModCount;
+            to.GuessCount = from.GuessCount;
             to.CachedAt = from.CreatedUtc;
         }
     }

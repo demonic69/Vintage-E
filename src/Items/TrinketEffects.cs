@@ -615,17 +615,42 @@ namespace VintageE
 
         void Repair(IServerPlayer player)
         {
-            foreach (ItemSlot slot in EmcWallet.CarriedSlots(player))
+            foreach (ItemSlot slot in EmcWallet.CarriedSlots(player)) RepairOnce(slot, mod.Config);
+        }
+
+        /// <summary>
+        /// One second of the Repair Talisman on one item: +1 durability for tools, weapons and armour, and - if the
+        /// server allows it - clothing condition back up by the configured percent per minute, between the configured
+        /// minimum and maximum condition. Called once a second for carried items and by pedestals.
+        /// </summary>
+        public static void RepairOnce(ItemSlot slot, VintageEConfig config)
+        {
+            ItemStack stack = slot?.Itemstack;
+            if (stack == null) return;
+            CollectibleObject c = stack.Collectible;
+            bool changed = false;
+            int max = c.GetMaxDurability(stack);
+            if (max > 0)
             {
-                ItemStack stack = slot.Itemstack;
-                CollectibleObject c = stack.Collectible;
-                int max = c.GetMaxDurability(stack);
-                if (max <= 0) continue;
                 int remaining = c.GetRemainingDurability(stack);
-                if (remaining <= 0 || remaining >= max) continue;
-                c.SetDurability(stack, remaining + 1);
-                slot.MarkDirty();
+                if (remaining > 0 && remaining < max)
+                {
+                    c.SetDurability(stack, remaining + 1);
+                    changed = true;
+                }
             }
+            if (config != null && config.RepairTalismanRepairsClothing && config.RepairTalismanClothingPercentPerMinute > 0 && stack.Attributes.HasAttribute("condition"))
+            {
+                float condition = stack.Attributes.GetFloat("condition", 1);
+                float low = (float)(config.RepairTalismanClothingMinCondition / 100), high = (float)(config.RepairTalismanClothingMaxCondition / 100);
+                if (condition >= low && condition < high)
+                {
+                    float step = (float)(config.RepairTalismanClothingPercentPerMinute / 100 / 60);
+                    stack.Attributes.SetFloat("condition", Math.Min(high, condition + step));
+                    changed = true;
+                }
+            }
+            if (changed) slot.MarkDirty();
         }
 
         /// <summary>

@@ -80,8 +80,23 @@ namespace VintageE
             get
             {
                 ItemStack target = inventory[TargetSlot].Itemstack;
-                return target == null ? 0 : (Mod?.Emc.GetValue(target.Collectible) ?? 0);
+                return target == null || Mod == null ? 0 : Mod.Emc.GetValue(CopyOf(Mod, target));
             }
+        }
+
+        /// <summary>
+        /// What the condenser makes from its target: the plain item, or - for items that keep their contents or
+        /// material - exactly that version (fresh and undamaged).
+        /// </summary>
+        static ItemStack CopyOf(VintageEModSystem mod, ItemStack target)
+        {
+            var copy = new ItemStack(target.Collectible, 1);
+            if (mod.Emc.StackData.CarriesData(target.Collectible) && mod.Emc.StackData.ModeOf(target.Collectible) != StackDataMode.Item)
+            {
+                var data = StackDataUtil.KeptData(target);
+                if (data != null) foreach (var kv in data) copy.Attributes[kv.Key] = kv.Value.Clone();
+            }
+            return copy;
         }
 
         void OnServerTick(float dt)
@@ -90,7 +105,8 @@ namespace VintageE
             if (mod == null) return;
             double speed = mod.Config.MachineSpeedMultiplier;
             ItemStack target = inventory[TargetSlot].Itemstack;
-            double targetValue = target == null ? 0 : mod.Emc.GetValue(target.Collectible);
+            ItemStack copy = target == null ? null : CopyOf(mod, target);
+            double targetValue = copy == null ? 0 : mod.Emc.GetValue(copy);
             bool changed = false;
 
             // 1. Burn storage (anything that isn't the target) into EMC, while there's room for it.
@@ -101,7 +117,7 @@ namespace VintageE
                 ItemStack stack = slot.Itemstack;
                 if (stack == null) continue;
                 if (target != null && stack.Collectible == target.Collectible) continue;
-                if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack)) continue;
+                if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack) && mod.Emc.StackData.ModeOf(stack.Collectible) == StackDataMode.Item) continue;
                 double value = mod.Emc.GetValue(stack);
                 if (value <= 0 || Stored + value > capacity) continue;
 
@@ -120,7 +136,7 @@ namespace VintageE
                 makeBudget = Math.Min(makeBudget + outputsPerSecond * speed * dt, outputsPerSecond * speed * 2 + 1);
                 while (makeBudget >= 1 && Stored >= targetValue)
                 {
-                    if (!Insert(new ItemStack(target.Collectible, 1))) break;
+                    if (!Insert(copy.Clone())) break;
                     Stored -= targetValue;
                     makeBudget -= 1;
                     changed = true;

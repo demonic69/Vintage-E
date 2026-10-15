@@ -46,13 +46,26 @@ namespace VintageE
                 }
             }
 
-            double contents = 0;
-            foreach (ItemStack inner in StackContents.NestedStacks(stack))
+            StackDataTable data = mod.Emc.StackData;
+            StackDataMode mode = data.ModeOf(stack.Collectible);
+            bool carries = data.CarriesData(stack.Collectible);
+            bool hasContents = StackContents.HasNestedStacks(stack);
+            // Item only / item price: the contents aren't in the value above, so say what they're worth.
+            if (hasContents && (!carries || mode != StackDataMode.Full))
             {
-                if (inner.Collectible == null && !inner.ResolveBlockOrItem(world)) continue;
-                contents += mod.Emc.GetValue(inner) * inner.StackSize;
+                double contents = mod.Emc.ContentsValue(stack);
+                if (contents > 0) dsc.AppendLine(Lang.Get("vintagee:tooltip-emc-contents", EmcFormat.Format(contents)));
             }
-            if (contents > 0) dsc.AppendLine(Lang.Get("vintagee:tooltip-emc-contents", EmcFormat.Format(contents)));
+            if (carries && StackDataUtil.KeptData(stack) != null)
+            {
+                string line = mode switch
+                {
+                    StackDataMode.Full => hasContents ? "vintagee:tooltip-data-full-contents" : "vintagee:tooltip-data-full",
+                    StackDataMode.ItemPrice => hasContents ? "vintagee:tooltip-data-itemprice-contents" : "vintagee:tooltip-data-full",
+                    _ => "vintagee:tooltip-data-item"
+                };
+                dsc.AppendLine(Lang.Get(line));
+            }
         }
     }
 }
