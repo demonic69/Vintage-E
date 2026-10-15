@@ -449,12 +449,26 @@ namespace VintageE
                     if (groups.TryGetValue(SiblingKey(c, parts, k), out var g))
                     {
                         result[c] = g.value;
-                        origin[c] = "same as its variant " + g.from.Code;
+                        origin[c] = "same as its variant " + g.from.Code + " (differs in: " + DifferingGroups(c, g.from) + ")";
                         break;
                     }
                 }
             }
             return result;
+        }
+
+        /// <summary>The variant group codes (as the block/item type defines them) whose states differ between two variants.</summary>
+        internal static string DifferingGroups(CollectibleObject a, CollectibleObject b)
+        {
+            var va = a.Variant;
+            var vb = b.Variant;
+            if (va == null || vb == null || va.Count == 0) return "?";
+            var diff = new List<string>();
+            foreach (var kv in va)
+            {
+                if (!vb.TryGetValue(kv.Key, out string other) || other != kv.Value) diff.Add(kv.Key);
+            }
+            return diff.Count == 0 ? "?" : string.Join("+", diff);
         }
 
         static string SiblingKey(CollectibleObject c, string[] parts, int skip)
