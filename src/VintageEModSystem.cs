@@ -679,9 +679,11 @@ namespace VintageE
         /// <summary>Opens the /emc missing window (or with <paramref name="blacklist"/>, the /emc blacklist window) for a player.</summary>
         public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file, bool blacklist = false)
         {
+            var shownItems = (blacklist ? report.Blacklisted : report.Missing).Where(c => PlayerEmc.KeyOf(c) != null).ToList();
             serverChannel.SendPacket(new EmcMissingPacket
             {
-                Keys = (blacklist ? report.Blacklisted : report.Missing).Select(PlayerEmc.KeyOf).Where(k => k != null).ToArray(),
+                Keys = shownItems.Select(PlayerEmc.KeyOf).ToArray(),
+                Why = blacklist ? null : shownItems.Select(c => report.MissingWhy != null && report.MissingWhy.TryGetValue(c, out string w) ? w : "").ToArray(),
                 CreativeTotal = report.CreativeTotal,
                 ValueCount = report.Values.Count,
                 Version = Version,

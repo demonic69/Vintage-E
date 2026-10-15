@@ -70,6 +70,8 @@ namespace VintageE
         public bool CopyAcrossOtherGroups = true;
         /// <summary>"fuelReference": fuels whose value per degree-second values fuels nothing else could value.</summary>
         public List<string> FuelReference = new List<string>();
+        /// <summary>"constructions": things built in stages (sailboats) - the construction entity and the item it ends up as, '*' carried over.</summary>
+        public List<KeyValuePair<string, string>> Constructions = new List<KeyValuePair<string, string>>();
         /// <summary>"stackData": code/wildcard → "item" / "full" / "itemprice", the built-in modes for items that carry contents or a material.</summary>
         public List<KeyValuePair<string, string>> StackData = new List<KeyValuePair<string, string>>();
 
@@ -183,6 +185,14 @@ namespace VintageE
             if (root["fuelReference"] is JArray fuel)
             {
                 FuelReference.AddRange(fuel.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["constructions"] is JArray cons)
+            {
+                foreach (JToken tok in cons)
+                {
+                    string entity = (string)tok["entity"], makes = (string)tok["makes"];
+                    if (!string.IsNullOrEmpty(entity) && !string.IsNullOrEmpty(makes)) Constructions.Add(new KeyValuePair<string, string>(entity, makes));
+                }
             }
             if (root["stackData"] is JObject sd)
             {

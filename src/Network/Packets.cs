@@ -62,6 +62,8 @@ namespace VintageE
         [ProtoMember(5)] public string File;
         /// <summary>True: this is the /emc blacklist window (Keys are the blacklisted blocks/items).</summary>
         [ProtoMember(6)] public bool Blacklist;
+        /// <summary>Why each one has no value (same order as Keys; missing window only).</summary>
+        [ProtoMember(7)] public string[] Why;
     }
 
     /// <summary>Client → server: set a block/item's EMC value from the /emc missing window (admins only). Key is "i:code" / "b:code".</summary>

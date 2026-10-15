@@ -6,6 +6,7 @@ using System.Reflection;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 
 namespace VintageE
 {
@@ -43,6 +44,8 @@ namespace VintageE
         readonly HashSet<object> seenLists = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
         public readonly List<Conversion> Conversions = new List<Conversion>();
+        /// <summary>Construction entity pattern → the item it becomes ("constructions" in the value files).</summary>
+        public List<KeyValuePair<string, string>> Constructions = new List<KeyValuePair<string, string>>();
         /// <summary>Human-readable name of every recipe list found → number of conversions it produced.</summary>
         public readonly SortedDictionary<string, int> SourceCounts = new SortedDictionary<string, int>();
         public int SkippedRecipes;
@@ -62,6 +65,7 @@ namespace VintageE
             CollectFromCollectibleProperties();
             CollectFromBlockDrops();
             CollectPlacementStates();
+            CollectConstructions();
             CollectFromAttributes();
             CollectFromMolds();
             CollectFromBehaviors();
@@ -799,6 +803,62 @@ namespace VintageE
                 if (AddIfSane(conv)) count++;
             }
             Count("placement states", count);
+        }
+
+        /// <summary>
+        /// Things built in stages on the spot (sailboats on rollers): the construction entity lists what each stage takes
+        /// ("stages" → "requireStacks"), and the value files say which item it ends up as. {wood}-style placeholders are
+        /// filled from the construction's own variant (its material).
+        /// </summary>
+        void CollectConstructions()
+        {
+            int count = 0;
+            if (Constructions.Count == 0) return;
+            foreach (Vintagestory.API.Common.Entities.EntityProperties etype in sapi.World.EntityTypes ?? new List<Vintagestory.API.Common.Entities.EntityProperties>())
+            {
+                JsonObject stages = etype?.Attributes?["stages"];
+                if (etype?.Code == null || stages == null || !stages.Exists || !(stages.Token is Newtonsoft.Json.Linq.JArray stageList)) continue;
+                CollectibleObject made = null;
+                foreach (var rule in Constructions)
+                {
+                    var pattern = new AssetLocation(rule.Key);
+                    if (!WildcardUtil.Match(pattern, etype.Code)) continue;
+                    string prefix = pattern.Path.Contains('*') ? pattern.Path.Substring(0, pattern.Path.IndexOf('*')) : pattern.Path;
+                    string carried = etype.Code.Path.Length >= prefix.Length ? etype.Code.Path.Substring(prefix.Length) : "";
+                    string target = rule.Value.Replace("*", carried);
+                    made = index.Match(target).FirstOrDefault();
+                    if (made != null) break;
+                }
+                if (made == null) continue;
+
+                string material = null;
+                if (etype.Variant != null && etype.Variant.TryGetValue("material", out string m)) material = m;
+                var conv = new Conversion { Output = made, OutputQuantity = 1, Kind = ConversionKind.Crafting, Source = "built in stages (" + etype.Code.ToShortString() + ")" };
+                bool ok = true;
+                foreach (var stage in stageList)
+                {
+                    if (!(stage["requireStacks"] is Newtonsoft.Json.Linq.JArray needs)) continue;
+                    foreach (var need in needs)
+                    {
+                        string code = (string)need["code"];
+                        if (string.IsNullOrEmpty(code)) continue;
+                        // {wood} and friends: the construction's material, or any matching variant.
+                        code = System.Text.RegularExpressions.Regex.Replace(code, @"\{(\w+)\}", mm =>
+                        {
+                            if (etype.Variant != null && etype.Variant.TryGetValue(mm.Groups[1].Value, out string v)) return v;
+                            return material ?? "*";
+                        });
+                        string type = string.Equals((string)need["type"], "block", StringComparison.OrdinalIgnoreCase) ? "block:" : "item:";
+                        CollectibleObject[] choices = index.Match(type + AssetLocation.Create(code, etype.Code.Domain)).ToArray();
+                        double qty = need["quantity"]?.Type == Newtonsoft.Json.Linq.JTokenType.Integer ? (int)need["quantity"] : 1;
+                        if (choices.Length == 0 || qty <= 0) { ok = false; break; }
+                        conv.Inputs.Add(new ConversionInput { Choices = choices, Quantity = qty });
+                    }
+                    if (!ok) break;
+                }
+                if (ok && AddIfSane(conv)) count++;
+            }
+            Count("built in stages", count);
         }
 
         /// <summary>

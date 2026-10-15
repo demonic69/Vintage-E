@@ -135,6 +135,15 @@ namespace VintageE
             }
             Flush();
 
+            // Things built in stages (sailboats): what each stage takes.
+            foreach (var etype in sapi.World.EntityTypes ?? new List<Vintagestory.API.Common.Entities.EntityProperties>())
+            {
+                var stages = etype?.Attributes?["stages"];
+                if (stages == null || !stages.Exists) continue;
+                sb.Append("e=").Append(etype.Code).Append(stages.Token?.ToString(Formatting.None)).Append('\n');
+            }
+            Flush();
+
             // Recipes: the crafting grid plus every recipe list any mod system holds
             int n = 0;
             foreach (GridRecipe r in sapi.World.GridRecipes) AppendRecipe(sb, r, ref n, hash);

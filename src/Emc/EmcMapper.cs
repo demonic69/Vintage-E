@@ -82,7 +82,7 @@ namespace VintageE
             Seed(index, report, out Dictionary<CollectibleObject, double> fixedValues, out HashSet<CollectibleObject> excluded);
 
             // 3. Every way of making things.
-            var collector = new ConversionCollector(sapi, index, logger, config);
+            var collector = new ConversionCollector(sapi, index, logger, config) { Constructions = rules.Constructions };
             collector.CollectAll();
             report.SkippedRecipes = collector.SkippedRecipes;
 
@@ -280,9 +280,9 @@ namespace VintageE
             report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount - report.DefaultCount
                 - report.FuelCount - report.FoodCount - report.OtherModCount - report.GuessCount;
             report.Variants = VariantValues(collector.Conversions, report.Values, excluded);
-            ExplainMissing(report, collector.Conversions);
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
+            ExplainMissing(report, collector.Conversions);
             report.Sources = collector.SourceCounts;
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
             report.UnstableRemoved = solver.Unstable.Count;

@@ -33,6 +33,7 @@ namespace VintageE
             public string Code;
             public string Domain;
             public bool IsBlock;
+            public string Why;
         }
 
         readonly EmcMissingPacket packet;
@@ -62,8 +63,10 @@ namespace VintageE
             this.onSetValue = onSetValue;
             this.onBlacklist = onBlacklist;
             this.onBlacklistMod = onBlacklistMod;
-            foreach (string key in packet.Keys ?? Array.Empty<string>())
+            string[] keysIn = packet.Keys ?? Array.Empty<string>();
+            for (int ki = 0; ki < keysIn.Length; ki++)
             {
+                string key = keysIn[ki];
                 CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
                 if (c?.Code == null) continue;
                 string name;
@@ -76,7 +79,8 @@ namespace VintageE
                     Name = name,
                     Code = c.Code.ToString(),
                     Domain = c.Code.Domain,
-                    IsBlock = c.ItemClass == EnumItemClass.Block
+                    IsBlock = c.ItemClass == EnumItemClass.Block,
+                    Why = packet.Why != null && ki < packet.Why.Length ? packet.Why[ki] : null
                 });
             }
             all.Sort((a, b) => string.Compare(a.Code, b.Code, StringComparison.Ordinal));
@@ -210,6 +214,7 @@ namespace VintageE
                 CairoFont nameFont = CairoFont.WhiteSmallText();
                 CairoFont pickedFont = CairoFont.WhiteSmallText().WithColor(new double[] { 0.55, 1, 0.55, 1 }).WithWeight(Cairo.FontWeight.Bold);
                 CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
+                CairoFont whyFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.85, 0.75, 0.5, 1 });
                 foreach (Entry e in shown.Skip(page * PerPage).Take(PerPage))
                 {
                     ItemStack stack = null;
@@ -221,6 +226,7 @@ namespace VintageE
                     bool picked = selected.Contains(e.Key);
                     comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : nameFont, _ => Toggle(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
                     comps.Add(new RichTextComponent(capi, (e.IsBlock ? "block:" : "item:") + e.Code + "\n", codeFont) { VerticalAlign = EnumVerticalAlign.Middle });
+                    if (!string.IsNullOrEmpty(e.Why)) comps.Add(new RichTextComponent(capi, "      " + e.Why + "\n", whyFont));
                 }
                 if (shown.Count == 0)
                 {

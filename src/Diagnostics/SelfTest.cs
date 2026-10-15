@@ -235,6 +235,9 @@ namespace VintageE
             Line("  brown shingle: " + ValueOf("game:shingle-burned-brown") + " (" + brown + "), black shingle: " + ValueOf("game:shingle-burned-black"));
             Check(brown.Contains("beehive kiln") && Math.Abs(ValueOf("game:shingle-burned-brown") - ValueOf("game:shingle-burned-black")) < 1e-6, "kiln-coloured shingles cost the same clay as the others");
             Check(ValueOf("game:slantedroofing-agedthatch-east-free") > 0, "aged thatch roofing has a value");
+            string boat = OriginOf("game:boat-sailed-oak");
+            Line("  oak sailboat: " + ValueOf("game:boat-sailed-oak") + " (" + (boat.Length > 120 ? boat.Substring(0, 120) + "..." : boat) + ")");
+            Check(boat.StartsWith("built in stages") && ValueOf("game:boat-sailed-oak") > ValueOf("game:boat-raft-oak"), "sailboats are valued from their build stages");
             string mold = OriginOf("game:toolmold-black-fired-axe");
             Line("  black axe mold: " + ValueOf("game:toolmold-black-fired-axe") + " (" + mold + ")");
             Check(!mold.Contains("anvil"), "the axe mold isn't priced like the anvil mold");
