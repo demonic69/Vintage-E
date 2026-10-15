@@ -98,7 +98,7 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`).
+4. `ModConfig/vintagee.json` on the server (or change it in game with `/emc configure`): `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`).
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
@@ -131,6 +131,7 @@ Value files can also hold:
 | `/emc blacklist` | admin | Open the same window for everything on the blacklist: give something a value or take it off the blacklist |
 | `/emc contents` | admin | Open the list of everything that holds things or keeps its material, and switch how each is transmuted |
 | `/emc contents <item\|full\|itemprice\|default>` | admin | Set the held item's contents mode |
+| `/emc configure` | admin | Open the settings window (every setting, what it does, an editor for it); from chat `/emc configure list` lists them, `/emc configure <setting>` explains one, `/emc configure <setting> <value>` changes it (lists: `add`/`remove`/`clear`; tables: `set <key> <value>`/`remove <key>`/`clear`), `/emc configure reload` re-reads the file. Saved and applied straight away |
 | `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
 | `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
 | `/emc learn` | admin | Learn the held item without burning it |

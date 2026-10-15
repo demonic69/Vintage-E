@@ -89,7 +89,9 @@ namespace VintageE
                 .RegisterMessageType<FireProjectilePacket>()
                 .RegisterMessageType<EmcBlacklistPacket>()
                 .RegisterMessageType<EmcContentsPacket>()
-                .RegisterMessageType<EmcContentsSetPacket>();
+                .RegisterMessageType<EmcContentsSetPacket>()
+                .RegisterMessageType<EmcConfigPacket>()
+                .RegisterMessageType<EmcConfigSetPacket>();
         }
 
         #region Server
@@ -114,6 +116,7 @@ namespace VintageE
             serverChannel.SetMessageHandler<EmcBlacklistPacket>(OnBlacklistRequest);
             serverChannel.SetMessageHandler<FireProjectilePacket>(OnFireProjectile);
             serverChannel.SetMessageHandler<EmcContentsSetPacket>(OnContentsSetRequest);
+            serverChannel.SetMessageHandler<EmcConfigSetPacket>(OnConfigSetRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
@@ -645,6 +648,30 @@ namespace VintageE
             SendContentsList(player);
         }
 
+        /// <summary>Opens (or refreshes) the /emc configure window for a player.</summary>
+        public void SendConfig(IServerPlayer player, string message = null, bool error = false, string selected = null)
+        {
+            var (names, values) = ConfigureCommand.Snapshot(Config);
+            serverChannel.SendPacket(new EmcConfigPacket { Names = names, Values = values, Message = message ?? "", Error = error, Selected = selected }, player);
+        }
+
+        void OnConfigSetRequest(IServerPlayer player, EmcConfigSetPacket packet)
+        {
+            if (packet?.Name == null || !player.HasPrivilege(Privilege.controlserver)) return;
+            string message;
+            bool error = false;
+            try
+            {
+                message = ConfigureCommand.SetFromText(this, packet.Name, packet.Text ?? "", player.LanguageCode);
+            }
+            catch (FormatException e)
+            {
+                message = e.Message;
+                error = true;
+            }
+            SendConfig(player, message, error, packet.Name);
+        }
+
         /// <summary>Tells every client about a change to the watch's time speed, so their clocks and skies keep up.</summary>
         public void BroadcastWatchSpeed(float modifier) => serverChannel?.BroadcastPacket(new WatchSpeedPacket { Modifier = modifier });
 
@@ -674,6 +701,7 @@ namespace VintageE
             clientChannel.SetMessageHandler<TransmuteResultPacket>(OnTransmuteResult);
             clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
             clientChannel.SetMessageHandler<EmcContentsPacket>(OnContentsList);
+            clientChannel.SetMessageHandler<EmcConfigPacket>(OnConfigList);
             clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
 
             capi.Input.RegisterHotKey(FireHotkey, Lang.Get("vintagee:hotkey-fire"), GlKeys.R, HotkeyType.CharacterControls);
@@ -734,6 +762,19 @@ namespace VintageE
         }
 
         /// <summary>Opens the transmutation GUI (from a table at <paramref name="tablePos"/>, or from a tablet when null).</summary>
+        GuiDialogEmcConfig configDialog;
+
+        void OnConfigList(EmcConfigPacket packet)
+        {
+            if (configDialog != null && configDialog.IsOpened())
+            {
+                configDialog.Update(packet);
+                return;
+            }
+            configDialog = new GuiDialogEmcConfig(Capi, packet, (name, text) => clientChannel.SendPacket(new EmcConfigSetPacket { Name = name, Text = text }));
+            configDialog.TryOpen();
+        }
+
         GuiDialogEmcContents contentsDialog;
 
         void OnContentsList(EmcContentsPacket packet)

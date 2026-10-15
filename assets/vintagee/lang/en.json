@@ -436,7 +436,7 @@
   "cmd-contents-kleinstar": "Klein stars always keep their stored EMC; there's nothing to change.",
   "cmdhelp-contents": "Open the list of everything that holds things or keeps its material on the item, and switch how each is transmuted",
   "cmdhelp-contentsset": "Set the held item: item only, item + contents (full), item price only, or back to the default",
-  "cmdhelp-configure": "Show every server setting, or show and change one (true/false, numbers, list and table entries); saved and applied straight away",
+  "cmdhelp-configure": "Open the settings window, or show and change one setting from chat (true/false, numbers, list and table entries; /emc configure list prints them all); saved and applied straight away",
   "cfg-title": "Vintage-E settings (ModConfig/vintagee.json):",
   "cfg-howto": "/emc configure <setting> shows what it does; /emc configure <setting> <value> changes it. Lists: add <entry> / remove <entry> / clear. Tables: set <key> <value> / remove <key> / clear. /emc configure reload re-reads the file after editing it by hand.",
   "cfg-howto-bool": "Change it: /emc configure {0} true|false",
@@ -458,5 +458,18 @@
   "cfg-remapped": "Saved; EMC values were worked out again.",
   "cfg-applied": "Saved and applied.",
   "cfg-restart": "Saved; it takes effect the next time the server starts.",
-  "announce-configure": "Vintage-E can be configured in game with <strong>/emc configure</strong> (every setting, what it does, and how to change it). /emc help lists every command."
+  "announce-configure": "Vintage-E can be configured in game: <strong>/emc configure</strong> opens a window with every setting, what it does, and a way to change it. /emc help lists every command.",
+  "cfg-window-title": "Vintage-E settings",
+  "cfg-search": "Search settings",
+  "cfg-hint-bool": "Switch it on or off, then Save.",
+  "cfg-hint-number": "Type a number, then Save.",
+  "cfg-hint-text": "Type a value, then Save.",
+  "cfg-hint-list": "One entry per line (codes and wildcards like game:rock-*), then Save.",
+  "cfg-hint-table": "One \"key = value\" per line (e.g. game:rock-granite = 2), then Save.",
+  "cfg-on": "On",
+  "cfg-save": "Save",
+  "cfg-revert": "Undo",
+  "cfg-saving": "Saving...",
+  "cfg-saved": "{0} saved.",
+  "cfg-badline": "This line needs to be \"key = value\": {0}"
 }

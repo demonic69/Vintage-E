@@ -41,7 +41,17 @@ namespace VintageE
             string lang = args.LanguageCode;
             string name = args[0] as string;
             string rest = (args[1] as string)?.Trim() ?? "";
-            if (string.IsNullOrEmpty(name)) return TextCommandResult.Success(List(mod.Config, lang));
+            if (string.IsNullOrEmpty(name))
+            {
+                // Players get the settings window; the server console gets the list.
+                if (args.Caller.Player is IServerPlayer sp)
+                {
+                    mod.SendConfig(sp);
+                    return TextCommandResult.Success();
+                }
+                return TextCommandResult.Success(List(mod.Config, lang));
+            }
+            if (name.Equals("list", StringComparison.OrdinalIgnoreCase) && rest.Length == 0) return TextCommandResult.Success(List(mod.Config, lang));
             if (name.Equals("reload", StringComparison.OrdinalIgnoreCase))
             {
                 string error = mod.ReloadConfig();
@@ -66,6 +76,88 @@ namespace VintageE
             mod.SaveConfig();
             string applied = Apply(mod, field.Name, lang);
             return TextCommandResult.Success(result + " " + applied + "\n" + Lang.GetL(lang, "vintagee:cfg-now", field.Name, Show(field.GetValue(mod.Config))));
+        }
+
+        /// <summary>Every setting's name and its value as editable text (for the window).</summary>
+        public static (string[] names, string[] values) Snapshot(VintageEConfig config)
+        {
+            var names = new List<string>();
+            var values = new List<string>();
+            foreach (FieldInfo f in Settings)
+            {
+                names.Add(f.Name);
+                values.Add(ToText(f.GetValue(config)));
+            }
+            return (names.ToArray(), values.ToArray());
+        }
+
+        /// <summary>A value as the window edits it: true/false, a number, one list entry per line, "key = value" per line.</summary>
+        public static string ToText(object value)
+        {
+            switch (value)
+            {
+                case IDictionary dict:
+                    var lines = new List<string>();
+                    foreach (DictionaryEntry e in dict) lines.Add(e.Key + " = " + Show(e.Value));
+                    return string.Join("\n", lines);
+                case IList list:
+                    return string.Join("\n", list.Cast<object>().Select(Show));
+                default:
+                    return Show(value);
+            }
+        }
+
+        /// <summary>The kind of editor a setting needs: "bool", "number", "text", "list" or "table".</summary>
+        public static string KindOf(FieldInfo f)
+        {
+            Type t = f.FieldType;
+            if (t == typeof(bool)) return "bool";
+            if (t == typeof(double) || t == typeof(int) || t == typeof(float)) return "number";
+            if (typeof(IDictionary).IsAssignableFrom(t)) return "table";
+            if (typeof(IList).IsAssignableFrom(t)) return "list";
+            return "text";
+        }
+
+        public static FieldInfo Field(string name) => Settings.FirstOrDefault(f => f.Name == name);
+
+        /// <summary>
+        /// Replaces a setting with the window's text (the whole list/table at once), checking every line first. Saves,
+        /// applies, and returns what happened; throws FormatException with a readable message if something is wrong.
+        /// </summary>
+        public static string SetFromText(VintageEModSystem mod, string name, string text, string lang)
+        {
+            FieldInfo field = Field(name) ?? throw new FormatException(Lang.GetL(lang, "vintagee:cfg-unknown", name));
+            object value = field.GetValue(mod.Config);
+            string[] lines = text.Replace("\r", "").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToArray();
+            if (value is IDictionary dict)
+            {
+                Type valueType = field.FieldType.GetGenericArguments()[1];
+                var parsed = new List<KeyValuePair<string, object>>();
+                foreach (string line in lines)
+                {
+                    int eq = line.LastIndexOf('=');
+                    if (eq <= 0) throw new FormatException(Lang.GetL(lang, "vintagee:cfg-badline", line));
+                    string key = line.Substring(0, eq).Trim(), val = line.Substring(eq + 1).Trim();
+                    if (key.Length == 0) throw new FormatException(Lang.GetL(lang, "vintagee:cfg-badline", line));
+                    if (field.Name == "StackDataModes" && !StackDataTable.TryParseMode(val, out _)) throw new FormatException(Lang.GetL(lang, "vintagee:cfg-badmode", val));
+                    parsed.Add(new KeyValuePair<string, object>(key, Parse(val, valueType, lang)));
+                }
+                dict.Clear();
+                foreach (var kv in parsed) dict[kv.Key] = kv.Value;
+            }
+            else if (value is IList list)
+            {
+                list.Clear();
+                foreach (string line in lines.Distinct()) list.Add(line);
+            }
+            else
+            {
+                field.SetValue(mod.Config, Parse(text, field.FieldType, lang));
+            }
+            mod.Config.Normalize();
+            mod.SaveConfig();
+            string applied = Apply(mod, field.Name, lang);
+            return Lang.GetL(lang, "vintagee:cfg-saved", field.Name) + " " + applied;
         }
 
         /// <summary>The setting with this name (any case), or the only one starting with it.</summary>
@@ -114,7 +206,7 @@ namespace VintageE
             {
                 case null: return "null";
                 case bool b: return b ? "true" : "false";
-                case double d: return d.ToString("0.####", CultureInfo.InvariantCulture);
+                case double d: return d.ToString("0.##########", CultureInfo.InvariantCulture);
                 case float fl: return fl.ToString("0.####", CultureInfo.InvariantCulture);
                 case IDictionary dict:
                     if (dict.Count == 0) return "{}";

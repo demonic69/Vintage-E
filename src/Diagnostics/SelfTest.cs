@@ -136,7 +136,8 @@ namespace VintageE
             foreach (var (code, expectMin, expectMax) in new[] { ("game:fat", 1.0, 64.0), ("game:fat-rendered", 1.0, 64.0), ("game:gem-emerald-rough", 2048.0, 2048.0), ("game:gem-diamond-rough", 8192.0, 8192.0),
                 ("game:creature-fish-freshwater-bass-largemouth-adult", 112.0, 112.0), ("game:jonasparts-tank01", 1024.0, 1024.0),
                 ("game:creature-trader-female-artisan-cold", 0.0, 0.0), ("game:locatormap-treasures", 0.0, 0.0),
-                ("game:lore-paper", 1.0, 1000.0), ("game:metal-parts", 1.0, 1000.0), ("game:nightvisiondevice", 4096.0, 4096.0) })
+                ("game:lore-paper", 1.0, 1000.0), ("game:metal-parts", 1.0, 1000.0), ("game:nightvisiondevice", 4096.0, 4096.0),
+                ("game:ore-fluorite", 32.0, 32.0), ("game:ore-fluorite-granite", 1.0, 1000.0) })
             {
                 CollectibleObject c = (CollectibleObject)sapi.World.GetItem(new AssetLocation(code)) ?? sapi.World.GetBlock(new AssetLocation(code));
                 double v = c == null ? -1 : mod.Emc.GetValue(c);
@@ -349,8 +350,24 @@ namespace VintageE
 
             string bad = RunCommand("/emc configure WatchSpeedUp lots");
             Check(bad.Contains("Error"), "/emc configure refuses a bad value (" + bad + ")");
-            string list = RunCommand("/emc configure");
-            Check(list.Contains("RepairTalismanClothingPercentPerMinute"), "/emc configure lists the settings");
+            string list = RunCommand("/emc configure list");
+            Check(list.Contains("RepairTalismanClothingPercentPerMinute"), "/emc configure list shows the settings");
+
+            // The settings window sends whole values as text.
+            var (names, values) = ConfigureCommand.Snapshot(cfg);
+            string hostile = values[Array.IndexOf(names, "HostileCreatures")];
+            ConfigureCommand.SetFromText(mod, "HostileCreatures", hostile + "\ngame:fox-*", "en");
+            bool viaWindow = mod.Config.HostileCreatures.Contains("game:fox-*");
+            ConfigureCommand.SetFromText(mod, "HostileCreatures", hostile, "en");
+            Check(viaWindow && !mod.Config.HostileCreatures.Contains("game:fox-*"), "the settings window replaces a list");
+            bool refused = false;
+            try { ConfigureCommand.SetFromText(mod, "TransitionEmcPerDay", "dry = lots", "en"); }
+            catch (FormatException) { refused = true; }
+            Check(refused && mod.Config.TransitionEmcPerDay.TryGetValue("dry", out double dry) && dry == 64, "the settings window refuses a bad table line and keeps the old value");
+            ConfigureCommand.SetFromText(mod, "WatchSpeedUp", "12", "en");
+            bool number = Math.Abs(mod.Config.WatchSpeedUp - 12) < 1e-9;
+            ConfigureCommand.SetFromText(mod, "WatchSpeedUp", "10", "en");
+            Check(number, "the settings window changes a number");
         }
 
         /// <summary>An element's box in model space at rest, in voxels.</summary>

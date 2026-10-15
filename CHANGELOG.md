@@ -2,6 +2,36 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.7.0 — 2026-10-16
+
+### Added — more ways to work out EMC values
+- **Placement states are worth exactly what they turn back into.** A block that only exists placed (facing another way, snow-covered, a fence piece joined to its neighbours, an open gate) gets the value of the item you get when you pick or break it, instead of a guess.
+- **Smarter variant guesses.** Values are now copied using the variant groups each block/item type defines. They are copied freely across groups that only change the look or placement (rock, colour, wood, facing, snow cover...). They are never copied across groups that change what something is: ore, metal, mold type, and families like ores, crystals, clutter, boats and gadgets. Before, cinnabar was priced like gold-bearing quartz, platinum ingots like gold, and a black axe mold like an anvil mold. Things that can't be valued honestly now show in `/emc missing` instead. Groups in neither list (clothes types, for example) still get a guess, now the middle value of the variants rather than the highest.
+- **Other mods' variants of base-game families** (their own wood types for the game's logs, say) borrow the base game's value when nothing else values them.
+- **Fuel and food estimates** for anything nothing else can value. Fuels are valued by how hot and how long they burn, at the rate charcoal and coal are valued. Food is valued by how filling it is, at the rate of valued food of the same kind. Turn it off with `EstimateFuelAndFood`.
+- **Values are worked out in stages.** The recipe graph is solved again after each step (ratios and trader prices, look/placement variants, family defaults, other variants, fuel/food), so anything made from newly valued things gets its real recipe value before a rougher step guesses at it. This fixed the Destruction Catalyst and the Hyperkinetic and Catalytic Lenses, which were guessed from the Tome of Knowledge (1,458,679 EMC) instead of costed from their recipes.
+- `/emc dump` says which step valued each item, and why a guess was made (`differs in: rock`).
+
+### Added — items that hold things or keep their material
+- **Three modes** for every block/item that holds things (buckets, jugs, pots, bowls, crocks, barrels, bags) or keeps what it's made of on the item (round shields, lanterns, chests, clutter, chiseled blocks):
+  - **Item only:** burns and is created as the plain item. A container that still holds something won't burn.
+  - **Item + contents:** worth the item plus what it holds or is made of, and you learn and create exactly that version.
+  - **Item price only:** exactly that version, but it costs and burns for the item alone; its contents are free.
+- **Built-in defaults** only where they make sense. Containers are item only. Items whose material or type lives on the item, and chiseled blocks, are item + contents, because a plain copy of those would be the wrong or default version.
+- **Each material is its own value.** A round shield ranges from 289 (tin bronze) to 4,104 (gold). Chiseled blocks are worth their voxels of each material. Containers in item + contents mode add what they hold (meals and pies times their servings).
+- **Copies come out new:** no wear, freshness or clothing condition is copied. Condensers follow the same modes for their target.
+- **`/emc contents`** opens a window listing every such block/item with its kind and mode, where it came from (default or set by you), search and filters by mod, kind and mode. Select several and switch them all to item only, item + contents, item price only, or back to the default. `/emc contents <item|full|itemprice|default>` sets the held item. Saved to `StackDataModes`; applies at once, no remap.
+- The transmutation grid shows each exact version as its own entry. **Ctrl + right-click forgets an entry.** Each player can know up to `MaxExactKnowledge` (500) exact versions.
+- `/emc dump` also writes `emc-contents.csv`: every such item, its mode and its material values.
+
+### Added — settings in game
+- **`/emc configure`** opens a settings window: every setting, what it does, and an editor that fits it (a switch, a number box, or one entry per line for lists and tables). Save checks the value, writes `ModConfig/vintagee.json` and applies it straight away; settings that change values remap them.
+- From chat: `/emc configure list`, `/emc configure <setting>`, `/emc configure <setting> <value>`, list `add`/`remove`/`clear`, table `set <key> <value>`/`remove <key>`/`clear`, and `/emc configure reload` after editing the file by hand. `/emc config` works too.
+- Admins are told about `/emc configure` when they join.
+
+### Changed
+- **The Repair Talisman also restores clothing condition**, on clothes you wear or carry and for players near it on a pedestal: 1% a minute by default. `RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition` and `RepairTalismanClothingMaxCondition` turn it off, set the speed, leave badly worn clothes for a sewing kit, and set where it stops.
+
 ## 1.6.0 — 2026-10-14
 
 ### Added

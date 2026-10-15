@@ -114,6 +114,28 @@ namespace VintageE
         [ProtoMember(2)] public int Mode;
     }
 
+    /// <summary>Server → client: every server setting and its value as text, for the /emc configure window.</summary>
+    [ProtoContract]
+    public class EmcConfigPacket
+    {
+        [ProtoMember(1)] public string[] Names;
+        /// <summary>The value as editable text: true/false, a number, one list entry per line, or "key = value" per line.</summary>
+        [ProtoMember(2)] public string[] Values;
+        /// <summary>What happened to the last change (empty when just opening).</summary>
+        [ProtoMember(3)] public string Message;
+        [ProtoMember(4)] public bool Error;
+        /// <summary>The setting to show selected.</summary>
+        [ProtoMember(5)] public string Selected;
+    }
+
+    /// <summary>Client → server: change one setting from the /emc configure window (admins only). Text is in the same form as <see cref="EmcConfigPacket.Values"/>.</summary>
+    [ProtoContract]
+    public class EmcConfigSetPacket
+    {
+        [ProtoMember(1)] public string Name;
+        [ProtoMember(2)] public string Text;
+    }
+
     /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>
     [ProtoContract]
     public class WatchSpeedPacket
