@@ -90,13 +90,16 @@ namespace VintageE
                     emcFurnace.MarkDirty(true);
                 }
 
-                // Projectiles fired straight down at the ground a little way off.
-                var lens = Fire("lens", new Vec3d(x + 0.5, y + 12, z + 12.5), p => p.Radius = 4);
+                // Projectiles fired straight down at the ground a little way off. The lens aims at its own column's
+                // ground height (hilly sites made it land outside the area that was counted).
+                int lensY = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z + 12)) + 1;
+                var lens = Fire("lens", new Vec3d(x + 0.5, lensY + 12, z + 12.5), p => p.Radius = 4);
                 // Well away from the furnaces: the water flows, and firepits go out in water.
                 var water = Fire("water", new Vec3d(x + 30.5, y + 8, z + 0.5), null);
                 var fire = Fire("fire", new Vec3d(x + 36.5, y + 8, z + 0.5), null);
-                BlockPos lensTarget = new BlockPos(x, y - 1, z + 12);
+                BlockPos lensTarget = new BlockPos(x, lensY - 1, z + 12);
                 int solidBefore = CountSolid(lensTarget, 2);
+                bool lensInWater = ba.GetBlock(lensTarget.UpCopy(), BlockLayersAccess.Fluid)?.IsLiquid() == true;
 
                 sapi.Event.RegisterCallback(_ =>
                 {
@@ -104,7 +107,8 @@ namespace VintageE
                     {
                         Check(lens == null || !lens.Alive, "lens charge hit the ground and is gone");
                         int solidAfter = CountSolid(lensTarget, 2);
-                        Check(solidAfter < solidBefore, $"lens explosion broke blocks ({solidBefore} -> {solidAfter} solid around the impact)");
+                        if (lensInWater) Line($"  lens landed in water (fizzles there, like ProjectE's): {solidBefore} -> {solidAfter} solid");
+                        else Check(solidAfter < solidBefore, $"lens explosion broke blocks ({solidBefore} -> {solidAfter} solid around the impact)");
                         Check(water == null || !water.Alive, "water shot landed");
                         Block placed = sapi.World.BlockAccessor.GetBlock(new BlockPos(x + 30, ba.GetTerrainMapheightAt(new BlockPos(x + 30, 0, z)) + 1, z), BlockLayersAccess.Fluid);
                         Line("  fluid where the water shot landed: " + (placed?.Code?.ToString() ?? "none"));

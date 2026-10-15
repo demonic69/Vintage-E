@@ -10,6 +10,14 @@ All notable changes to Vintage-E. Each GitHub release uses its section from this
 - **Other mods' variants of base-game families** (their own wood types for the game's logs, say) borrow the base game's value when nothing else values them.
 - **Fuel and food estimates** for anything nothing else can value. Fuels are valued by how hot and how long they burn, at the rate charcoal and coal are valued. Food is valued by how filling it is, at the rate of valued food of the same kind. Turn it off with `EstimateFuelAndFood`.
 - **Values are worked out in stages.** The recipe graph is solved again after each step (ratios and trader prices, look/placement variants, family defaults, other variants, fuel/food), so anything made from newly valued things gets its real recipe value before a rougher step guesses at it. This fixed the Destruction Catalyst and the Hyperkinetic and Catalytic Lenses, which were guessed from the Tome of Knowledge (1,458,679 EMC) instead of costed from their recipes.
+- **Beehive kiln firing** is read. Brown, gray, cream, orange and tan shingles, bricks and pottery come out of the kiln. Before, they were priced from trader sales or copied from another colour (a brown clay roof was 6x a black one, tiles 4x what their clay costs). Now they all cost the clay they're made of.
+- **Things built in stages**: sailboats are built on rollers from logs, firewood, about 300 planks, support beams, rope and linen. They're now worth what those stages take (an oak sailboat is about 12,700 EMC). Other mods' stage-built things can be added with a `constructions` line in the value file.
+- **Carburizing** (iron to blister steel in the stone coffin) is read, for mods that add carburizable items.
+- **Crucibles of molten metal** count their metal (100 units = one ingot) in item + contents mode.
+- **Cheese slices** are worth their share of the wheel. Before, 2- and 3-slice cheeses were worth a whole wheel.
+- **Mineral defaults** for fluorite, kernite, phosphorite, corundum and graphite, and thatch's value for aged thatch roofs. Before, those ores were copied from anthracite and the roofs had none.
+- Ratio rules are applied again after trader prices, and fuel/food estimates only apply to real inventory items (not a growing crop or a pit kiln).
+- **Why something has no value**: `/emc missing` shows a reason under each entry (nothing makes it, or which ingredient has no value), and `emc-missing.csv` has a `why` column. In the base game only 19 items are left, and none of them can be crafted. They are the Erel and bone arrows, the Erel spear, four boss-themed figureheads, platinum, uranium and stainless steel items, cupronickel nails, crushed peridotite and the translocator schematic.
 - `/emc dump` says which step valued each item, and why a guess was made (`differs in: rock`).
 
 ### Added — items that hold things or keep their material

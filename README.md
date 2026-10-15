@@ -42,7 +42,9 @@ Nothing is hard-coded per item. When the server reaches the "run game" phase (af
    - **casting**: pouring metal into a tool mold costs the mold's `requiredUnits` of that metal (100 units = 1 ingot), shared among what it drops; the mold itself only costs something if it breaks when filled;
    - **processes with several outputs**, read from the behaviours' own settings: squeezing (honeycomb → honey + beeswax), ground-storage processing such as sawing logs into boards (`processedStacks` plus any `remainingItem`), and the fruit press (juice + pressed leftovers). The input's value is shared out so the process neither creates nor destroys EMC: outputs that already have a value keep it, the rest is split evenly;
    - **block drops**: a natural block (ore, crop, plant, clay…) is worth what it drops, and a block that drops one kind of item values that item;
-   - **placement states**: blocks that only exist placed (facing another way, snow-covered, a fence joined to its neighbours, an open gate) are worth exactly the item they turn back into when picked or broken.
+   - **placement states**: blocks that only exist placed (facing another way, snow-covered, a fence joined to its neighbours, an open gate) are worth exactly the item they turn back into when picked or broken;
+   - **beehive kiln** firing (the colours pottery, bricks and shingles come out in) and **carburizing** (iron to blister steel), read from item attributes;
+   - **things built in stages**, like sailboats on rollers: what every stage takes, for the item the construction ends up as (`constructions` in the value files).
    Smithing and clay forming cost the whole ingots/clay you have to put on the anvil (42 voxels per ingot, 25 per clay), because split-off voxels are lost. Tools used in a recipe (saws, the philosopher's stone…) cost nothing; returned items (buckets…) are subtracted.
 3. **Propagates values through that graph**: each item gets the *cheapest* value any recipe produces, so crafting something and burning it can never earn more EMC than its ingredients. When an ingredient accepts several items (wildcards, tags) the cheapest valued one is used. Self-cheapening recipe loops are detected and frozen at their first value.
 4. **Adds time**: items that transform on their own over time get a bonus per in-game day it takes (fresh + transition hours). By default drying adds **64 EMC per day** (tall grass that takes a day to dry makes dry grass worth 64 more). Set per transition type with `TransitionEmcPerDay` in the config (`dry`, `cure`, `ripen`, `harden`, `melt`, `convert`).
@@ -111,6 +113,7 @@ Value files can also hold:
 - `blacklist` and `allow` (exceptions to the blacklist);
 - `variantGuessing` — `copyAcross` and `neverAcross` lists of variant group codes (`"family:group"` limits one to a family, e.g. `"ore:type"`) and `otherGroups` (`"copy"` or `"never"`);
 - `fuelReference` — the fuels whose value per degree-second values unvalued fuels;
+- `constructions` — things built in stages (`{ "entity": "game:boatconstruction-*", "makes": "item:game:boat-*" }`): the entity's stages are added up for the item;
 - `stackData` — code/wildcard → `"item"`, `"full"` or `"itemprice"`, to change the built-in contents mode for a family;
 - the philosopher's stone rules (`worldTransmutation`: `swaps` and `variantCycles`).
 
