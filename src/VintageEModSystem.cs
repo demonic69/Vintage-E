@@ -437,10 +437,11 @@ namespace VintageE
             try
             {
                 string file = System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-missing.csv");
-                var sb = new System.Text.StringBuilder("type,code\n");
+                var sb = new System.Text.StringBuilder("type,code,why,name\n");
                 foreach (CollectibleObject c in report.Missing.OrderBy(c => c.Code.ToString(), StringComparer.Ordinal))
                 {
-                    sb.Append(c.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',').Append(c.Code).Append('\n');
+                    string why = report.MissingWhy != null && report.MissingWhy.TryGetValue(c, out string w) ? w : "";
+                    sb.Append(c.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',').Append(c.Code).Append(',').Append(Csv(why)).Append(',').Append(Csv(NameOf(c))).Append('\n');
                 }
                 System.IO.File.WriteAllText(file, sb.ToString());
                 return file;

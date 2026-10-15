@@ -32,6 +32,8 @@ namespace VintageE
         public int FuelCount, FoodCount;
         /// <summary>Other mods' items valued like the base game's variant of the same family; items guessed across other variant groups.</summary>
         public int OtherModCount, GuessCount;
+        /// <summary>For each block/item still without a value: whether anything makes it, and which ingredient has no value.</summary>
+        public Dictionary<CollectibleObject, string> MissingWhy = new Dictionary<CollectibleObject, string>();
         /// <summary>Material-specific values (a gold round shield...) from recipes that put data on what they make.</summary>
         public Dictionary<CollectibleObject, List<VariantValue>> Variants = new Dictionary<CollectibleObject, List<VariantValue>>();
         public double TraderRate;
@@ -278,6 +280,7 @@ namespace VintageE
             report.DerivedCount = report.Values.Count - report.BaseCount - report.InferredCount - report.SiblingCount - report.FallbackCount - report.RelativeCount - report.TraderCount - report.DefaultCount
                 - report.FuelCount - report.FoodCount - report.OtherModCount - report.GuessCount;
             report.Variants = VariantValues(collector.Conversions, report.Values, excluded);
+            ExplainMissing(report, collector.Conversions);
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
             report.Sources = collector.SourceCounts;
@@ -469,6 +472,33 @@ namespace VintageE
                 result[kv.Key] = kv.Value.Values.ToList();
             }
             return result;
+        }
+
+        /// <summary>Why each missing block/item has no value: nothing makes it, or what it's made from has no value.</summary>
+        static void ExplainMissing(EmcMappingReport report, List<Conversion> conversions)
+        {
+            var producers = new Dictionary<CollectibleObject, List<Conversion>>();
+            foreach (Conversion conv in conversions)
+            {
+                IEnumerable<CollectibleObject> outs = conv.JointOutputs != null ? conv.JointOutputs.Select(o => o.Key) : new[] { conv.Output };
+                foreach (CollectibleObject o in outs)
+                {
+                    if (o == null) continue;
+                    if (!producers.TryGetValue(o, out var list)) producers[o] = list = new List<Conversion>();
+                    list.Add(conv);
+                }
+            }
+            foreach (CollectibleObject c in report.Missing)
+            {
+                if (!producers.TryGetValue(c, out var list) || list.Count == 0)
+                {
+                    report.MissingWhy[c] = "nothing the mod can read makes it (no recipe, drop or process): loot, creative-only, or made a way the mod doesn't know";
+                    continue;
+                }
+                Conversion first = list[0];
+                var lacking = first.Inputs.Where(i => !i.Choices.Any(ch => report.Values.ContainsKey(ch))).Select(i => i.Choices.FirstOrDefault()?.Code?.ToString() ?? "?").Distinct().ToList();
+                report.MissingWhy[c] = list.Count + " way(s) to make it, e.g. " + Describe(first) + (lacking.Count > 0 ? "; no value for: " + string.Join(", ", lacking) : "");
+            }
         }
 
         /// <summary>"grid: 1 game:log-placed-oak-ud (+11 more) -> 12" — a short, human-readable description of a conversion.</summary>

@@ -228,8 +228,11 @@ namespace VintageE
             selected = name;
             draft = null;
             status = "";
-            Compose();
+            Recompose();
         }
+
+        /// <summary>Redraws after the current click has been handled (the clicked element belongs to the old layout).</summary>
+        void Recompose() => capi.Event.EnqueueMainThreadTask(() => { if (IsOpened()) Compose(); }, "vintagee-config");
 
         void OnSearch(string text)
         {
@@ -254,7 +257,7 @@ namespace VintageE
         {
             draft = null;
             status = "";
-            Compose();
+            Recompose();
             return true;
         }
     }

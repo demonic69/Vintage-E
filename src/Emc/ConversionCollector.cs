@@ -808,7 +808,7 @@ namespace VintageE
         /// </summary>
         void CollectFromAttributes()
         {
-            int baking = 0, juicing = 0, distilling = 0;
+            int baking = 0, juicing = 0, distilling = 0, kiln = 0;
             foreach (CollectibleObject c in index.All)
             {
                 JsonObject attrs = c.Attributes;
@@ -836,6 +836,20 @@ namespace VintageE
                         }
                     }
 
+                    // The beehive kiln fires things into other colours depending on how many doors are open
+                    // ("beehivekiln": { "0": stack, "1": stack, ... }), at the item's normal firing ratio.
+                    JsonObject beehive = attrs["beehivekiln"];
+                    if (beehive != null && beehive.Exists && beehive.Token is Newtonsoft.Json.Linq.JObject doors)
+                    {
+                        double ratio = c.CombustibleProps?.SmeltedRatio > 0 ? c.CombustibleProps.SmeltedRatio : 1;
+                        var seen = new HashSet<CollectibleObject>();
+                        foreach (var door in doors.Properties())
+                        {
+                            var (fired, size) = ResolveStack(beehive[door.Name], c.Code.Domain);
+                            if (fired != null && fired != c && seen.Add(fired) && AddProcessing(c, ratio, fired, Math.Max(1, size), "beehive kiln firing")) kiln++;
+                        }
+                    }
+
                     JsonObject distill = attrs["distillationProps"];
                     if (distill != null && distill.Exists)
                     {
@@ -852,6 +866,7 @@ namespace VintageE
             Count("attributes: clay oven baking", baking);
             Count("attributes: fruit press", juicing);
             Count("attributes: distillation", distilling);
+            Count("attributes: beehive kiln", kiln);
         }
 
         (CollectibleObject, int) ResolveStack(JsonObject spec, string defaultDomain)

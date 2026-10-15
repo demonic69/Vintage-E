@@ -228,6 +228,7 @@
     "game:ore-phosphorite": 16,
     "game:ore-corundum": 64,
     "game:ore-graphite": 32,
+    "game:slantedroofing*-agedthatch-*": 2,
     "game:metal-scraps": 64,
     "game:metal-parts": 64,
     "*:shield-*": 256,
