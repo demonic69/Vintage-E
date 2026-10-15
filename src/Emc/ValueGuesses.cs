@@ -152,10 +152,21 @@ namespace VintageE
             return result;
         }
 
-        /// <summary>A group in the never list, by name ("metal") or for one family only ("ore:type").</summary>
-        bool Never(string family, string group) => rules.NeverAcrossGroups.Contains(group) || rules.NeverAcrossGroups.Contains(family + ":" + group);
+        /// <summary>A group in the never list, by name ("metal"), for one family ("ore:type") or for families starting with something ("slantedroofing*:material").</summary>
+        bool Never(string family, string group) => InList(rules.NeverAcrossGroups, family, group);
 
-        bool Copyable(string family, string group) => rules.CopyAcrossGroups.Contains(group) || rules.CopyAcrossGroups.Contains(family + ":" + group);
+        bool Copyable(string family, string group) => InList(rules.CopyAcrossGroups, family, group);
+
+        static bool InList(HashSet<string> list, string family, string group)
+        {
+            if (list.Contains(group) || list.Contains(family + ":" + group)) return true;
+            foreach (string entry in list)
+            {
+                int star = entry.IndexOf("*:", StringComparison.Ordinal);
+                if (star > 0 && entry.Substring(star + 2) == group && family.StartsWith(entry.Substring(0, star), StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
 
         static void Keep(Dictionary<string, Best> dict, string key, double value, CollectibleObject from)
         {

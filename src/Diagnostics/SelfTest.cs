@@ -65,6 +65,7 @@ namespace VintageE
                 CheckWorn();
                 CheckGuesses();
                 CheckContents();
+                CheckConfigure();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -312,6 +313,44 @@ namespace VintageE
                 Line($"  bucket of 10 L water: item only {plain}, item + contents {full}, item price {price}");
                 Check(full > plain && Math.Abs(price - plain) < 1e-6, "filled buckets count their water only in item + contents mode");
             }
+        }
+
+        string RunCommand(string line)
+        {
+            string answer = null;
+            var args = new TextCommandCallingArgs
+            {
+                Caller = new Caller { Type = EnumCallerType.Console, CallerRole = "admin", CallerPrivileges = new[] { "*" }, FromChatGroupId = GlobalConstants.ConsoleGroup }
+            };
+            sapi.ChatCommands.ExecuteUnparsed(line, args, r => answer = r.StatusMessage + " [" + r.Status + "]");
+            return answer ?? "(no answer)";
+        }
+
+        /// <summary>/emc configure: a number, a list entry and a table entry can be changed, then put back.</summary>
+        void CheckConfigure()
+        {
+            VintageEConfig cfg = mod.Config;
+            double range = cfg.TableUseRange;
+            string answer = RunCommand("/emc configure tableuserange 9.5");
+            Line("  /emc configure tableuserange 9.5 -> " + answer.Replace("\n", " | "));
+            Check(Math.Abs(mod.Config.TableUseRange - 9.5) < 1e-9, "/emc configure changes a number setting");
+            RunCommand("/emc configure TableUseRange " + range.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            RunCommand("/emc configure HostileCreatures add game:fox-*");
+            bool added = mod.Config.HostileCreatures.Contains("game:fox-*");
+            RunCommand("/emc configure HostileCreatures remove game:fox-*");
+            Check(added && !mod.Config.HostileCreatures.Contains("game:fox-*"), "/emc configure adds and removes list entries");
+
+            Block bucket = sapi.World.GetBlock(new AssetLocation("game:woodbucket"));
+            RunCommand("/emc configure StackDataModes set block:game:woodbucket full");
+            bool full = bucket != null && mod.Emc.StackData.ModeOf(bucket) == StackDataMode.Full;
+            RunCommand("/emc configure StackDataModes remove block:game:woodbucket");
+            Check(full && mod.Emc.StackData.ModeOf(bucket) == StackDataMode.Item, "/emc configure sets a contents mode and puts it back");
+
+            string bad = RunCommand("/emc configure WatchSpeedUp lots");
+            Check(bad.Contains("Error"), "/emc configure refuses a bad value (" + bad + ")");
+            string list = RunCommand("/emc configure");
+            Check(list.Contains("RepairTalismanClothingPercentPerMinute"), "/emc configure lists the settings");
         }
 
         /// <summary>An element's box in model space at rest, in voxels.</summary>

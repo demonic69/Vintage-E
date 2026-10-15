@@ -408,7 +408,7 @@
     "game:creature-fish-*",
     "game:lore-paper"
   ],
-  "//variantGuessing": "Last-resort guesses from an item's variants, by the variant groups its type defines. copyAcross: groups that only change the look or placement, so the value is copied freely (the highest variant's). neverAcross: groups that change what the thing is - never copied (\"family:group\" limits one to a family, e.g. \"ore:type\"), so e.g. cinnabar ore isn't priced like gold-bearing quartz. Groups in neither list are used last, taking the middle value of the variants, if otherGroups is \"copy\" (\"never\" turns that off). Other mods' variants of a base-game family borrow across copyAcross groups.",
+  "//variantGuessing": "Last-resort guesses from an item's variants, by the variant groups its type defines. copyAcross: groups that only change the look or placement, so the value is copied freely (the highest variant's). neverAcross: groups that change what the thing is - never copied, so e.g. cinnabar ore isn't priced like gold-bearing quartz (\"family:group\" limits an entry to one family, e.g. \"ore:type\"; \"family*:group\" to families starting with it). Groups in neither list are used after defaultValues, taking the middle value of the variants, if otherGroups is \"copy\" (\"never\" turns that off). Other mods' variants of a base-game family borrow across copyAcross groups.",
   "variantGuessing": {
     "copyAcross": [
       "horizontalorientation",
@@ -441,7 +441,6 @@
     "neverAcross": [
       "ore",
       "metal",
-      "material",
       "tooltype",
       "gem",
       "mineral",
@@ -458,7 +457,11 @@
       "schematic:type",
       "metal:type",
       "gadget:type",
-      "trinket:type"
+      "trinket:type",
+      "arrow:material",
+      "spear:material",
+      "crushed:material",
+      "slantedroofing*:material"
     ],
     "otherGroups": "copy"
   },

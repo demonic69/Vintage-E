@@ -208,8 +208,9 @@ namespace VintageE
                 }
             }
 
-            // Variant guesses across look/placement groups (and other mods' variants of base-game families), then
-            // estimates from what a thing does (fuel, food), then - if allowed - guesses across the remaining groups.
+            // From the most to the least reliable: variants that only look or sit differently (and other mods' variants of
+            // base-game families), the value files' family defaults, the middle value of other variants, and finally an
+            // estimate from what a thing does (fuel, food) for whatever nothing else could value.
             var guesser = new VariantGuesser(rules);
             int guessed = 0;
             if (config.InferFromVariantSiblings)
@@ -217,20 +218,6 @@ namespace VintageE
                 Take(guesser.Guess(index, Known(), Skip, extraOrigin, otherGroups: false), ref guessed);
                 solver = Stage(solver);
             }
-            if (config.EstimateFuelAndFood)
-            {
-                Take(UseEstimates.Fuel(index, Known(), rules.FuelReference, Skip, extraOrigin), ref report.FuelCount);
-                Take(UseEstimates.Food(index, Known(), Skip, extraOrigin), ref report.FoodCount);
-                solver = Stage(solver);
-            }
-            if (config.InferFromVariantSiblings && rules.CopyAcrossOtherGroups)
-            {
-                Take(guesser.Guess(index, Known(), Skip, extraOrigin, otherGroups: true), ref guessed);
-                solver = Stage(solver);
-            }
-            report.SiblingCount = guesser.SameFamilyCount;
-            report.OtherModCount = guesser.OtherModCount;
-            report.GuessCount = guesser.OtherGroupCount;
 
             // Family-level guesses from the value files, for things no recipe, trader or variant could value.
             var defaults = new Dictionary<CollectibleObject, (double value, string pattern)>();
@@ -250,6 +237,23 @@ namespace VintageE
                 extraOrigin[kv.Key] = "default value (" + kv.Value.pattern + ")";
                 report.DefaultCount++;
             }
+            solver = Stage(solver);
+
+            if (config.InferFromVariantSiblings && rules.CopyAcrossOtherGroups)
+            {
+                Take(guesser.Guess(index, Known(), Skip, extraOrigin, otherGroups: true), ref guessed);
+                solver = Stage(solver);
+            }
+            if (config.EstimateFuelAndFood)
+            {
+                Take(UseEstimates.Fuel(index, Known(), rules.FuelReference, Skip, extraOrigin), ref report.FuelCount);
+                Take(UseEstimates.Food(index, Known(), Skip, extraOrigin), ref report.FoodCount);
+                solver = Stage(solver);
+            }
+            report.SiblingCount = guesser.SameFamilyCount;
+            report.OtherModCount = guesser.OtherModCount;
+            report.GuessCount = guesser.OtherGroupCount;
+
             if (config.FallbackValue > 0)
             {
                 foreach (CollectibleObject c in index.All)

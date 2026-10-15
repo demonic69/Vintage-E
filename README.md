@@ -11,7 +11,7 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | | |
 |---|---|
 | **Philosopher's Stone** | Right-click a block to transmute it: rock types cycle (granite → andesite → basalt …), wood types cycle, sand ↔ gravel, bare soil ↔ grassy soil, water ↔ ice. Sneak to go backwards. Press the tool-mode key (**F**) for 1×1, 3×3 or 5×5. Also the catalyst for the alchemy recipes (never used up). |
-| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them. Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory). Searchable, paged, most valuable first. The tablet works anywhere. |
+| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them. Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory, Ctrl + right-click: forget it). Searchable, paged, most valuable first. The tablet works anywhere. Items that hold things or keep their material on the item can be learned and created as exactly that version (see below). |
 | **Alchemical Coal → Mobius Fuel → Aeternalis Fuel** | Each tier is 4× the last. Hotter and much longer burning than charcoal; they work in forges and fire pits. |
 | **Dark Matter / Red Matter** | Plus blocks of each. |
 | **Matter tools** | Pickaxe, shovel, axe, sword, hoe and **sledgehammer** in dark and red matter, as 3D tools held, swung and displayed like the game's own (they use the vanilla tool models and animations with matter textures; the sledgehammer has its own model). They **never wear out**. The pickaxe/shovel/axe dig 1×1 by default and 3×3 (dark) or up to 5×5 (red) with the tool-mode key **F**; the sledgehammers smash stone and ore **3×3 from the start** (red: 5×5 with **F**). Sneak to dig a single block. The axe still fells trees and the hoe still tills. |
@@ -26,7 +26,7 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
-When you join, chat shows a summary such as `Vintage-E version 1.6.0: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
+When you join, chat shows a summary such as `Vintage-E version 1.7.0: calculated 14055 EMC values, 0 missing.` (turn off with `AnnounceInChat`).
 
 ## How EMC values are calculated
 
@@ -41,15 +41,20 @@ Nothing is hard-coded per item. When the server reaches the "run game" phase (af
    - clay-oven baking, the fruit press and the still (read from item attributes, so mods using the same attributes are covered);
    - **casting**: pouring metal into a tool mold costs the mold's `requiredUnits` of that metal (100 units = 1 ingot), shared among what it drops; the mold itself only costs something if it breaks when filled;
    - **processes with several outputs**, read from the behaviours' own settings: squeezing (honeycomb → honey + beeswax), ground-storage processing such as sawing logs into boards (`processedStacks` plus any `remainingItem`), and the fruit press (juice + pressed leftovers). The input's value is shared out so the process neither creates nor destroys EMC: outputs that already have a value keep it, the rest is split evenly;
-   - **block drops**: a natural block (ore, crop, plant, clay…) is worth what it drops, and a block that drops one kind of item values that item.
+   - **block drops**: a natural block (ore, crop, plant, clay…) is worth what it drops, and a block that drops one kind of item values that item;
+   - **placement states**: blocks that only exist placed (facing another way, snow-covered, a fence joined to its neighbours, an open gate) are worth exactly the item they turn back into when picked or broken.
    Smithing and clay forming cost the whole ingots/clay you have to put on the anvil (42 voxels per ingot, 25 per clay), because split-off voxels are lost. Tools used in a recipe (saws, the philosopher's stone…) cost nothing; returned items (buckets…) are subtracted.
 3. **Propagates values through that graph**: each item gets the *cheapest* value any recipe produces, so crafting something and burning it can never earn more EMC than its ingredients. When an ingredient accepts several items (wildcards, tags) the cheapest valued one is used. Self-cheapening recipe loops are detected and frozen at their first value.
 4. **Adds time**: items that transform on their own over time get a bonus per in-game day it takes (fresh + transition hours). By default drying adds **64 EMC per day** (tall grass that takes a day to dry makes dry grass worth 64 more). Set per transition type with `TransitionEmcPerDay` in the config (`dry`, `cure`, `ripen`, `harden`, `melt`, `convert`).
 5. **Works backwards where it can**: if an ore chunk or a raw food has no value but what it smelts/dries/grinds into does, its value is inferred from the output. The same goes for crafting: if a recipe's result has a value and only one ingredient doesn't (loot parts, gold jewellery that breaks down into gold bits…), that ingredient gets what's left over (the highest such value, so nothing that already had a value gets cheaper).
 6. **Applies ratio rules** from the value files (`relativeValues`) to anything still unvalued — e.g. a metal bit is worth 1/20 of the matching ingot (5 of its 100 metal units), aged or cracked stone bricks are worth the same as normal ones.
 7. **Uses trader prices** for things no recipe makes (clothes, loot armour, decorations…). What one rusty gear is worth is *measured* each start from items traders deal in that already have a value (the median of value ÷ price), and the rusty gear itself is set to that, so selling goods for gears and burning the gears can't create EMC.
-8. **Fills remaining gaps from variants**: anything still unvalued borrows the value of its closest variant — the same ore in a different rock, the same bread at a different bake level. It takes the *highest* such value, so a guessed value can never be cheaper to create than to burn.
-9. **Falls back to `defaultValues`** in the value files: family-level values for natural blocks (coral, seaweed, termite mounds…), ruin decorations and loot that nothing else could value. Recipes always win over these.
+8. **Fills remaining gaps from variants**, using the variant groups each block/item type defines. A value is copied freely across groups that only change the look or placement (rock, colour, wood, facing, snow cover…): the same ore in a different rock, the same bricks in another colour. It is **never** copied across groups that change what something is (ore, metal, material, mold type…), so cinnabar ore isn't priced like gold-bearing quartz; those stay unvalued and show in `/emc missing`. Other mods' variants of a base-game family (their own wood types for the game's logs, say) borrow the base game's value the same way.
+9. **Estimates from what a thing does**: a fuel nothing else values is worth how hot and how long it burns, at the rate charcoal and coal are valued at; a food is worth how filling it is, at the rate valued food of the same kind (fruit, vegetable, protein, grain, dairy) is.
+10. **Guesses across the remaining variant groups** (those in neither list, like a clothes slot's types), taking the *middle* value of the variants so one odd one can't set the rest.
+11. **Falls back to `defaultValues`** in the value files: family-level values for natural blocks (coral, seaweed, termite mounds…), ruin decorations and loot that nothing else could value. Recipes always win over these.
+
+After each of steps 6–11 the recipe graph is solved again, so anything made from newly valued things gets its real recipe value before a rougher step guesses at it. `/emc dump` shows which step valued each item.
 
 Soil is worth more the more fertile it is (very low 1 → terra preta 16), and so is farmland.
 
@@ -74,6 +79,18 @@ The full list is written to `VintagestoryData/ModData/vintagee/emc-missing.csv`,
 
 Deliberately left without a value (so they can't be duplicated or burned): creative/debug/technical blocks, work-in-progress items, loot containers, liquid blocks, and story-progression devices (the return-base items, etc.), creatures and NPCs from any mod (live butterflies and fish excepted, since you can catch them), and maps. The list is the `blacklist` in the default value file.
 
+## Items that hold things or keep their material
+
+Some items carry data on the item itself: buckets, jugs, pots, bowls, crocks, barrels and bags hold things; round shields keep their metal and wood, lanterns their metal, lining and glass, chests and clutter their type, chiseled blocks their design. Each of these uses one of three modes:
+
+| Mode | Burning gives | Learning and creating |
+|---|---|---|
+| **Item only** | the plain item's value (a container that still holds something won't burn) | the plain item |
+| **Item + contents** | the item plus what it holds or is made of (a gold round shield is worth more than a tin bronze one; a chiseled block is worth its voxels of each material) | exactly that version |
+| **Item price only** | the item and its material, not what it holds | exactly that version, for the item's price: contents are free |
+
+Built-in defaults: containers are **item only**; items whose material or type lives on the item, and chiseled blocks, are **item + contents** (a plain copy of those would be the wrong or default version). Admins change them with **`/emc contents`**, a window listing every such block/item with its mode (search, filter by mod, kind and mode, select several, then pick a mode or *Default*), or `/emc contents <item|full|itemprice|default>` for the held item. Changes are saved to `StackDataModes` in the server config and apply straight away. Copies never include wear, freshness or clothing condition: they come out new. Condensers follow the same modes for their target. Each player can know up to `MaxExactKnowledge` (500) exact versions.
+
 ## For modpack makers and mod authors
 
 Values come from these sources, later ones winning:
@@ -81,7 +98,7 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`.
+4. `ModConfig/vintagee.json` on the server: `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`).
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
@@ -92,9 +109,12 @@ Value files can also hold:
 - `defaultValues` — values used only when nothing else could value an item;
 - `traderCurrency` — items worth exactly what one unit of trader currency buys;
 - `blacklist` and `allow` (exceptions to the blacklist);
+- `variantGuessing` — `copyAcross` and `neverAcross` lists of variant group codes (`"family:group"` limits one to a family, e.g. `"ore:type"`) and `otherGroups` (`"copy"` or `"never"`);
+- `fuelReference` — the fuels whose value per degree-second values unvalued fuels;
+- `stackData` — code/wildcard → `"item"`, `"full"` or `"itemprice"`, to change the built-in contents mode for a family;
 - the philosopher's stone rules (`worldTransmutation`: `swaps` and `variantCycles`).
 
-`/emc dump` (or `DumpValuesOnStart`) writes every value to `emc-values.csv` (with each block/item's name) and the blacklist to `emc-blacklisted.csv`, together with **what it was worked out from** (`grid: 1 game:log-placed-oak-ud -> 12 game:plank-oak`, `trader price: …`, `same as its variant …`), which makes it easy to see why something costs what it does.
+`/emc dump` (or `DumpValuesOnStart`) writes every value to `emc-values.csv` (with each block/item's name), the blacklist to `emc-blacklisted.csv` and every item that holds things or keeps its material, with its mode and material-specific values, to `emc-contents.csv`, together with **what it was worked out from** (`grid: 1 game:log-placed-oak-ud -> 12 game:plank-oak`, `trader price: …`, `same as its variant …`), which makes it easy to see why something costs what it does.
 
 ### Commands
 
@@ -109,6 +129,8 @@ Value files can also hold:
 | `/emc dump hand` | admin | Show the held item's value, how it was worked out and what its ingredients are worth (also written to `emc-dump-<item>.txt`) |
 | `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can give one or many of them a value, blacklist them, or blacklist a whole mod (also written to `emc-missing.csv`) |
 | `/emc blacklist` | admin | Open the same window for everything on the blacklist: give something a value or take it off the blacklist |
+| `/emc contents` | admin | Open the list of everything that holds things or keeps its material, and switch how each is transmuted |
+| `/emc contents <item\|full\|itemprice\|default>` | admin | Set the held item's contents mode |
 | `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
 | `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
 | `/emc learn` | admin | Learn the held item without burning it |
@@ -167,7 +189,7 @@ Players' EMC and knowledge are saved on the player, so they persist across sessi
 
 See [CHANGELOG.md](CHANGELOG.md) (also shown on each [release](https://github.com/demonic69/Vintage-E/releases)) for what changed in each version.
 
-Download [`dist/vintagee_1.6.0.zip`](dist/vintagee_1.6.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
+Download [`dist/vintagee_1.7.0.zip`](dist/vintagee_1.7.0.zip) and drop it (still zipped) into your `Mods` folder. It's needed on both the server and the clients.
 
 ## Building from source
 

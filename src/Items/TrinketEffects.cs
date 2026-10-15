@@ -42,6 +42,9 @@ namespace VintageE
         readonly Random rand = new Random();
         AssetLocation[] hostile;
 
+        /// <summary>Forget the cached hostile creature list (after HostileCreatures changes).</summary>
+        public void ResetHostile() => hostile = null;
+
         /// <summary>Name of this mod's time speed modifier on the world calendar (the Watch of Flowing Time).</summary>
         public const string TimeModifierName = "vintageewatch";
         /// <summary>The calendar modifier currently applied (0 = none). Mirrored to clients.</summary>

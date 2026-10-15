@@ -167,6 +167,26 @@ namespace VintageE
             return cfg;
         }
 
+        /// <summary>Re-reads ModConfig/vintagee.json (after editing it by hand) and applies it. Returns an error message, or null.</summary>
+        public string ReloadConfig()
+        {
+            VintageEConfig cfg;
+            try
+            {
+                cfg = Sapi.LoadModConfig<VintageEConfig>(ConfigFile);
+            }
+            catch (Exception e)
+            {
+                return "Could not read ModConfig/" + ConfigFile + ": " + e.Message;
+            }
+            if (cfg == null) return "ModConfig/" + ConfigFile + " is missing.";
+            cfg.Normalize();
+            Config = cfg;
+            Trinkets?.ResetHostile();
+            RecalculateEmc("config reloaded");
+            return null;
+        }
+
         public void SaveConfig(VintageEConfig cfg = null)
         {
             try { Sapi?.StoreModConfig(cfg ?? Config, ConfigFile); }

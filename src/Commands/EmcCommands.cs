@@ -75,6 +75,13 @@ namespace VintageE
                     .WithArgs(parsers.OptionalWordRange("mode", "item", "full", "itemprice", "default"))
                     .HandleWith(args => Contents(mod, args, args[0] as string))
                 .EndSubCommand()
+                .BeginSubCommand("configure")
+                    .WithAlias("config")
+                    .WithDescription("Show or change the server settings (ModConfig/vintagee.json) in game")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.OptionalWord("setting"), parsers.OptionalAll("value"))
+                    .HandleWith(args => ConfigureCommand.Handle(mod, args))
+                .EndSubCommand()
                 .BeginSubCommand("add")
                     .WithDescription("Add EMC to a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -116,6 +123,7 @@ namespace VintageE
             ("/emc blacklist", "cmdhelp-blacklist", true),
             ("/emc contents", "cmdhelp-contents", true),
             ("/emc contents <item|full|itemprice|default>", "cmdhelp-contentsset", true),
+            ("/emc configure [setting] [value]", "cmdhelp-configure", true),
             ("/emc set <value>", "cmdhelp-set", true),
             ("/emc clear", "cmdhelp-clear", true),
             ("/emc recalc", "cmdhelp-recalc", true),
