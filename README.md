@@ -11,7 +11,7 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | | |
 |---|---|
 | **Philosopher's Stone** | Right-click a block to transmute it: rock types cycle (granite → andesite → basalt …), wood types cycle, sand ↔ gravel, bare soil ↔ grassy soil, water ↔ ice. Sneak to go backwards. Press the tool-mode key (**F**) for 1×1, 3×3 or 5×5. Also the catalyst for the alchemy recipes (never used up). |
-| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them. Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory, Ctrl + right-click: forget it). Searchable, paged, most valuable first. The tablet works anywhere. Items that hold things or keep their material on the item can be learned and created as exactly that version (see below). |
+| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them. Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory, Ctrl + right-click: forget it). Searchable, sortable (most or least EMC first, name A–Z or Z–A), paged. Forgetting asks first. The tablet works anywhere, and has a **magnet slot**: put a Black Hole Band or Void Ring in it, choose items in its filter (only these, or all except these), and while you carry the tablet those items on the ground within 7 blocks are pulled in and transmuted into your EMC. Items that hold things or keep their material on the item can be learned and created as exactly that version (see below). |
 | **Alchemical Coal → Mobius Fuel → Aeternalis Fuel** | Each tier is 4× the last. Hotter and much longer burning than charcoal; they work in forges and fire pits. |
 | **Dark Matter / Red Matter** | Plus blocks of each. |
 | **Matter tools** | Pickaxe, shovel, axe, sword, hoe and **sledgehammer** in dark and red matter, as 3D tools held, swung and displayed like the game's own (they use the vanilla tool models and animations with matter textures; the sledgehammer has its own model). They **never wear out**. The pickaxe/shovel/axe dig 1×1 by default and 3×3 (dark) or up to 5×5 (red) with the tool-mode key **F**; the sledgehammers smash stone and ore **3×3 from the start** (red: 5×5 with **F**). Sneak to dig a single block. The axe still fells trees and the hoe still tills. |
@@ -19,10 +19,10 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | **Energy Condensers MK1–MK2** | Put an item in the target slot. The condenser burns everything else inside it (plus EMC from collectors) and makes copies of the target. Works with hoppers and chutes; automation only pulls out the finished copies. |
 | **Klein Stars** | Ein → Omega (50k to 51.2M EMC). Portable EMC: right-click to empty into your EMC, sneak + right-click to fill. Rings and gadgets draw from carried stars. Can be worn in the **emblem** slot, where it shows on your chest and still counts as carried. |
 | **Rings, stones, amulets** | Black Hole Band, Swiftwolf's Rending Gale (flight, shield and 1x–3x speed), Harvest Goddess Band, Ignition Ring, Zero Ring, Ring of Arcana (every effect switchable on its own), Void Ring, Body/Soul/Life Stones, Repair Talisman, Gem of Eternal Density, Evertide and Volcanite Amulets, Watch of Flowing Time. They work from your hotbar or backpack; right-click switches them on/off. The rings can also be worn in the **arm** slot, where they show on your wrist and keep working. |
-| **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses (explosive charges), Mercurial Eye, Archangel's Smite (homing arrows), Tome of Knowledge, Divining Rods. Lenses, amulets and the Ignition Ring shoot with the **fire-projectile key (R)**. |
+| **Gadgets** | Destruction Catalyst, Hyperkinetic and Catalytic Lenses (explosive charges), Mercurial Eye, Archangel's Smite (homing arrows), Divining Rods, and the creative-only Tome of Knowledge. Lenses, amulets and the Ignition Ring shoot with the **fire-projectile key (R)**. |
 | **Armour** | Dark Matter, Red Matter and Gem armour (head, body, legs) that never wears out and makes no clanking noise; full gem armour stops fall and fire damage. |
 | **More tools** | Dark/Red Matter Shears, Red Matter Katar, Red Matter Morning Star. |
-| **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces (hotter, faster firepits that can run on EMC), Anti-Matter Relays MK1–3, Dark Matter Pedestal, Nova Catalyst/Cataclysm, Interdiction Torch. |
+| **Storage and machines** | Alchemical Chest (104 slots), Alchemical Bags (32-slot backpack bags), fuel blocks, Dark/Red Matter Furnaces (hotter, faster firepits that can run on EMC), Anti-Matter Relays MK1–3, Dark and Red Matter Pedestals (red: twice the reach and effect), Nova Catalyst/Cataclysm, Interdiction Torch. |
 
 Hover any item to see its EMC in the tooltip. Liquids show EMC **per litre** (1 L of water = 1 EMC), and buckets, bags and pots also show what their contents are worth.
 
@@ -109,7 +109,7 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server (or change it in game with `/emc configure`): `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`), and `ProjectETextures` / `ProjectESounds` (see below).
+4. `ModConfig/vintagee.json` on the server (or change it in game with `/emc configure`): `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`), `ProjectETextures` / `ProjectESounds` (see below), `FreeIngredients` (no value of their own, free in recipes) and `NoTransmute` (keep their value, but can't be burned, learned or created).
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
@@ -120,6 +120,7 @@ Value files can also hold:
 - `defaultValues` — values used only when nothing else could value an item;
 - `traderCurrency` — items worth exactly what one unit of trader currency buys;
 - `blacklist` and `allow` (exceptions to the blacklist);
+- `freeIngredients` — blacklisted (no value of their own) but free when a recipe uses them, like the customized translocator schematic;
 - `variantGuessing` — `copyAcross` and `neverAcross` lists of variant group codes (`"family:group"` limits one to a family, e.g. `"ore:type"`) and `otherGroups` (`"copy"` or `"never"`);
 - `fuelReference` — the fuels whose value per degree-second values unvalued fuels;
 - `constructions` — things built in stages (`{ "entity": "game:boatconstruction-*", "makes": "item:game:boat-*" }`): the entity's stages are added up for the item;
@@ -138,12 +139,14 @@ Value files can also hold:
 | `/emc clear` | admin | Remove that pin |
 | `/emc recalc` | admin | Re-run the mapper |
 | `/emc dump` | admin | Write every value, and where it came from, to `VintagestoryData/ModData/vintagee/emc-values.csv` |
-| `/emc dump hand` | admin | Show the held item's value, how it was worked out and what its ingredients are worth (also written to `emc-dump-<item>.txt`) |
+| `/emc dump hand` | admin | Show the held item's value, how it was worked out and what its ingredients are worth; for something without a value, every way of making it, which ingredients have no value and why, and the value loop it's stuck in (also written to `emc-dump-<item>.txt`; the chat says where) |
+| `/emc loop` | admin | List the value loops: unvalued items that are each only made from the next, so none can get a value (also written to `emc-loops.txt`) |
+| `/emc notransmute` | admin | Open the list of blocks/items that keep their EMC value but can't be burned, learned or created; `/emc notransmute add\|remove` does the held item |
 | `/emc missing` | admin | Open the searchable list of blocks/items without a value, where you can give one or many of them a value, blacklist them, or blacklist a whole mod (also written to `emc-missing.csv`) |
 | `/emc blacklist` | admin | Open the same window for everything on the blacklist: give something a value or take it off the blacklist |
 | `/emc contents` | admin | Open the list of everything that holds things or keeps its material, and switch how each is transmuted |
 | `/emc contents <item\|full\|itemprice\|default>` | admin | Set the held item's contents mode |
-| `/emc configure` | admin | Open the settings window (every setting, what it does, an editor for it); from chat `/emc configure list` lists them, `/emc configure <setting>` explains one, `/emc configure <setting> <value>` changes it (lists: `add`/`remove`/`clear`; tables: `set <key> <value>`/`remove <key>`/`clear`), `/emc configure reload` re-reads the file. Saved and applied straight away |
+| `/emc configure` | admin | Open the settings window (every setting, what it does, an editor for it); from chat `/emc configure list` lists them, `/emc configure <setting>` explains one, `/emc configure <setting> <value>` changes it (lists: `add`/`remove`/`clear`; tables: `set <key> <value>`/`remove <key>`/`clear`), `/emc configure <setting> default` resets one, `/emc configure resetall` resets every setting, `/emc configure reload` re-reads the file. Saved and applied straight away |
 | `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
 | `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
 | `/emc learn` | admin | Learn the held item without burning it |

@@ -2,6 +2,32 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.8.0 — 2026-10-17
+
+### Added
+- **Magnet for the Transmutation Tablet.** The tablet window has a magnet slot: put a Black Hole Band or Void Ring in it and, while you carry the tablet, items on the ground within 7 blocks that pass its filter are pulled in and transmuted into your EMC (and learned), like burning them at the table. The filter is a row of 9 slots: **Pull: only these** (an empty filter pulls nothing) or **Pull: all except these**. Click a filter slot while holding an item to add it; click with an empty hand to clear it. Things you just threw away are left alone for a few seconds. Everything is stored on the tablet.
+- **Sorting** in the transmutation window: most EMC first, least EMC first, name A to Z, name Z to A.
+- **Forgetting asks first.** Ctrl + right-click on a known item opens a confirmation before it's forgotten.
+- **Value loops.** The mapper finds rings of unvalued items that are each only made from the next (A needs B, B needs C, C needs A), which is why none of them can get a value. The login message says how many there are, **`/emc loop`** lists each one from its first item (`a -> b -> c -> a`) and writes them to `emc-loops.txt`, and the missing window says when an item is stuck in one. Recipe loops that kept making each other cheaper (and were settled by keeping their first value) are listed too.
+- **`/emc dump hand` explains missing values**: every way the mod knows of making the item, which ingredients have no value and why (two levels deep), whether it's blacklisted or a free ingredient, and the value loop it's in. If the values came from the cache, it works them out again first so it can explain them.
+- **`/emc notransmute`**: a list of blocks/items that keep their EMC value (recipes still use it) but can't be burned for EMC, learned or created, at the table, in condensers, by the Gem of Eternal Density, the Mercurial Eye or the tablet's magnet. The window works like `/emc blacklist`: tick **Show valued items** to pick some and press **Stop transmuting**; select listed ones and press **Allow transmuting**. `/emc notransmute add|remove` does the held item. Saved as the `NoTransmute` setting; such items say so in their tooltip.
+- **Free ingredients**: blacklisted (no value, can't be burned or created) but free in recipes that use them. The customized translocator schematic is one by default. Add more with the `FreeIngredients` setting or a value file's `freeIngredients`.
+- **Red Matter Pedestal**: twice the reach and twice the effect of the Dark Matter Pedestal (crafted from one, with red matter and red matter blocks).
+- **Reset settings to their defaults**: in the `/emc configure` window, every changed setting has a **reset** link on its row and the selected one has **Reset to default**; **Reset all** puts every setting back (both ask first). From chat: `/emc configure <setting> default` and `/emc configure resetall`.
+- **Shift-click** in the `/emc missing`, `/emc blacklist`, `/emc notransmute` and `/emc contents` windows selects everything between the last name you clicked and this one.
+
+### Changed
+- The bone arrow is worth the same as the flint arrow, whatever that works out to.
+- The rickety translocator and the illuminal divergence manifold are off the built-in blacklist.
+- The **Tome of Knowledge** is creative-only: it has no recipe and no EMC value, only works in creative mode, and only teaches what's in the creative inventory and can be transmuted.
+- **The transmutation window is much faster** with many known items: each known item is looked up once and kept, so opening the window and typing in the search box only filter and sort. The server also checks knowledge with a lookup set instead of searching the whole list.
+- `/emc dump`, `/emc dump hand` and `/emc loop` say in chat where their file is. All files (CSV lists, dumps, loops, the self-test and the cache) now go to `VintagestoryData/ModData/vintagee/` as documented; before, they went to `VintagestoryData/vintagee/`, which you can delete.
+
+### Fixed
+- The `/emc missing` and `/emc blacklist` windows no longer crowd or overlap: the summary is shorter and every text is measured, so the filters, buttons and hints each get their own row whatever the text length or GUI scale. The same for the `/emc contents` and `/emc configure` windows.
+- `/emc configure` no longer jumps back to the top of the list when you click a setting or save.
+- Items cooked on a spit no longer float above the Dark/Red Matter Furnaces: they lie on the furnace (it has no spit).
+
 ## 1.7.0 — 2026-10-16
 
 ### Added — more ways to work out EMC values
