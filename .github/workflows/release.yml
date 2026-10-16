@@ -2,6 +2,7 @@ name: Release
 
 # Publishes dist/vintagee_<version>.zip as a GitHub release, either when a tag like v1.0.0 is pushed
 # or when you press "Run workflow" on the Actions tab (it then uses the version in modinfo.json).
+# If that version is already released, its zip and notes are replaced instead.
 # The release notes are that version's section of CHANGELOG.md.
 # (The mod can't be compiled in CI without the game's DLLs, so the zip is built locally with
 # build/package.sh and committed to dist/ first.)
@@ -40,7 +41,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 tools/release_notes.py "${{ steps.zip.outputs.version }}" > notes.md
-          gh release create "v${{ steps.zip.outputs.version }}" "${{ steps.zip.outputs.file }}" --target "$GITHUB_SHA" \
-            --title "Vintage-E ${{ steps.zip.outputs.version }}" \
-            --notes-file notes.md
+          version="${{ steps.zip.outputs.version }}"
+          file="${{ steps.zip.outputs.file }}"
+          python3 tools/release_notes.py "$version" > notes.md
+          if gh release view "v$version" > /dev/null 2>&1; then
+            # This version is already released (something was added to it): replace its zip and notes.
+            gh release upload "v$version" "$file" --clobber
+            gh release edit "v$version" --notes-file notes.md
+            echo "updated the existing v$version release"
+          else
+            gh release create "v$version" "$file" --target "$GITHUB_SHA" \
+              --title "Vintage-E $version" \
+              --notes-file notes.md
+          fi

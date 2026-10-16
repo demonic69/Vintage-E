@@ -373,65 +373,70 @@ namespace VintageE
             Check(PESounds.On(sapi.World) == mod.Config.ProjectESounds, "ProjectE sounds follow the setting");
 
             bool Tex(string path) => sapi.Assets.Exists(new AssetLocation(path).WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png"));
-            string Base(IDictionary<string, Vintagestory.API.Client.CompositeTexture> d, string key) => d != null && d.TryGetValue(key, out Vintagestory.API.Client.CompositeTexture ct) ? ct?.Base?.ToString() : null;
-
-            Item zero = sapi.World.GetItem(new AssetLocation("vintagee:trinket-zeroring"));
-            Item arcana = sapi.World.GetItem(new AssetLocation("vintagee:trinket-ringofarcana"));
-            Item gale = sapi.World.GetItem(new AssetLocation("vintagee:trinket-swiftwolfsrendinggale"));
             if (!mod.Config.ProjectETextures)
             {
-                Check(Base(zero?.Textures, "all") == "vintagee:item/trinket/zeroring", "without ProjectE textures the Zero Ring keeps its own texture");
-                Check(ProjectELook.TrinketLook(zero as ItemEmcTrinket, new ItemStack(zero)) == null, "without ProjectE textures rings don't change look when switched on");
+                Check(mod.LookResult == null, "without ProjectE textures nothing is swapped");
                 return;
             }
 
             ProjectELook.Result r = mod.LookResult;
             Check(r != null && r.Textures > 60, $"ProjectE textures swapped at start-up ({r?.Textures ?? 0} textures, {r?.Collectibles ?? 0} blocks/items, {r?.Entities ?? 0} entity types)");
-            Check(r != null && r.MissingFiles.Count == 0, "every ProjectE texture in the swap list is there" + (r == null || r.MissingFiles.Count == 0 ? "" : ": missing " + string.Join(", ", r.MissingFiles)));
+            if (r == null) return;
+            Check(r.MissingFiles.Count == 0, "every ProjectE texture in the swap list is there" + (r.MissingFiles.Count == 0 ? "" : ": missing " + string.Join(", ", r.MissingFiles)));
+            // A dedicated server frees block/item textures once they're sent to players, so check what the swap recorded.
+            string Got(string key) => r.Swapped.TryGetValue(key, out string v) ? v : null;
+            void Expect(string key, string want, string what) => Check(Got(key) == want, what + ": " + (Got(key) ?? "unchanged"));
 
-            Check(Base(zero?.Textures, "all") == "vintagee:projecte/item/rings/zero_off", "Zero Ring uses ProjectE's texture: " + Base(zero?.Textures, "all"));
-            Block collector = sapi.World.GetBlock(new AssetLocation("vintagee:energycollector-mk2"));
-            Check(Base(collector?.Textures, "up") == "vintagee:projecte/block/collectors/top_2", "collector MK2 top is ProjectE's: " + Base(collector?.Textures, "up"));
-            Check(Base(collector?.Textures, "north") == "vintagee:projecte/block/collectors/front", "collector front is ProjectE's: " + Base(collector?.Textures, "north"));
-            Check(Base(collector?.Textures, "east") == "vintagee:projecte/block/collectors/other" && Base(collector?.Textures, "down") == "vintagee:projecte/block/collectors/other",
-                "collector sides and underside are ProjectE's plain face");
-            Block condenser = sapi.World.GetBlock(new AssetLocation("vintagee:energycondenser-mk2"));
-            Check(Base(condenser?.Textures, "down") == "vintagee:projecte/derived/condenser_mk2-bottom", "condenser MK2 underside is cut from ProjectE's chest texture: " + Base(condenser?.Textures, "down"));
-            Block table = sapi.World.GetBlock(new AssetLocation("vintagee:transmutationtable"));
-            Check(Base(table?.Textures, "top") == "vintagee:projecte/block/transmutation_stone/top", "transmutation table top is ProjectE's: " + Base(table?.Textures, "top"));
+            Expect("vintagee:trinket-zeroring#all", "vintagee:projecte/item/rings/zero_off", "Zero Ring uses ProjectE's texture");
+            Expect("vintagee:energycollector-mk2#up", "vintagee:projecte/block/collectors/top_2", "collector MK2 top is ProjectE's");
+            Expect("vintagee:energycollector-mk2#north", "vintagee:projecte/block/collectors/front", "collector front is ProjectE's");
+            Expect("vintagee:energycollector-mk2#east", "vintagee:projecte/block/collectors/other", "collector sides are ProjectE's plain face");
+            Expect("vintagee:energycollector-mk2#down", "vintagee:projecte/block/collectors/other", "collector underside is ProjectE's plain face");
+            Expect("vintagee:energycondenser-mk2#down", "vintagee:projecte/derived/condenser_mk2-bottom", "condenser MK2 underside is cut from ProjectE's chest texture");
+            Expect("vintagee:energycondenser-mk1#up", "vintagee:projecte/derived/condenser_mk1-top", "condenser MK1 top is cut from ProjectE's chest texture");
+            Expect("vintagee:transmutationtable#top", "vintagee:projecte/block/transmutation_stone/top", "transmutation table top is ProjectE's");
+            Expect("vintagee:interdictiontorch#glow", "vintagee:projecte/derived/interdiction_torch-glow", "interdiction torch flame is ProjectE's");
+            Expect("vintagee:alchemicalbag-red#sprite", "vintagee:projecte/item/alchemy_bags/red", "red alchemical bag is ProjectE's flat bag");
             Item bag = sapi.World.GetItem(new AssetLocation("vintagee:alchemicalbag-red"));
-            Check(bag != null && bag.Shape == null && Base(bag.Textures, "all") == "vintagee:projecte/item/alchemy_bags/red", "red alchemical bag is ProjectE's flat bag: " + Base(bag?.Textures, "all"));
-            Item pick = sapi.World.Collectibles.OfType<Item>().FirstOrDefault(i => i.Code?.Domain == "vintagee" && i.Code.Path.Contains("dark") && i.Code.Path.EndsWith("pickaxe"));
-            Check(pick != null && pick.Textures.Values.Any(t => t?.Base?.ToString() == "vintagee:projecte/block/dark_matter_block"), $"{pick?.Code} head is ProjectE's dark matter");
-            EntityProperties fire = sapi.World.GetEntityType(new AssetLocation("vintagee:projectile-fire"));
-            EntityProperties arrow = sapi.World.GetEntityType(new AssetLocation("vintagee:projectile-arrow"));
-            Check(fire?.Client?.Shape?.Base?.ToString() == "vintagee:entity/projectile-sprite" && Base(fire.Client.Textures, "orb") == "vintagee:projecte/entity/fireball",
-                "fireball uses ProjectE's sprite: " + fire?.Client?.Shape?.Base + " / " + Base(fire?.Client?.Textures, "orb"));
-            Check(arrow?.Client?.Shape?.Base?.ToString() == "vintagee:entity/projectile", "smite arrows (no ProjectE texture) keep their own shape: " + arrow?.Client?.Shape?.Base);
+            Check(bag != null && bag.Shape == null, "red alchemical bag has no sack model");
+            string pickHead = r.Swapped.Where(kv => kv.Key.StartsWith("vintagee:") && kv.Key.Contains("dark") && kv.Key.Contains("pickaxe#")).Select(kv => kv.Value).FirstOrDefault();
+            Check(pickHead == "vintagee:projecte/block/dark_matter_block", "dark matter pickaxe head is ProjectE's dark matter: " + pickHead);
+            Expect("vintagee:projectile-fire#orb", "vintagee:projecte/entity/fireball", "fireball uses ProjectE's sprite");
+            Expect("vintagee:projectile-fire#shape", "vintagee:entity/projectile-sprite", "fireball is drawn whole");
+            Check(Got("vintagee:projectile-arrow#shape") == null && Got("vintagee:projectile-arrow#orb") == null, "smite arrows (no ProjectE texture) keep their own look");
+            Check(Got("vintagee:kleinstar-omega#all") == null, "Klein Stars (already ProjectE's art) are left alone");
 
-            // The looks rings switch to while rendering.
-            var stack = new ItemStack(zero);
-            Check(ProjectELook.TrinketLook(zero as ItemEmcTrinket, stack) == null, "Zero Ring switched off keeps its texture");
-            stack.Attributes.SetBool(ItemEmcTrinket.ActiveKey, true);
-            AssetLocation on = ProjectELook.TrinketLook(zero as ItemEmcTrinket, stack);
-            Check(on?.ToString() == "vintagee:projecte/item/rings/zero_on" && Tex(on.ToString()), "Zero Ring switched on lights up: " + on);
-            var arcanaStack = new ItemStack(arcana);
-            arcanaStack.Attributes.SetInt(ItemEmcTrinket.ModeKey, 2);
-            arcanaStack.Attributes.SetBool(ItemEmcTrinket.ActiveKey, true);
-            AssetLocation arc = ProjectELook.TrinketLook(arcana as ItemEmcTrinket, arcanaStack);
-            Check(arc?.ToString() == "vintagee:projecte/item/rings/arcana_2_on" && Tex(arc.ToString()), "Ring of Arcana shows its mode: " + arc);
-            var galeStack = new ItemStack(gale);
-            galeStack.Attributes.SetInt(ItemEmcTrinket.ModeKey, 2); // shield only
-            galeStack.Attributes.SetBool(ItemEmcTrinket.ActiveKey, true);
-            AssetLocation g = ProjectELook.TrinketLook(gale as ItemEmcTrinket, galeStack);
-            Check(g?.ToString() == "vintagee:projecte/item/rings/swrg_on3" && Tex(g.ToString()), "Swiftwolf's shield mode shows ProjectE's shield look: " + g);
+            // The looks rings switch to while rendering (worked out on the client from the texture it received).
+            AssetLocation Look(Item item, int mode, bool on)
+            {
+                var stack = new ItemStack(item);
+                stack.Attributes.SetInt(ItemEmcTrinket.ModeKey, mode);
+                if (on) stack.Attributes.SetBool(ItemEmcTrinket.ActiveKey, true);
+                string tex = Got(item?.Code + "#all");
+                return tex == null ? null : ProjectELook.TrinketLook(item as ItemEmcTrinket, stack, new AssetLocation(tex));
+            }
+            Item zero = sapi.World.GetItem(new AssetLocation("vintagee:trinket-zeroring"));
+            Item arcana = sapi.World.GetItem(new AssetLocation("vintagee:trinket-ringofarcana"));
+            Item gale = sapi.World.GetItem(new AssetLocation("vintagee:trinket-swiftwolfsrendinggale"));
+            Check(Look(zero, 0, false) == null, "Zero Ring switched off keeps its texture");
+            AssetLocation look = Look(zero, 0, true);
+            Check(look?.ToString() == "vintagee:projecte/item/rings/zero_on" && Tex(look.ToString()), "Zero Ring switched on lights up: " + look);
+            look = Look(arcana, 2, true);
+            Check(look?.ToString() == "vintagee:projecte/item/rings/arcana_2_on" && Tex(look.ToString()), "Ring of Arcana shows its mode: " + look);
+            look = Look(gale, 2, true); // shield only
+            Check(look?.ToString() == "vintagee:projecte/item/rings/swrg_on3" && Tex(look.ToString()), "Swiftwolf's shield mode shows ProjectE's shield look: " + look);
+            int lit = 0;
             foreach (Item t in sapi.World.Collectibles.OfType<ItemEmcTrinket>())
             {
-                var s = new ItemStack(t);
-                s.Attributes.SetBool(ItemEmcTrinket.ActiveKey, true);
-                AssetLocation look = ProjectELook.TrinketLook((ItemEmcTrinket)t, s);
-                if (look != null && !Tex(look.ToString())) Check(false, $"{t.Code} switched-on texture {look} is there");
+                for (int mode = 0; mode < 4; mode++)
+                {
+                    look = Look(t, mode, true);
+                    if (look == null) continue;
+                    lit++;
+                    if (!Tex(look.ToString())) Check(false, $"{t.Code} switched-on texture {look} is there");
+                }
             }
+            Check(lit > 20, $"switched-on looks found for the rings and stones ({lit})");
         }
 
         /// <summary>/emc configure: a number, a list entry and a table entry can be changed, then put back.</summary>

@@ -41,6 +41,11 @@ namespace VintageE
             public int Entities;
             public int Textures;
             public List<string> MissingFiles = new List<string>();
+            /// <summary>
+            /// "code#texture code" → the ProjectE texture it now uses ("#shape" for a swapped shape, "#sprite" for a flat
+            /// item). Kept because a dedicated server frees block/item textures once they're sent to players.
+            /// </summary>
+            public Dictionary<string, string> Swapped = new Dictionary<string, string>(StringComparer.Ordinal);
         }
 
         /// <summary>Swaps textures on every Vintage-E block, item and entity type. Server side, from AssetsFinalize.</summary>
@@ -118,27 +123,28 @@ namespace VintageE
                         item.TpOffHandTransform = ModelTransform.ItemDefaultTp();
                         item.GroundTransform = ModelTransform.ItemDefaultGround();
                         result.Textures++;
+                        result.Swapped[item.Code + "#sprite"] = sprite.Sprite.ToString();
+                        result.Swapped[item.Code + "#all"] = sprite.Sprite.ToString();
                     }
                     else if (item.Textures != null)
                     {
                         var copy = new Dictionary<string, CompositeTexture>(item.Textures);
-                        Swap(copy, mine, files, Exists, result);
+                        Swap(item.Code.ToString(), copy, mine, files, Exists, result);
                         item.Textures = copy;
                     }
-                    ApplyShape(item, mine, api);
                 }
                 else if (c is Block block)
                 {
                     if (block.Textures != null)
                     {
                         var copy = new Dictionary<string, CompositeTexture>(block.Textures);
-                        Swap(copy, mine, files, Exists, result);
+                        Swap(block.Code.ToString(), copy, mine, files, Exists, result);
                         block.Textures = copy;
                     }
                     if (block.TexturesInventory != null)
                     {
                         var copy = new Dictionary<string, CompositeTexture>(block.TexturesInventory);
-                        Swap(copy, mine, files, Exists, result);
+                        Swap(block.Code + "#inventory", copy, mine, files, Exists, result);
                         block.TexturesInventory = copy;
                     }
                 }
@@ -153,7 +159,7 @@ namespace VintageE
                 if (type.Client.Textures != null)
                 {
                     var copy = new Dictionary<string, CompositeTexture>(type.Client.Textures);
-                    Swap(copy, mine, files, Exists, result);
+                    Swap(type.Code.ToString(), copy, mine, files, Exists, result);
                     type.Client.Textures = copy;
                 }
                 AssetLocation shape = mine.LastOrDefault(o => o.Shape != null)?.Shape;
@@ -163,6 +169,7 @@ namespace VintageE
                     CompositeShape cs = type.Client.Shape.Clone();
                     cs.Base = shape;
                     type.Client.Shape = cs;
+                    result.Swapped[type.Code + "#shape"] = shape.ToString();
                 }
                 if (result.Textures > before) result.Entities++;
             }
@@ -173,7 +180,7 @@ namespace VintageE
             return result;
         }
 
-        static void Swap(IDictionary<string, CompositeTexture> dict, Override[] mine, Dictionary<string, AssetLocation> files, System.Func<AssetLocation, bool> exists, Result result)
+        static void Swap(string owner, IDictionary<string, CompositeTexture> dict, Override[] mine, Dictionary<string, AssetLocation> files, System.Func<AssetLocation, bool> exists, Result result)
         {
             foreach (string key in dict.Keys.ToList())
             {
@@ -188,16 +195,8 @@ namespace VintageE
                 swapped.Base = want;
                 dict[key] = swapped;
                 result.Textures++;
+                result.Swapped[owner + "#" + key] = want.ToString();
             }
-        }
-
-        static void ApplyShape(CollectibleObject c, Override[] mine, ICoreAPI api)
-        {
-            AssetLocation shape = mine.LastOrDefault(o => o.Shape != null)?.Shape;
-            if (shape == null || !(c is Item item) || item.Shape == null) return;
-            CompositeShape cs = item.Shape.Clone();
-            cs.Base = shape;
-            item.Shape = cs;
         }
 
         /// <summary>True when this item's textures came from ProjectE (the server has ProjectETextures on).</summary>
@@ -212,8 +211,13 @@ namespace VintageE
         /// </summary>
         public static AssetLocation TrinketLook(ItemEmcTrinket trinket, ItemStack stack)
         {
-            if (!IsProjectE(trinket)) return null;
-            AssetLocation baseTex = trinket.Textures["all"].Base;
+            return IsProjectE(trinket) ? TrinketLook(trinket, stack, trinket.Textures["all"].Base) : null;
+        }
+
+        /// <summary>Same, given the item's ProjectE texture (the self-test passes it, as the server no longer has the item's textures).</summary>
+        public static AssetLocation TrinketLook(ItemEmcTrinket trinket, ItemStack stack, AssetLocation baseTex)
+        {
+            if (trinket == null || baseTex?.Path?.StartsWith(PathPrefix) != true) return null;
             string path = baseTex.Path;
             bool on = ItemEmcTrinket.IsActive(stack);
             switch (trinket.Kind)
