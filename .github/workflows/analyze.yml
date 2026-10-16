@@ -60,7 +60,8 @@ jobs:
           data="$PWD/data"
           mkdir -p "$data/Mods" "$data/ModConfig"
           cp -r bin/Release/Mods/vintagee "$data/Mods/"
-          echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false, "SelfTestOnStart": true }' > "$data/ModConfig/vintagee.json"
+          # ProjectE textures and sounds on, so the self-test can check the swap (the default look needs no checking).
+          echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false, "SelfTestOnStart": true, "ProjectETextures": true, "ProjectESounds": true }' > "$data/ModConfig/vintagee.json"
           cd "$VSDIR"
           dotnet VintagestoryServer.dll --dataPath "$data" > "$GITHUB_WORKSPACE/server-console.log" 2>&1 &
           pid=$!

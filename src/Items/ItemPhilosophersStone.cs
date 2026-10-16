@@ -62,7 +62,7 @@ namespace VintageE
             }
             if (changed > 0)
             {
-                api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/timeswitch"), blockSel.Position.X + 0.5, blockSel.Position.Y + 0.5, blockSel.Position.Z + 0.5, null, true, 16, 0.6f);
+                PESounds.Play(api.World, PESounds.Transmute, "game:sounds/effect/timeswitch", blockSel.Position, 16, 0.6f);
             }
         }
 

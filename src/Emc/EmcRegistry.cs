@@ -14,6 +14,9 @@ namespace VintageE
         /// <summary>Whether damaged tools are worth proportionally less (mirrors the server config on clients).</summary>
         public bool DurabilityScales { get; set; } = true;
 
+        /// <summary>Whether ProjectE's sounds are on (mirrors the server config on clients).</summary>
+        public bool ProjectESounds { get; set; }
+
         public int Count => values.Count;
 
         public IReadOnlyDictionary<CollectibleObject, double> All => values;
@@ -171,6 +174,7 @@ namespace VintageE
                 BlockIds = blockIds.ToArray(),
                 BlockValues = blockValues.ToArray(),
                 DurabilityScales = DurabilityScales,
+                ProjectESounds = ProjectESounds,
                 DataKeys = dataKeys.ToArray(),
                 DataKindModes = dataKindModes.ToArray(),
                 VariantKeys = variantKeys.ToArray(),
@@ -198,6 +202,7 @@ namespace VintageE
             }
             values = fresh;
             DurabilityScales = packet.DurabilityScales;
+            ProjectESounds = packet.ProjectESounds;
             World = world;
 
             var table = new StackDataTable();

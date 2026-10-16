@@ -100,9 +100,14 @@ for f in sorted(os.listdir(os.path.join(A, "recipes", "grid"))):
                 if code not in codes: errors.append(f"{f} {r.get('name')}: unknown code {ing['code']}")
                 elif codes[code] != want: errors.append(f"{f} {r.get('name')}: {ing['code']} is a {codes[code]} entry but type says {ing.get('type', 'block')}")
 
+entity_codes = set()
+for f in os.listdir(os.path.join(A, "entities")):
+    obj = load(os.path.join(A, "entities", f))
+    if obj: entity_codes.update(code for code, _ in expand(obj))
+
 lang = load(os.path.join(A, "lang", "en.json")) or {}
 for key in set(re.findall(r'"vintagee:([a-z0-9-]+)"', cs)):
-    if key.endswith("-") or key in codes: continue  # item/block codes, not lang keys
+    if key.endswith("-") or key in codes or key in entity_codes: continue  # item/block/entity codes, not lang keys
     if key not in lang: errors.append(f"lang: missing key {key}")
 for code in re.findall(r'Fail\(player, "(\w+)"', cs):
     if "error-" + code not in lang: errors.append(f"lang: missing error-{code}")
@@ -115,6 +120,23 @@ for code, kind in codes.items():
 
 load(os.path.join(ROOT, "modinfo.json"))
 load(os.path.join(A, "config", "vintagee-emc.json"))
+
+# ProjectETextures: every texture the swap list names exists on both sides, every override names real codes.
+look = load(os.path.join(A, "config", "vintagee-projecte-look.json")) or {}
+def tex_exists(ref):
+    p = local(ref)
+    return p is not None and os.path.exists(os.path.join(A, "textures", p + ".png"))
+for ours, theirs in (look.get("textures") or {}).items():
+    if not tex_exists(ours): errors.append(f"projecte look: Vintage-E texture {ours} doesn't exist")
+    if not tex_exists(theirs): errors.append(f"projecte look: ProjectE texture {theirs} doesn't exist")
+known = {"vintagee:" + c for c in list(codes) + list(entity_codes)}
+for o in look.get("overrides") or []:
+    if not any(wild(o["code"], c) for c in known): errors.append(f"projecte look: override {o['code']} matches nothing")
+    for ref in list((o.get("textures") or {}).values()) + [o[k] for k in ("sprite",) if k in o]:
+        if not tex_exists(ref): errors.append(f"projecte look: {o['code']} texture {ref} doesn't exist")
+    if "shape" in o and not os.path.exists(os.path.join(A, "shapes", local(o["shape"]) + ".json")): errors.append(f"projecte look: shape {o['shape']} doesn't exist")
+for s in ("charge", "uncharge", "heal", "destruct", "power", "transmute", "watermagic", "windmagic"):
+    if not os.path.exists(os.path.join(A, "sounds", "projecte", s + ".ogg")): errors.append(f"projecte sound {s}.ogg is missing")
 
 print(f"{len(codes)} item/block codes, {nrecipes} recipes, {len(lang)} lang keys, {len(registered)} registered classes")
 if errors:

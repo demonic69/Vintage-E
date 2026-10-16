@@ -193,6 +193,14 @@ namespace VintageE
         [System.ComponentModel.Description("Multiplies the EMC that rings, stones, amulets and gadgets cost to run.")]
         public double TrinketCostMultiplier = 1.0;
 
+        /// <summary>Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.</summary>
+        [System.ComponentModel.Description("Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.")]
+        public bool ProjectETextures = false;
+
+        /// <summary>Use ProjectE's original sounds (charge, uncharge, heal, power, destruct, transmute, water and wind magic) for the things ProjectE plays them for. False = Vintage-E's own sounds. Takes effect straight away.</summary>
+        [System.ComponentModel.Description("Use ProjectE's original sounds (charge, uncharge, heal, power, destruct, transmute, water and wind magic) for the things ProjectE plays them for. False = Vintage-E's own sounds. Takes effect straight away.")]
+        public bool ProjectESounds = false;
+
         public void Normalize()
         {
             BaseValues ??= new Dictionary<string, double>();

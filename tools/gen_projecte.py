@@ -926,6 +926,16 @@ def entities():
         ("textures", O([("orb", "vintagee:entity/projectile-lens")])),
         ("elements", [orb]),
     ]))
+    # With ProjectETextures on, projectiles use ProjectE's 16×16 sprites, drawn whole on every face.
+    sprite = box("orb", [6, 0, 6], [10, 4, 10], "#orb")
+    sprite["glow"] = 255
+    for face in sprite["faces"].values():
+        face["uv"] = [0, 0, 16, 16]
+    write("shapes/entity/projectile-sprite.json", O([
+        ("textureWidth", 16), ("textureHeight", 16),
+        ("textures", O([("orb", "vintagee:projecte/entity/fireball")])),
+        ("elements", [sprite]),
+    ]))
 
 
 if __name__ == "__main__":

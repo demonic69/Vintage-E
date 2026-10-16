@@ -93,6 +93,15 @@ Some items carry data on the item itself: buckets, jugs, pots, bowls, crocks, ba
 
 Built-in defaults: containers are **item only**; items whose material or type lives on the item, and chiseled blocks, are **item + contents** (a plain copy of those would be the wrong or default version). Admins change them with **`/emc contents`**, a window listing every such block/item with its mode (search, filter by mod, kind and mode, select several, then pick a mode or *Default*), or `/emc contents <item|full|itemprice|default>` for the held item. Changes are saved to `StackDataModes` in the server config and apply straight away. Copies never include wear, freshness or clothing condition: they come out new. Condensers follow the same modes for their target. Each player can know up to `MaxExactKnowledge` (500) exact versions.
 
+## ProjectE's original textures and sounds
+
+Vintage-E has its own textures and sounds. A server can switch to **ProjectE's originals** wherever ProjectE has one (both are off by default):
+
+- **`ProjectETextures`**: rings, stones, amulets, gadgets, matter, fuels, covalence dust, alchemical bags, matter blocks, fuel blocks, collectors, relays, condensers, the alchemical chest, the transmutation table, nova catalysts, the interdiction torch, the projectiles, and the dark/red matter look of tools, armour, the pedestal and the furnaces. Rings and stones light up while switched on, and the Ring of Arcana and Swiftwolf's Rending Gale show their mode, as in ProjectE. Condensers and the alchemical chest use faces cut from ProjectE's chest textures; bags are drawn as ProjectE's flat bags. Worn rings keep Vintage-E's look, and Klein Stars are ProjectE's artwork either way. It takes effect the next time the server starts; players don't need to set anything.
+- **`ProjectESounds`**: ProjectE's eight sounds (charge, uncharge, heal, power, destruct, transmute, water magic, wind magic) for what ProjectE plays them for: switching rings on and off, shooting with lenses and rings, the Destruction Catalyst and area mining, the Philosopher's Stone, the amulets' water and lava, stones and pedestals healing, putting a ring on a pedestal, and the wind while flying with Swiftwolf's Rending Gale. It takes effect straight away.
+
+Turn them on with `/emc configure ProjectETextures true` and `/emc configure ProjectESounds true`, in the `/emc configure` window, or in `ModConfig/vintagee.json`. Which ProjectE texture replaces which is listed in `assets/vintagee/config/vintagee-projecte-look.json`.
+
 ## For modpack makers and mod authors
 
 Values come from these sources, later ones winning:
@@ -100,7 +109,7 @@ Values come from these sources, later ones winning:
 1. `assets/vintagee/config/vintagee-emc.json` (this mod's defaults).
 2. Any other mod's `assets/<modid>/config/vintagee-emc.json` — same format; ship one with your mod, or JSON-patch ours.
 3. An `emcValue` attribute on any item or block: `"attributes": { "emcValue": 256 }` (0 = no EMC).
-4. `ModConfig/vintagee.json` on the server (or change it in game with `/emc configure`): `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`).
+4. `ModConfig/vintagee.json` on the server (or change it in game with `/emc configure`): `BaseValues` and `FixedValues` (code or wildcard → value), `Blacklist`, and settings like `TransitionEmcPerDay`, `InferValuesFromProcessing`, `InferValuesFromCrafting`, `UseTraderPrices`, `InferFromVariantSiblings`, `FallbackValue`, `CacheEmcValues`, `DumpValuesOnStart`, `AnnounceInChat`, `DurabilityScalesEmc`, `EstimateFuelAndFood`, `StackDataModes`, `MaxExactKnowledge`, `MachineSpeedMultiplier`, `CollectorsChargePlayers`, `TableUseRange`, and the Repair Talisman's clothing settings (`RepairTalismanRepairsClothing`, `RepairTalismanClothingPercentPerMinute`, `RepairTalismanClothingMinCondition`, `RepairTalismanClothingMaxCondition`), and `ProjectETextures` / `ProjectESounds` (see below).
 
 Keys accept wildcards and an optional type prefix: `"game:rock-*"`, `"item:game:stick"`, `"block:*:log-*"`.
 
@@ -218,8 +227,9 @@ The **Test on a real server** workflow (Actions tab → Run workflow) downloads 
 | `src/Transmutation` | Table/tablet GUI and server logic, philosopher's stone world rules |
 | `src/Items`, `src/Blocks` | Philosopher's stone, tablet, matter-tool behaviour, collectors, condensers |
 | `src/Commands` | `/emc` |
-| `assets/vintagee` | Item/block types, recipes, shapes, textures, lang, default EMC values |
+| `src/Assets` | The `ProjectETextures` / `ProjectESounds` settings (`ProjectELook`, `PESounds`) |
+| `assets/vintagee` | Item/block types, recipes, shapes, textures, lang, default EMC values; `textures/projecte` and `sounds/projecte` are ProjectE's, copied by `tools/import_projecte_assets.py` |
 
 ## Credits
 
-Inspired by ProjectE by sinkillerj and contributors (and Equivalent Exchange 2 by x3n0ph0b3 before it). This is an independent reimplementation for Vintage Story; no code was copied. The Klein Star textures are ProjectE's own artwork, used under its MIT licence (see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). The matter tools use Vintage Story's own tool models by reference (nothing from the game is included in this mod).
+Inspired by ProjectE by sinkillerj and contributors (and Equivalent Exchange 2 by x3n0ph0b3 before it). This is an independent reimplementation for Vintage Story; no code was copied. The Klein Star textures, and the textures and sounds behind the `ProjectETextures` / `ProjectESounds` settings, are ProjectE's own artwork and sounds, used under its MIT licence (see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)); ProjectE in turn credits x3n0ph0b3 for allowing the use of EE2's assets. The matter tools use Vintage Story's own tool models by reference (nothing from the game is included in this mod).

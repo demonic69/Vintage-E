@@ -239,7 +239,16 @@ namespace VintageE
             bool on = !IsActive(slot.Itemstack);
             slot.Itemstack.Attributes.SetBool(ActiveKey, on);
             slot.MarkDirty();
-            world.PlaySoundAt(new AssetLocation(on ? "game:sounds/effect/latch" : "game:sounds/effect/woodswitch"), byEntity, null, true, 8, 0.7f);
+            // ProjectE: switching on plays its heal sound, switching off its uncharge sound.
+            PESounds.Play(world, on ? PESounds.Heal : PESounds.Uncharge, on ? "game:sounds/effect/latch" : "game:sounds/effect/woodswitch", byEntity, 8, 0.7f);
+        }
+
+        public override void OnBeforeRender(ICoreClientAPI capi, ItemStack itemstack, EnumItemRenderTarget target, ref ItemRenderInfo renderinfo)
+        {
+            base.OnBeforeRender(capi, itemstack, target, ref renderinfo);
+            // With ProjectE's textures: its "on" look while switched on, and the Arcana/Swiftwolf mode looks.
+            AssetLocation look = ProjectELook.TrinketLook(this, itemstack);
+            if (look != null) ProjectELook.UseSprite(capi, look, ref renderinfo);
         }
 
         // ------------------------------------------------------------------ fire-projectile key
@@ -258,16 +267,16 @@ namespace VintageE
             {
                 case "evertideamulet":
                     if (EntityVintageEProjectile.Shoot(player, "water", 30) == null) return false;
-                    world.PlaySoundAt(new AssetLocation("game:sounds/environment/smallsplash"), player.Entity, null, true, 16, 0.8f);
+                    PESounds.Play(world, PESounds.WaterMagic, "game:sounds/environment/smallsplash", player.Entity, 16, 0.8f);
                     return true;
                 case "volcaniteamulet":
                     if (!Effects(world).Pay(player, LavaCost)) return false;
                     if (EntityVintageEProjectile.Shoot(player, "lava", 30) == null) return false;
-                    world.PlaySoundAt(new AssetLocation("game:sounds/effect/extinguish"), player.Entity, null, true, 16, 0.5f);
+                    PESounds.Play(world, PESounds.Transmute, "game:sounds/effect/extinguish", player.Entity, 16, 0.5f);
                     return true;
                 default: // ignition ring, ring of arcana
                     if (EntityVintageEProjectile.Shoot(player, "fire", 30, shot => shot.Damage = 3) == null) return false;
-                    world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), player.Entity, null, true, 16, 0.8f);
+                    PESounds.Play(world, PESounds.Power, "game:sounds/effect/swoosh", player.Entity, 16, 0.8f);
                     return true;
             }
         }

@@ -310,7 +310,12 @@ namespace VintageE
                 case "HostileCreatures":
                     mod.Trinkets?.ResetHostile();
                     break;
+                case "ProjectESounds":
+                    mod.Emc.ProjectESounds = mod.Config.ProjectESounds;
+                    mod.RefreshStackData(); // sends the table, and with it the setting, to everyone
+                    break;
                 case "SelfTestOnStart":
+                case "ProjectETextures":
                     return Lang.GetL(lang, "vintagee:cfg-restart");
             }
             return Lang.GetL(lang, "vintagee:cfg-applied");

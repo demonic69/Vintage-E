@@ -5,6 +5,7 @@ using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
 namespace VintageE
@@ -101,6 +102,19 @@ namespace VintageE
             if (api.Side != EnumAppSide.Server) return;
             // Read rule files now, while patched asset data is guaranteed to be in memory.
             Rules = EmcRuleSet.Load(api, Mod.Logger);
+            // ProjectE's textures have to be in the block/item definitions before they're sent to players. The config is
+            // only loaded properly in StartServerSide, which comes later, so peek at that one setting here.
+            if (PeekConfig(api as ICoreServerAPI)?.ProjectETextures == true) LookResult = ProjectELook.Apply(api, Mod.Logger);
+        }
+
+        /// <summary>What the ProjectETextures setting changed at start-up (null when it's off).</summary>
+        public ProjectELook.Result LookResult { get; private set; }
+
+        VintageEConfig PeekConfig(ICoreServerAPI sapi)
+        {
+            if (sapi == null) return null;
+            try { return sapi.LoadModConfig<VintageEConfig>(ConfigFile); }
+            catch { return null; } // LoadConfig reports a broken file later
         }
 
         public override void StartServerSide(ICoreServerAPI sapi)
@@ -244,6 +258,7 @@ namespace VintageE
             }
             Emc.Replace(report.Values);
             Emc.DurabilityScales = Config.DurabilityScalesEmc;
+            Emc.ProjectESounds = Config.ProjectESounds;
             Emc.World = Sapi.World;
             BuildStackData(report);
             sw.Stop();
@@ -712,6 +727,8 @@ namespace VintageE
             clientChannel.SetMessageHandler<EmcConfigPacket>(OnConfigList);
             clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
 
+            capi.Event.RegisterGameTickListener(WindTick, 250);
+
             capi.Input.RegisterHotKey(FireHotkey, Lang.Get("vintagee:hotkey-fire"), GlKeys.R, HotkeyType.CharacterControls);
             capi.Input.SetHotKeyHandler(FireHotkey, _ =>
             {
@@ -735,6 +752,39 @@ namespace VintageE
                 }
                 Mod.Logger.VerboseDebug("Added EMC tooltips to {0} collectibles", count);
             };
+        }
+
+        ILoadedSound windSound;
+
+        /// <summary>
+        /// ProjectE plays a looping wind while you fly with Swiftwolf's Rending Gale. With ProjectE's sounds on, that plays
+        /// while you're flying in survival (only Vintage-E's rings let you do that).
+        /// </summary>
+        void WindTick(float dt)
+        {
+            IClientPlayer player = Capi?.World?.Player;
+            bool flying = Emc.ProjectESounds && player?.WorldData != null && player.WorldData.FreeMove
+                && player.WorldData.CurrentGameMode == EnumGameMode.Survival && player.Entity != null && !player.Entity.OnGround;
+            if (flying && windSound == null)
+            {
+                windSound = Capi.World.LoadSound(new SoundParams
+                {
+                    Location = PESounds.Location(PESounds.WindMagic),
+                    ShouldLoop = true,
+                    RelativePosition = true,
+                    Position = new Vec3f(),
+                    DisposeOnFinish = false,
+                    Volume = 0.6f,
+                    SoundType = EnumSoundType.Ambient
+                });
+                windSound?.Start();
+            }
+            else if (!flying && windSound != null)
+            {
+                windSound.Stop();
+                windSound.Dispose();
+                windSound = null;
+            }
         }
 
         void OnEmcTableReceived(EmcTablePacket packet)
@@ -817,6 +867,10 @@ namespace VintageE
         {
             transmutationDialog?.Dispose();
             missingDialog?.Dispose();
+            windSound?.Stop();
+            windSound?.Dispose();
+            windSound = null;
+            if (Capi != null) ProjectELook.DisposeMeshes();
             try { (Sapi?.World ?? (IWorldAccessor)Capi?.World)?.Calendar?.RemoveTimeSpeedModifier(TrinketEffects.TimeModifierName); }
             catch { /* world already gone */ }
             base.Dispose();

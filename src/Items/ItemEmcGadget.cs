@@ -181,7 +181,7 @@ namespace VintageE
                 }
             }
             if (broken == 0) return;
-            world.PlaySoundAt(new AssetLocation("game:sounds/effect/rockslide"), sel.Position.X + 0.5, sel.Position.Y + 0.5, sel.Position.Z + 0.5, null, true, 16, 0.6f);
+            PESounds.Play(world, PESounds.Destruct, "game:sounds/effect/rockslide", sel.Position, 16, 0.6f);
 
             // Pull what dropped along the tunnel back to where the player clicked.
             Vec3f n = sel.Face.Normalf;
@@ -213,7 +213,7 @@ namespace VintageE
                 return false;
             }
             if (EntityVintageEProjectile.Shoot(player, "lens", 36, shot => shot.Radius = LensRadius[charge]) == null) return false;
-            world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), player.Entity, null, true, 24, 1f);
+            PESounds.Play(world, PESounds.Power, "game:sounds/effect/swoosh", player.Entity, 24, 1f);
             return true;
         }
 
@@ -246,7 +246,7 @@ namespace VintageE
                 ba.SetBlock(target.BlockId, pos);
                 ba.TriggerNeighbourBlockUpdate(pos);
             }
-            world.PlaySoundAt(new AssetLocation("game:sounds/effect/swoosh"), sel.Position.X + 0.5, sel.Position.Y + 0.5, sel.Position.Z + 0.5, null, true, 12, 0.5f);
+            PESounds.Play(world, PESounds.Power, "game:sounds/effect/swoosh", sel.Position, 12, 0.5f);
         }
 
         /// <summary>Archangel's Smite arrow damage and how many a left-click volley fires (ProjectE: 10).</summary>

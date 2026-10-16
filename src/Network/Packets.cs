@@ -18,6 +18,8 @@ namespace VintageE
         [ProtoMember(8)] public string[] VariantKeys;
         [ProtoMember(9)] public string[] VariantData;
         [ProtoMember(10, IsPacked = true)] public double[] VariantValues;
+        /// <summary>The server's ProjectESounds setting (for sounds the client plays itself, like Swiftwolf's wind while flying).</summary>
+        [ProtoMember(11)] public bool ProjectESounds;
     }
 
     public enum TransmuteAction

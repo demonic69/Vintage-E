@@ -33,6 +33,11 @@ All notable changes to Vintage-E. Each GitHub release uses its section from this
 - The transmutation grid shows each exact version as its own entry. **Ctrl + right-click forgets an entry.** Each player can know up to `MaxExactKnowledge` (500) exact versions.
 - `/emc dump` also writes `emc-contents.csv`: every such item, its mode and its material values.
 
+### Added — ProjectE's original textures and sounds
+- **`ProjectETextures`** (off by default) swaps Vintage-E's textures for ProjectE's wherever ProjectE has one: rings, stones, amulets, gadgets, matter, fuels, covalence dust, alchemical bags, blocks, machines, the transmutation table, nova catalysts, the interdiction torch, projectiles, and the matter look of tools, armour, the pedestal and the furnaces. Rings and stones light up while switched on, and the Ring of Arcana and Swiftwolf's Rending Gale show their mode, like in ProjectE. Condensers and the alchemical chest use faces cut from ProjectE's chest textures. It's applied by the server at start-up, so players see it without setting anything.
+- **`ProjectESounds`** (off by default) plays ProjectE's eight sounds for what ProjectE plays them for: switching rings on (heal) and off (uncharge), lens and ring shots (power), the Destruction Catalyst and area mining (destruct), the Philosopher's Stone and lava (transmute), water (water magic), stones and pedestals healing (heal), putting a ring on a pedestal (charge) and taking it off (uncharge), and a looping wind while flying with Swiftwolf's Rending Gale. It applies straight away.
+- Both are in `/emc configure`. The files are ProjectE's, under its MIT licence (see THIRD-PARTY-NOTICES.md), copied by `tools/import_projecte_assets.py`.
+
 ### Added — settings in game
 - **`/emc configure`** opens a settings window: every setting, what it does, and an editor that fits it (a switch, a number box, or one entry per line for lists and tables). Save checks the value, writes `ModConfig/vintagee.json` and applies it straight away; settings that change values remap them.
 - From chat: `/emc configure list`, `/emc configure <setting>`, `/emc configure <setting> <value>`, list `add`/`remove`/`clear`, table `set <key> <value>`/`remove <key>`/`clear`, and `/emc configure reload` after editing the file by hand. `/emc config` works too.

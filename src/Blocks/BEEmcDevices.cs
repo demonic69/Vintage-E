@@ -250,10 +250,12 @@ namespace VintageE
                 held = hand.TakeOut(1);
                 hand.MarkDirty();
                 ApplyWeather(true);
+                PESounds.Play(Api.World, PESounds.Charge, null, Pos, 12); // ProjectE: a pedestal switching on charges up
             }
             else if (held != null && (hand == null || hand.Empty))
             {
                 ApplyWeather(false);
+                PESounds.Play(Api.World, PESounds.Uncharge, null, Pos, 12);
                 if (!byPlayer.InventoryManager.TryGiveItemstack(held, true)) Api.World.SpawnItemEntity(held, Pos.ToVec3d().Add(0.5, 1.1, 0.5));
                 held = null;
             }
@@ -367,6 +369,7 @@ namespace VintageE
                     if (health != null && health.GetFloat("currenthealth") < health.GetFloat("maxhealth"))
                     {
                         ep.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.Heal }, 0.5f);
+                        PESounds.Play(Api.World, PESounds.Heal, null, ep, 8);
                     }
                 }
                 if (effect == "bodystone" || effect == "lifestone")

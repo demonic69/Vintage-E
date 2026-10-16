@@ -1,0 +1,210 @@
+{
+  "//": "Written by tools/import_projecte_assets.py. Used when the server setting ProjectETextures is on: each Vintage-E texture on the left is swapped for the ProjectE texture on the right; 'overrides' set single faces/texture codes, swap shapes, or draw an item as a flat sprite.",
+  "textures": {
+    "vintagee:item/trinket/blackholeband": "vintagee:projecte/item/rings/black_hole_off",
+    "vintagee:item/trinket/bodystone": "vintagee:projecte/item/rings/body_stone_off",
+    "vintagee:item/trinket/evertideamulet": "vintagee:projecte/item/rings/evertide_amulet",
+    "vintagee:item/trinket/gemofeternaldensity": "vintagee:projecte/item/dense_gem_off",
+    "vintagee:item/trinket/harvestgoddessband": "vintagee:projecte/item/rings/harvest_god_off",
+    "vintagee:item/trinket/ignitionring": "vintagee:projecte/item/rings/ignition_off",
+    "vintagee:item/trinket/lifestone": "vintagee:projecte/item/rings/life_stone_off",
+    "vintagee:item/trinket/repairtalisman": "vintagee:projecte/item/repair_talisman",
+    "vintagee:item/trinket/ringofarcana": "vintagee:projecte/item/rings/arcana_0",
+    "vintagee:item/trinket/soulstone": "vintagee:projecte/item/rings/soul_stone_off",
+    "vintagee:item/trinket/swiftwolfsrendinggale": "vintagee:projecte/item/rings/swrg_off",
+    "vintagee:item/trinket/voidring": "vintagee:projecte/item/rings/void_off",
+    "vintagee:item/trinket/volcaniteamulet": "vintagee:projecte/item/rings/volcanite_amulet",
+    "vintagee:item/trinket/watchofflowingtime": "vintagee:projecte/item/rings/time_watch_off",
+    "vintagee:item/trinket/zeroring": "vintagee:projecte/item/rings/zero_off",
+    "vintagee:item/gadget/archangelssmite": "vintagee:projecte/item/rings/archangel_smite",
+    "vintagee:item/gadget/catalyticlens": "vintagee:projecte/item/catalytic_lens",
+    "vintagee:item/gadget/destructioncatalyst": "vintagee:projecte/item/destruction_catalyst",
+    "vintagee:item/gadget/diviningrodlow": "vintagee:projecte/item/divining_rod_1",
+    "vintagee:item/gadget/diviningrodmedium": "vintagee:projecte/item/divining_rod_2",
+    "vintagee:item/gadget/diviningrodhigh": "vintagee:projecte/item/divining_rod_3",
+    "vintagee:item/gadget/hyperkineticlens": "vintagee:projecte/item/hyperkinetic_lens",
+    "vintagee:item/gadget/mercurialeye": "vintagee:projecte/item/mercurial_eye",
+    "vintagee:item/gadget/tomeofknowledge": "vintagee:projecte/item/tome",
+    "vintagee:item/ironband": "vintagee:projecte/item/rings/iron_band",
+    "vintagee:item/philosophersstone": "vintagee:projecte/item/philosophers_stone",
+    "vintagee:item/transmutationtablet": "vintagee:projecte/item/transmutation_tablet",
+    "vintagee:item/darkmatter": "vintagee:projecte/item/matter/dark",
+    "vintagee:item/redmatter": "vintagee:projecte/item/matter/red",
+    "vintagee:item/covalencedust-low": "vintagee:projecte/item/covalence_dust/low",
+    "vintagee:item/covalencedust-medium": "vintagee:projecte/item/covalence_dust/medium",
+    "vintagee:item/covalencedust-high": "vintagee:projecte/item/covalence_dust/high",
+    "vintagee:item/alchemicalfuel-alchemicalcoal": "vintagee:projecte/item/fuels/alchemical_coal",
+    "vintagee:item/alchemicalfuel-mobiusfuel": "vintagee:projecte/item/fuels/mobius",
+    "vintagee:item/alchemicalfuel-aeternalisfuel": "vintagee:projecte/item/fuels/aeternalis",
+    "vintagee:item/tool/material/darkmatter": "vintagee:projecte/block/dark_matter_block",
+    "vintagee:item/tool/material/redmatter": "vintagee:projecte/block/red_matter_block",
+    "vintagee:block/matterblock-dark": "vintagee:projecte/block/dark_matter_block",
+    "vintagee:block/matterblock-red": "vintagee:projecte/block/red_matter_block",
+    "vintagee:block/alchemicalfuelblock-alchemicalcoal": "vintagee:projecte/block/alchemical_coal_block",
+    "vintagee:block/alchemicalfuelblock-mobiusfuel": "vintagee:projecte/block/mobius_fuel_block",
+    "vintagee:block/alchemicalfuelblock-aeternalisfuel": "vintagee:projecte/block/aeternalis_fuel_block",
+    "vintagee:block/transmutationtable-top": "vintagee:projecte/block/transmutation_stone/top",
+    "vintagee:block/transmutationtable-side": "vintagee:projecte/block/transmutation_stone/side",
+    "vintagee:block/transmutationtable-bottom": "vintagee:projecte/block/transmutation_stone/bottom",
+    "vintagee:block/energycollector-mk1-top": "vintagee:projecte/block/collectors/top_1",
+    "vintagee:block/energycollector-mk2-top": "vintagee:projecte/block/collectors/top_2",
+    "vintagee:block/energycollector-mk3-top": "vintagee:projecte/block/collectors/top_3",
+    "vintagee:block/energycollector-mk1-side": "vintagee:projecte/block/collectors/other",
+    "vintagee:block/energycollector-mk2-side": "vintagee:projecte/block/collectors/other",
+    "vintagee:block/energycollector-mk3-side": "vintagee:projecte/block/collectors/other",
+    "vintagee:block/antimatterrelay-mk1-top": "vintagee:projecte/block/relays/top_1",
+    "vintagee:block/antimatterrelay-mk2-top": "vintagee:projecte/block/relays/top_2",
+    "vintagee:block/antimatterrelay-mk3-top": "vintagee:projecte/block/relays/top_3",
+    "vintagee:block/antimatterrelay-mk1-side": "vintagee:projecte/block/relays/other",
+    "vintagee:block/antimatterrelay-mk2-side": "vintagee:projecte/block/relays/other",
+    "vintagee:block/antimatterrelay-mk3-side": "vintagee:projecte/block/relays/other",
+    "vintagee:block/energycondenser-mk1-top": "vintagee:projecte/derived/condenser_mk1-top",
+    "vintagee:block/energycondenser-mk1-side": "vintagee:projecte/derived/condenser_mk1-side",
+    "vintagee:block/energycondenser-mk2-top": "vintagee:projecte/derived/condenser_mk2-top",
+    "vintagee:block/energycondenser-mk2-side": "vintagee:projecte/derived/condenser_mk2-side",
+    "vintagee:block/alchemicalchest-top": "vintagee:projecte/derived/alchemical_chest-top",
+    "vintagee:block/alchemicalchest-side": "vintagee:projecte/derived/alchemical_chest-side",
+    "vintagee:block/alchemicalchest-bottom": "vintagee:projecte/derived/alchemical_chest-bottom",
+    "vintagee:block/novaexplosive-catalyst-side": "vintagee:projecte/block/explosives/nova_side",
+    "vintagee:block/novaexplosive-catalyst-top": "vintagee:projecte/block/explosives/top",
+    "vintagee:block/novaexplosive-cataclysm-side": "vintagee:projecte/block/explosives/nova1_side",
+    "vintagee:block/novaexplosive-cataclysm-top": "vintagee:projecte/block/explosives/top",
+    "vintagee:entity/projectile-fire": "vintagee:projecte/entity/fireball",
+    "vintagee:entity/projectile-lava": "vintagee:projecte/entity/lava_orb",
+    "vintagee:entity/projectile-water": "vintagee:projecte/entity/water_orb",
+    "vintagee:entity/projectile-lens": "vintagee:projecte/entity/lens_explosive"
+  },
+  "overrides": [
+    {
+      "code": "vintagee:energycollector-mk1",
+      "textures": {
+        "north": "vintagee:projecte/block/collectors/front",
+        "down": "vintagee:projecte/block/collectors/other"
+      }
+    },
+    {
+      "code": "vintagee:antimatterrelay-mk1",
+      "textures": {
+        "north": "vintagee:projecte/block/relays/front",
+        "down": "vintagee:projecte/block/relays/other"
+      }
+    },
+    {
+      "code": "vintagee:energycollector-mk2",
+      "textures": {
+        "north": "vintagee:projecte/block/collectors/front",
+        "down": "vintagee:projecte/block/collectors/other"
+      }
+    },
+    {
+      "code": "vintagee:antimatterrelay-mk2",
+      "textures": {
+        "north": "vintagee:projecte/block/relays/front",
+        "down": "vintagee:projecte/block/relays/other"
+      }
+    },
+    {
+      "code": "vintagee:energycollector-mk3",
+      "textures": {
+        "north": "vintagee:projecte/block/collectors/front",
+        "down": "vintagee:projecte/block/collectors/other"
+      }
+    },
+    {
+      "code": "vintagee:antimatterrelay-mk3",
+      "textures": {
+        "north": "vintagee:projecte/block/relays/front",
+        "down": "vintagee:projecte/block/relays/other"
+      }
+    },
+    {
+      "code": "vintagee:energycondenser-mk1",
+      "textures": {
+        "down": "vintagee:projecte/derived/condenser_mk1-bottom"
+      }
+    },
+    {
+      "code": "vintagee:energycondenser-mk2",
+      "textures": {
+        "down": "vintagee:projecte/derived/condenser_mk2-bottom"
+      }
+    },
+    {
+      "code": "vintagee:novaexplosive-*",
+      "textures": {
+        "down": "vintagee:projecte/block/explosives/bottom"
+      }
+    },
+    {
+      "code": "vintagee:interdictiontorch*",
+      "textures": {
+        "rod": "vintagee:projecte/derived/interdiction_torch-rod",
+        "glow": "vintagee:projecte/derived/interdiction_torch-glow"
+      }
+    },
+    {
+      "code": "vintagee:projectile-fire",
+      "shape": "vintagee:entity/projectile-sprite"
+    },
+    {
+      "code": "vintagee:projectile-lava",
+      "shape": "vintagee:entity/projectile-sprite"
+    },
+    {
+      "code": "vintagee:projectile-water",
+      "shape": "vintagee:entity/projectile-sprite"
+    },
+    {
+      "code": "vintagee:projectile-lens",
+      "shape": "vintagee:entity/projectile-sprite"
+    },
+    {
+      "code": "vintagee:alchemicalbag-white",
+      "sprite": "vintagee:projecte/item/alchemy_bags/white"
+    },
+    {
+      "code": "vintagee:alchemicalbag-plain",
+      "sprite": "vintagee:projecte/item/alchemy_bags/light_gray"
+    },
+    {
+      "code": "vintagee:alchemicalbag-gray",
+      "sprite": "vintagee:projecte/item/alchemy_bags/gray"
+    },
+    {
+      "code": "vintagee:alchemicalbag-black",
+      "sprite": "vintagee:projecte/item/alchemy_bags/black"
+    },
+    {
+      "code": "vintagee:alchemicalbag-brown",
+      "sprite": "vintagee:projecte/item/alchemy_bags/brown"
+    },
+    {
+      "code": "vintagee:alchemicalbag-red",
+      "sprite": "vintagee:projecte/item/alchemy_bags/red"
+    },
+    {
+      "code": "vintagee:alchemicalbag-orange",
+      "sprite": "vintagee:projecte/item/alchemy_bags/orange"
+    },
+    {
+      "code": "vintagee:alchemicalbag-yellow",
+      "sprite": "vintagee:projecte/item/alchemy_bags/yellow"
+    },
+    {
+      "code": "vintagee:alchemicalbag-green",
+      "sprite": "vintagee:projecte/item/alchemy_bags/green"
+    },
+    {
+      "code": "vintagee:alchemicalbag-blue",
+      "sprite": "vintagee:projecte/item/alchemy_bags/blue"
+    },
+    {
+      "code": "vintagee:alchemicalbag-purple",
+      "sprite": "vintagee:projecte/item/alchemy_bags/purple"
+    },
+    {
+      "code": "vintagee:alchemicalbag-pink",
+      "sprite": "vintagee:projecte/item/alchemy_bags/pink"
+    }
+  ]
+}

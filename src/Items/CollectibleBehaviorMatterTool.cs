@@ -68,6 +68,7 @@ namespace VintageE
             CollectibleObject tool = itemslot.Itemstack?.Collectible;
             if (tool == null) return true;
 
+            int broken = 0;
             foreach (var pos in AreaToolModes.Plane(blockSel.Position, blockSel.Face, radius))
             {
                 if (pos.Equals(blockSel.Position)) continue;
@@ -77,7 +78,9 @@ namespace VintageE
                 if (tool.MiningSpeed == null || !tool.MiningSpeed.ContainsKey(block.BlockMaterial)) continue; // only what this tool is for
                 if (!world.Claims.TryAccess(player, pos, EnumBlockAccessFlags.BuildOrBreak)) continue;
                 ba.BreakBlock(pos, player, dropQuantityMultiplier);
+                broken++;
             }
+            if (broken > 0) PESounds.Play(world, PESounds.Destruct, null, byEntity, 16); // ProjectE's area mining sound
             return true;
         }
     }

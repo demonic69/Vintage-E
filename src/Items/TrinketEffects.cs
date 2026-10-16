@@ -604,6 +604,7 @@ namespace VintageE
             if (!EmcWallet.TryPay(player, Cost(add * 0.5))) return;
             hunger.SetFloat("currentsaturation", cur + add);
             player.Entity.WatchedAttributes.MarkPathDirty("hunger");
+            PESounds.Play(sapi.World, PESounds.Heal, null, player.Entity, 8); // ProjectE's stones play it each time they feed or heal
         }
 
         void Heal(IServerPlayer player)
@@ -614,6 +615,7 @@ namespace VintageE
             if (max <= 0 || cur >= max) return;
             if (!EmcWallet.TryPay(player, Cost(64))) return;
             player.Entity.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.Heal }, 1f);
+            PESounds.Play(sapi.World, PESounds.Heal, null, player.Entity, 8);
         }
 
         void Repair(IServerPlayer player)
@@ -751,7 +753,8 @@ namespace VintageE
             if (solid != null && solid.Id != 0) ba.SetBlock(0, pos, BlockLayersAccess.Solid);
             ba.SetBlock(liquid.BlockId, pos);
             ba.TriggerNeighbourBlockUpdate(pos);
-            world.PlaySoundAt(new AssetLocation(lava ? "game:sounds/effect/extinguish" : "game:sounds/environment/waterfall"), pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5, null, true, 12, 0.6f);
+            // ProjectE: the Volcanite Amulet's lava plays its transmute sound, the Evertide Amulet's water its water magic.
+            PESounds.Play(world, lava ? PESounds.Transmute : PESounds.WaterMagic, lava ? "game:sounds/effect/extinguish" : "game:sounds/environment/waterfall", pos, 12, 0.6f);
             return true;
         }
 
