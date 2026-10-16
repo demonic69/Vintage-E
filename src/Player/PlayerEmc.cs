@@ -33,7 +33,12 @@ namespace VintageE
 
         public static string[] GetKnown(IPlayer player) => Attrs(player)?.GetStringArray(KnownKey, Array.Empty<string>()) ?? Array.Empty<string>();
 
-        public static bool Knows(IPlayer player, string key) => Array.IndexOf(GetKnown(player), key) >= 0;
+        /// <summary>A lookup set per knowledge array (the array is replaced whenever knowledge changes, so the set never goes stale).</summary>
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<string[], HashSet<string>> knownSets = new System.Runtime.CompilerServices.ConditionalWeakTable<string[], HashSet<string>>();
+
+        static HashSet<string> KnownSet(string[] known) => knownSets.GetValue(known, k => new HashSet<string>(k, StringComparer.Ordinal));
+
+        public static bool Knows(IPlayer player, string key) => key != null && KnownSet(GetKnown(player)).Contains(key);
 
         /// <summary>Adds the key; returns true if it was new.</summary>
         public static bool Learn(IPlayer player, string key)
@@ -41,7 +46,7 @@ namespace VintageE
             var attrs = Attrs(player);
             if (attrs == null || string.IsNullOrEmpty(key)) return false;
             string[] known = GetKnown(player);
-            if (Array.IndexOf(known, key) >= 0) return false;
+            if (KnownSet(known).Contains(key)) return false;
             var list = new List<string>(known) { key };
             attrs.SetStringArray(KnownKey, list.ToArray());
             attrs.MarkPathDirty(KnownKey);
@@ -67,7 +72,7 @@ namespace VintageE
             var attrs = Attrs(player);
             if (attrs == null) return false;
             string[] known = GetKnown(player);
-            if (Array.IndexOf(known, key) < 0) return false;
+            if (!KnownSet(known).Contains(key)) return false;
             attrs.SetStringArray(KnownKey, known.Where(k => k != key).ToArray());
             attrs.MarkPathDirty(KnownKey);
             return true;

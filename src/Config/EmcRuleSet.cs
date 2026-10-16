@@ -55,6 +55,8 @@ namespace VintageE
         public List<EmcValueRule> Defaults = new List<EmcValueRule>();
         public List<RelativeValueRule> Relative = new List<RelativeValueRule>();
         public List<string> Blacklist = new List<string>();
+        /// <summary>"freeIngredients": blacklisted (no value of their own) but free in recipes that use them (a schematic that isn't used up).</summary>
+        public List<string> FreeIngredients = new List<string>();
         /// <summary>Exceptions to the blacklist ("allow": ["game:creature-butterfly-*"]), applied after it.</summary>
         public List<string> Allow = new List<string>();
         /// <summary>"traderCurrency": items worth exactly the measured EMC per unit of trader currency (rusty gears).</summary>
@@ -160,6 +162,10 @@ namespace VintageE
             if (root["blacklist"] is JArray bl)
             {
                 Blacklist.AddRange(bl.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["freeIngredients"] is JArray freeIng)
+            {
+                FreeIngredients.AddRange(freeIng.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
             }
             if (root["traderCurrency"] is JArray currency)
             {

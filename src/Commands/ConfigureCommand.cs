@@ -20,6 +20,7 @@ namespace VintageE
     /// <item>/emc configure &lt;setting&gt; &lt;value&gt; - change a true/false or number setting</item>
     /// <item>/emc configure &lt;list&gt; add|remove &lt;entry&gt; / clear</item>
     /// <item>/emc configure &lt;table&gt; set &lt;key&gt; &lt;value&gt; / remove &lt;key&gt; / clear</item>
+    /// <item>/emc configure &lt;setting&gt; default - put it back to its default; /emc configure resetall - every setting</item>
     /// <item>/emc configure reload - re-read the file after editing it by hand</item>
     /// </list>
     /// Changes are saved straight away and applied: settings that change EMC values remap them, the rest apply at once
@@ -31,7 +32,7 @@ namespace VintageE
         static readonly HashSet<string> Remaps = new HashSet<string>(StringComparer.Ordinal)
         {
             "BaseValues", "FixedValues", "Blacklist", "Allow", "DisableBuiltInBaseValues", "InferValuesFromProcessing", "InferValuesFromCrafting",
-            "InferFromVariantSiblings", "EstimateFuelAndFood", "UseTraderPrices", "FallbackValue", "TransitionEmcPerDay", "MaxMappingPasses"
+            "InferFromVariantSiblings", "EstimateFuelAndFood", "UseTraderPrices", "FallbackValue", "TransitionEmcPerDay", "MaxMappingPasses", "FreeIngredients"
         };
 
         static IEnumerable<FieldInfo> Settings => typeof(VintageEConfig).GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -52,6 +53,11 @@ namespace VintageE
                 return TextCommandResult.Success(List(mod.Config, lang));
             }
             if (name.Equals("list", StringComparison.OrdinalIgnoreCase) && rest.Length == 0) return TextCommandResult.Success(List(mod.Config, lang));
+            if (name.Equals("resetall", StringComparison.OrdinalIgnoreCase))
+            {
+                // Typed on purpose, so no second step; the window asks first.
+                return TextCommandResult.Success(Reset(mod, "*", lang));
+            }
             if (name.Equals("reload", StringComparison.OrdinalIgnoreCase))
             {
                 string error = mod.ReloadConfig();
@@ -62,6 +68,10 @@ namespace VintageE
             if (field == null) return TextCommandResult.Error(problem ?? Lang.GetL(lang, "vintagee:cfg-unknown", name));
             object value = field.GetValue(mod.Config);
             if (rest.Length == 0) return TextCommandResult.Success(Describe(field, value, lang));
+            if (rest.Equals("default", StringComparison.OrdinalIgnoreCase) || rest.Equals("reset", StringComparison.OrdinalIgnoreCase))
+            {
+                return TextCommandResult.Success(Reset(mod, field.Name, lang));
+            }
 
             string result;
             try
@@ -76,6 +86,38 @@ namespace VintageE
             mod.SaveConfig();
             string applied = Apply(mod, field.Name, lang);
             return TextCommandResult.Success(result + " " + applied + "\n" + Lang.GetL(lang, "vintagee:cfg-now", field.Name, Show(field.GetValue(mod.Config))));
+        }
+
+        /// <summary>
+        /// Puts one setting back to its default, or every setting when <paramref name="name"/> is "*". Saves, applies
+        /// (resetting everything remaps the values) and returns what happened.
+        /// </summary>
+        public static string Reset(VintageEModSystem mod, string name, string lang)
+        {
+            var defaults = new VintageEConfig();
+            defaults.Normalize();
+            if (name == "*")
+            {
+                foreach (FieldInfo f in Settings) f.SetValue(mod.Config, f.GetValue(defaults));
+                mod.Config.Normalize();
+                mod.SaveConfig();
+                mod.Trinkets?.ResetHostile();
+                mod.RecalculateEmc("/emc configure: every setting reset"); // also applies the table, sounds and no-transmute settings
+                return Lang.GetL(lang, "vintagee:cfg-resetall-done");
+            }
+            FieldInfo field = Field(name) ?? throw new FormatException(Lang.GetL(lang, "vintagee:cfg-unknown", name));
+            field.SetValue(mod.Config, field.GetValue(defaults));
+            mod.Config.Normalize();
+            mod.SaveConfig();
+            return Lang.GetL(lang, "vintagee:cfg-reset-done", field.Name, Show(field.GetValue(mod.Config))) + " " + Apply(mod, field.Name, lang);
+        }
+
+        /// <summary>Every setting's default as editable text (for the window).</summary>
+        public static string[] DefaultTexts()
+        {
+            var defaults = new VintageEConfig();
+            defaults.Normalize();
+            return Settings.Select(f => ToText(f.GetValue(defaults))).ToArray();
         }
 
         /// <summary>Every setting's name and its value as editable text (for the window).</summary>
@@ -309,6 +351,9 @@ namespace VintageE
                     break;
                 case "HostileCreatures":
                     mod.Trinkets?.ResetHostile();
+                    break;
+                case "NoTransmute":
+                    mod.RefreshStackData(); // matches the list again and tells every client
                     break;
                 case "ProjectESounds":
                     mod.Emc.ProjectESounds = mod.Config.ProjectESounds;

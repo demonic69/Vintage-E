@@ -132,7 +132,14 @@ namespace VintageE
                     FireArrows(mod, player, 1, 0);
                     break;
                 case "tomeofknowledge":
-                    int n = PlayerEmc.LearnMany(player, mod.Emc.All.Keys.Select(PlayerEmc.KeyOf));
+                    // Creative only: learning everything at once is a creative tool. And only what's in the creative
+                    // inventory, so technical blocks (and things that are only placed states) don't flood the table.
+                    if (player.WorldData.CurrentGameMode != EnumGameMode.Creative)
+                    {
+                        Tell(player, Lang.GetL(player.LanguageCode, "vintagee:tome-creativeonly"));
+                        break;
+                    }
+                    int n = PlayerEmc.LearnMany(player, mod.Emc.All.Keys.Where(c => CollectibleIndex.IsListed(c) && mod.Emc.CanTransmute(c)).Select(PlayerEmc.KeyOf));
                     Tell(player, Lang.GetL(player.LanguageCode, "vintagee:tome-learned", n));
                     break;
                 case "diviningrodlow":
@@ -224,7 +231,7 @@ namespace VintageE
             Block clicked = ba.GetBlock(sel.Position);
             if (player.Entity.Controls.Sneak)
             {
-                if (clicked == null || clicked.Id == 0 || clicked.EntityClass != null || mod.Emc.GetValue(clicked) <= 0) return;
+                if (clicked == null || clicked.Id == 0 || clicked.EntityClass != null || !mod.Emc.CanTransmute(clicked)) return;
                 slot.Itemstack.Attributes.SetString(EyeTargetKey, clicked.Code.ToString());
                 slot.MarkDirty();
                 Tell(player, Lang.GetL(player.LanguageCode, "vintagee:eye-target", clicked.GetPlacedBlockName(world, sel.Position)));
@@ -233,12 +240,13 @@ namespace VintageE
             string code = slot.Itemstack.Attributes.GetString(EyeTargetKey);
             Block target = code == null ? null : world.GetBlock(new AssetLocation(code));
             if (target == null || target.Id == 0) { Tell(player, Lang.GetL(player.LanguageCode, "vintagee:eye-notarget")); return; }
+            if (mod.Emc.IsNoTransmute(target)) { Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notransmute", target.GetHeldItemName(new ItemStack(target)))); return; }
             double targetValue = mod.Emc.GetValue(target);
 
             foreach (BlockPos pos in AreaToolModes.Plane(sel.Position, sel.Face, GameMath.Clamp(mode, 0, 1)))
             {
                 Block old = ba.GetBlock(pos);
-                if (old.Id == target.Id || old.EntityClass != null || !Breakable(world, player, pos, old)) continue;
+                if (old.Id == target.Id || old.EntityClass != null || mod.Emc.IsNoTransmute(old) || !Breakable(world, player, pos, old)) continue;
                 if (mode == 1 && old.Id != clicked.Id) continue; // 3x3 only swaps blocks like the one clicked
                 double diff = targetValue - mod.Emc.GetValue(old);
                 if (diff > 0 && !EmcWallet.TryPay(player, diff)) break;

@@ -23,6 +23,7 @@ namespace VintageE
             this.mod = mod;
             this.sapi = sapi;
             sapi.Event.PlayerLeave += p => tableSessions.Remove(p.PlayerUID);
+            sapi.Event.RegisterGameTickListener(_ => TabletMagnet.Tick(mod, sapi, this), 250);
         }
 
         public void OpenTableSession(IServerPlayer player, BlockPos pos)
@@ -49,6 +50,11 @@ namespace VintageE
                 case TransmuteAction.Burn: Burn(player, req.Mode == 1); break;
                 case TransmuteAction.Create: Create(player, req.Key, req.Mode); break;
                 case TransmuteAction.Forget: PlayerEmc.Forget(player, req.Key); break;
+                case TransmuteAction.MagnetSwap:
+                case TransmuteAction.MagnetFilter:
+                case TransmuteAction.MagnetMode:
+                    TabletMagnet.OnRequest(mod, player, req, (code, args) => Fail(player, code, args));
+                    break;
             }
         }
 
@@ -81,53 +87,77 @@ namespace VintageE
             return false;
         }
 
-        void Burn(IServerPlayer player, bool onlyOne)
+        /// <summary>What burning a stack gives: its EMC per item and the knowledge entry it teaches.</summary>
+        public sealed class BurnPlan
         {
-            ItemSlot mouse = player.InventoryManager.MouseItemSlot;
-            if (mouse?.Itemstack == null) return;
-            ItemStack stack = mouse.Itemstack;
+            public double Each;
+            public string Key;
+            /// <summary>A container learned with its contents also teaches the plain container.</summary>
+            public bool AlsoPlain;
+        }
+
+        /// <summary>Whether this stack can be burned (null) or why not (an error code, with <paramref name="args"/> for its message).</summary>
+        public string PlanBurn(IServerPlayer player, ItemStack stack, out BurnPlan plan, out string[] args)
+        {
+            plan = null;
+            args = new[] { stack?.GetName() ?? "?" };
+            if (stack?.Collectible == null) return "novalue";
             StackDataTable data = mod.Emc.StackData;
             StackDataMode mode = data.ModeOf(stack.Collectible);
             bool keepsData = data.CarriesData(stack.Collectible) && mode != StackDataMode.Item;
 
             // Item only: what's inside would be lost, so containers that hold something are refused.
-            if (!keepsData && mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack))
-            {
-                Fail(player, "hascontents", stack.GetName());
-                return;
-            }
+            if (!keepsData && mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack)) return "hascontents";
 
             double each = mod.Emc.GetValue(stack);
-            if (each <= 0)
-            {
-                Fail(player, "novalue", stack.GetName());
-                return;
-            }
+            if (each <= 0) return "novalue";
+            if (mod.Emc.IsNoTransmute(stack.Collectible)) return "notransmute";
 
             // Items that keep their contents/material are learned as exactly this version.
             TreeAttribute kept = keepsData ? StackDataUtil.KeptData(stack) : null;
             string key = kept != null ? PlayerEmc.ExactKey(stack.Collectible, kept) : PlayerEmc.KeyOf(stack.Collectible);
             if (kept != null && !PlayerEmc.Knows(player, key) && PlayerEmc.CountExact(player) >= mod.Config.MaxExactKnowledge)
             {
-                Fail(player, "toomanyexact", mod.Config.MaxExactKnowledge.ToString());
+                args = new[] { mod.Config.MaxExactKnowledge.ToString() };
+                return "toomanyexact";
+            }
+            plan = new BurnPlan
+            {
+                Each = each,
+                Key = key,
+                AlsoPlain = kept != null && data.KindOf(stack.Collectible) == StackDataKind.Contents && mod.Emc.GetValue(stack.Collectible) > 0
+            };
+            return null;
+        }
+
+        /// <summary>Gives the EMC for a stack taken from the player (or the ground) and teaches it. Returns the key if it was new.</summary>
+        public string ApplyBurn(IServerPlayer player, ItemStack taken, BurnPlan plan)
+        {
+            PlayerEmc.AddEmc(player, plan.Each * taken.StackSize);
+            bool learned = PlayerEmc.Learn(player, plan.Key);
+            if (plan.AlsoPlain) learned |= PlayerEmc.Learn(player, PlayerEmc.KeyOf(taken.Collectible));
+            return learned ? plan.Key : null;
+        }
+
+        void Burn(IServerPlayer player, bool onlyOne)
+        {
+            ItemSlot mouse = player.InventoryManager.MouseItemSlot;
+            if (mouse?.Itemstack == null) return;
+            string error = PlanBurn(player, mouse.Itemstack, out BurnPlan plan, out string[] args);
+            if (error != null)
+            {
+                Fail(player, error, args);
                 return;
             }
 
-            int count = onlyOne ? 1 : stack.StackSize;
+            int count = onlyOne ? 1 : mouse.Itemstack.StackSize;
             ItemStack taken = mouse.TakeOut(count);
             if (taken == null || taken.StackSize <= 0) return;
             mouse.MarkDirty();
 
-            PlayerEmc.AddEmc(player, each * taken.StackSize);
-            bool learned = PlayerEmc.Learn(player, key);
-            // A container also teaches the plain (empty) container.
-            if (kept != null && data.KindOf(stack.Collectible) == StackDataKind.Contents && mod.Emc.GetValue(stack.Collectible) > 0)
-            {
-                learned |= PlayerEmc.Learn(player, PlayerEmc.KeyOf(stack.Collectible));
-            }
-
+            string learned = ApplyBurn(player, taken, plan);
             sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/timeswitch"), player.Entity, null, true, 8, 0.5f);
-            mod.SendResult(player, new TransmuteResultPacket { LearnedKey = learned ? key : null });
+            mod.SendResult(player, new TransmuteResultPacket { LearnedKey = learned });
         }
 
         /// <summary>
@@ -158,6 +188,11 @@ namespace VintageE
                 return;
             }
             CollectibleObject collectible = proto.Collectible;
+            if (mod.Emc.IsNoTransmute(collectible))
+            {
+                Fail(player, "notransmute", proto.GetName());
+                return;
+            }
 
             double emc = PlayerEmc.GetEmc(player);
             int maxStack = Math.Max(1, collectible.MaxStackSize);

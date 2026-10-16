@@ -8,57 +8,77 @@ using Vintagestory.API.Config;
 
 namespace VintageE
 {
+    /// <summary>Which list a <see cref="GuiDialogEmcMissing"/> window shows.</summary>
+    public enum EmcListKind : byte
+    {
+        /// <summary>/emc missing: blocks/items without an EMC value.</summary>
+        Missing = 0,
+        /// <summary>/emc blacklist: everything the blacklist keeps from having a value.</summary>
+        Blacklist = 1,
+        /// <summary>/emc notransmute: valued items that can't be burned, learned or created.</summary>
+        NoTransmute = 2
+    }
+
     /// <summary>
-    /// Window opened by /emc missing (every block/item that still has no EMC value) and /emc blacklist (everything
-    /// the blacklist keeps from having one): a scrollable list with icons, a search bar, a mod filter and a
-    /// blocks/items filter. Each window can mix in the other list: "Show blacklisted" in the missing window,
-    /// unticking "Hide missing" in the blacklist window; those entries are tagged and get their own button
-    /// ("Remove from blacklist" / "Blacklist it"). Click an icon to open its handbook page; "Copy codes" puts the filtered list on the
-    /// clipboard ready to paste into BaseValues.
-    /// Admins click names to select them (click again to unselect; "Select shown" picks everything the filters show),
-    /// then type a value and press "Set value" (saved like /emc set; it also takes blacklisted items off the
-    /// blacklist), or press "Blacklist" / "Remove from blacklist". With a mod picked in the mod filter,
-    /// "Blacklist whole mod" / "Unblacklist whole mod" does the same for everything from that mod. The list refreshes
-    /// after each change and the selection is kept where it still applies.
+    /// Window opened by /emc missing, /emc blacklist and /emc notransmute: a scrollable list with icons, a search bar, a
+    /// mod filter and a blocks/items filter. Each can mix in a second list: "Show blacklisted" (missing window), untick
+    /// "Hide missing" (blacklist window), "Show valued items" (no-transmute window); those entries are tagged and get
+    /// their own button. Click an icon to open its handbook page; "Copy codes" copies the filtered list.
+    /// <para>Admins click names to select them (click again to unselect; Shift-click selects everything between the last
+    /// click and this one; "Select shown" selects everything the filters show), then use the buttons. The list refreshes
+    /// after each change and the selection is kept where it still applies.</para>
+    /// <para>Every text is measured and each row is placed below the one above it, so nothing overlaps whatever its
+    /// length or the GUI scale.</para>
     /// </summary>
     public class GuiDialogEmcMissing : GuiDialog
     {
-        const double ListWidth = 560;
-        const double ListHeight = 340;
+        const double ListWidth = 580;
+        const double ListHeight = 320;
+        const double Width = ListWidth + 26; // list + scrollbar
+        const double ButtonWidth = 230;
         const int PerPage = 40; // keeps the rendered text small; page with the arrows for more
 
         sealed class Entry
         {
             public CollectibleObject Collectible;
             public string Key;
-            public string Name;
+            string name;
+            public string Name
+            {
+                get
+                {
+                    if (name != null) return name;
+                    try { name = Collectible.GetHeldItemName(new ItemStack(Collectible)); }
+                    catch { name = Collectible.Code.ToShortString(); }
+                    return name ??= Collectible.Code.ToShortString();
+                }
+            }
             public string Code;
             public string Domain;
             public bool IsBlock;
             public string Why;
-            /// <summary>From the other list: blacklisted (missing window) or missing (blacklist window).</summary>
+            /// <summary>From the other list (blacklisted in the missing window, missing in the blacklist window, valued in the no-transmute window).</summary>
             public bool Other;
         }
 
-        /// <summary>"Show blacklisted" in the missing window; remembered while the game runs.</summary>
+        /// <summary>The second list's switch per window kind ("Show blacklisted" off, "Hide missing" on, "Show valued" off); remembered while the game runs.</summary>
         static bool showBlacklisted;
-        /// <summary>"Hide missing" in the blacklist window; ticked at first so the window opens with just the blacklist.</summary>
         static bool hideMissing = true;
-
-        /// <summary>Whether the other list's entries are listed right now.</summary>
-        bool ShowOther => IsBlacklist ? !hideMissing : showBlacklisted;
+        static bool showValued;
 
         readonly EmcMissingPacket packet;
         readonly Action<string[], double> onSetValue;
-        readonly Action<string[], bool> onBlacklist;
-        readonly Action<string, bool> onBlacklistMod;
+        readonly Action<string[], bool> onList;
+        readonly Action<string, bool> onListMod;
 
-        /// <summary>True for the /emc blacklist window.</summary>
-        public bool IsBlacklist => packet.Blacklist;
+        public EmcListKind Kind { get; }
+        public bool IsBlacklist => Kind == EmcListKind.Blacklist;
 
         readonly HashSet<string> selected = new HashSet<string>();
         readonly List<Entry> all = new List<Entry>();
         List<Entry> shown = new List<Entry>();
+        /// <summary>The last entry clicked without Shift: where a Shift-click range starts.</summary>
+        string anchor;
         string search = "";
         string domainFilter = "*";
         string typeFilter = "*";
@@ -68,51 +88,44 @@ namespace VintageE
 
         public override string ToggleKeyCombinationCode => null;
 
+        bool ShowOther => Kind switch
+        {
+            EmcListKind.Blacklist => !hideMissing,
+            EmcListKind.NoTransmute => showValued,
+            _ => showBlacklisted
+        };
+
+        /// <param name="onList">Keys, then true to add them to this window's list (blacklist / no-transmute), false to take them off.</param>
+        /// <param name="onListMod">The same for a whole mod (its domain).</param>
         public GuiDialogEmcMissing(ICoreClientAPI capi, EmcMissingPacket packet, GuiDialogEmcMissing previous = null,
-            Action<string[], double> onSetValue = null, Action<string[], bool> onBlacklist = null, Action<string, bool> onBlacklistMod = null) : base(capi)
+            Action<string[], double> onSetValue = null, Action<string[], bool> onList = null, Action<string, bool> onListMod = null) : base(capi)
         {
             this.packet = packet;
             this.onSetValue = onSetValue;
-            this.onBlacklist = onBlacklist;
-            this.onBlacklistMod = onBlacklistMod;
-            string[] keysIn = packet.Keys ?? Array.Empty<string>();
-            for (int ki = 0; ki < keysIn.Length; ki++)
+            this.onList = onList;
+            this.onListMod = onListMod;
+            Kind = packet.Kind != 0 ? (EmcListKind)packet.Kind : packet.Blacklist ? EmcListKind.Blacklist : EmcListKind.Missing;
+
+            var seenKeys = new HashSet<string>();
+            void Add(string[] keys, string[] why, bool other)
             {
-                string key = keysIn[ki];
-                CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
-                if (c?.Code == null) continue;
-                string name;
-                try { name = c.GetHeldItemName(new ItemStack(c)); }
-                catch { name = c.Code.ToShortString(); }
-                all.Add(new Entry
+                keys ??= Array.Empty<string>();
+                for (int ki = 0; ki < keys.Length; ki++)
                 {
-                    Collectible = c,
-                    Key = key,
-                    Name = name,
-                    Code = c.Code.ToString(),
-                    Domain = c.Code.Domain,
-                    IsBlock = c.ItemClass == EnumItemClass.Block,
-                    Why = packet.Why != null && ki < packet.Why.Length ? packet.Why[ki] : null
-                });
+                    string key = keys[ki];
+                    if (key == null || !seenKeys.Add(key)) continue;
+                    CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
+                    if (c?.Code == null) continue;
+                    all.Add(new Entry
+                    {
+                        Collectible = c, Key = key, Code = c.Code.ToString(), Domain = c.Code.Domain,
+                        IsBlock = c.ItemClass == EnumItemClass.Block, Other = other,
+                        Why = why != null && ki < why.Length && !string.IsNullOrEmpty(why[ki]) ? why[ki] : null
+                    });
+                }
             }
-            string[] otherKeys = packet.OtherKeys ?? Array.Empty<string>();
-            var seenKeys = new HashSet<string>(all.Select(e => e.Key));
-            for (int ki = 0; ki < otherKeys.Length; ki++)
-            {
-                string key = otherKeys[ki];
-                if (!seenKeys.Add(key)) continue;
-                CollectibleObject c = PlayerEmc.Resolve(capi.World, key);
-                if (c?.Code == null) continue;
-                string name;
-                try { name = c.GetHeldItemName(new ItemStack(c)); }
-                catch { name = c.Code.ToShortString(); }
-                all.Add(new Entry
-                {
-                    Collectible = c, Key = key, Name = name, Code = c.Code.ToString(), Domain = c.Code.Domain,
-                    IsBlock = c.ItemClass == EnumItemClass.Block, Other = true,
-                    Why = packet.OtherWhy != null && ki < packet.OtherWhy.Length ? packet.OtherWhy[ki] : null
-                });
-            }
+            Add(packet.Keys, packet.Why, false);
+            Add(packet.OtherKeys, packet.OtherWhy, true);
             all.Sort((a, b) => string.Compare(a.Code, b.Code, StringComparison.Ordinal));
             if (previous != null)
             {
@@ -120,68 +133,118 @@ namespace VintageE
                 domainFilter = all.Any(e => e.Domain == previous.domainFilter) ? previous.domainFilter : "*";
                 typeFilter = previous.typeFilter;
                 page = previous.page;
+                anchor = previous.anchor;
                 var keys = new HashSet<string>(all.Select(e => e.Key));
                 foreach (string k in previous.selected) if (keys.Contains(k)) selected.Add(k);
             }
             Compose();
         }
 
+        string L(string missing, string blacklist, string noTransmute) => Lang.Get(Kind switch
+        {
+            EmcListKind.Blacklist => blacklist,
+            EmcListKind.NoTransmute => noTransmute,
+            _ => missing
+        });
+
         void Compose()
         {
             ClearComposers();
-            double top = GuiStyle.TitleBarHeight + 4;
+            CairoFont detail = CairoFont.WhiteDetailText();
+            double top = GuiStyle.TitleBarHeight + 6;
 
-            bool canShowOther = all.Any(e => e.Other);
-            ElementBounds summaryBounds = ElementBounds.Fixed(0, top, canShowOther ? ListWidth - 190 : ListWidth + 30, 40);
-            ElementBounds showSwitchBounds = ElementBounds.Fixed(ListWidth - 180, top + 2, 30, 30);
-            ElementBounds showLabelBounds = ElementBounds.Fixed(ListWidth - 144, top + 7, 180, 24);
-            double row = top + 46;
-            ElementBounds searchBounds = ElementBounds.Fixed(0, row, 230, 30);
-            ElementBounds domainBounds = ElementBounds.Fixed(240, row, 170, 30);
-            ElementBounds typeBounds = ElementBounds.Fixed(420, row, 170, 30);
+            List<Entry> listable = all.Where(e => !e.Other || ShowOther).ToList();
+            int mainCount = all.Count(e => !e.Other), otherCount = all.Count - mainCount;
+            bool canShowOther = otherCount > 0;
 
-            ElementBounds listBounds = ElementBounds.Fixed(0, row + 42, ListWidth, ListHeight);
+            // 1. Summary, full width, as tall as it needs.
+            string summary = Kind switch
+            {
+                EmcListKind.Blacklist => Lang.Get(mainCount == 0 ? "vintagee:blacklist-summary-none" : "vintagee:blacklist-summary", mainCount, packet.ValueCount, packet.Version),
+                EmcListKind.NoTransmute => Lang.Get(mainCount == 0 ? "vintagee:notransmute-summary-none" : "vintagee:notransmute-summary", mainCount, packet.ValueCount, packet.Version),
+                _ => mainCount == 0
+                    ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
+                    : Lang.Get("vintagee:missing-summary", mainCount, packet.CreativeTotal, packet.ValueCount, packet.Version)
+            };
+            double y = top;
+            double summaryHeight = GuiLayout.TextHeight(capi, detail, summary, Width);
+            ElementBounds summaryBounds = ElementBounds.Fixed(0, y, Width, summaryHeight);
+            y += summaryHeight + 6;
+
+            // 2. The second list's switch, on its own row.
+            ElementBounds showSwitchBounds = null, showLabelBounds = null;
+            if (canShowOther)
+            {
+                showSwitchBounds = ElementBounds.Fixed(0, y, 30, 30);
+                showLabelBounds = ElementBounds.Fixed(38, y + 5, Width - 38, 24);
+                y += 36;
+            }
+
+            // 3. Filters.
+            ElementBounds searchBounds = ElementBounds.Fixed(0, y, 230, 30);
+            ElementBounds domainBounds = ElementBounds.Fixed(240, y, 180, 30);
+            ElementBounds typeBounds = ElementBounds.Fixed(430, y, Width - 430, 30);
+            y += 42;
+
+            // 4. The list.
+            ElementBounds listBounds = ElementBounds.Fixed(0, y, ListWidth, ListHeight);
             clipBounds = listBounds.ForkBoundingParent();
             ElementBounds insetBounds = listBounds.FlatCopy().FixedGrow(6).WithFixedOffset(-3, -3);
             ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(insetBounds.fixedWidth + 4).WithFixedWidth(20);
+            y += ListHeight + 14;
 
-            double bottom = row + 42 + ListHeight + 14;
-            ElementBounds prevBounds = ElementBounds.Fixed(0, bottom, 36, 30);
-            ElementBounds countBounds = ElementBounds.Fixed(44, bottom + 6, 250, 24);
-            ElementBounds nextBounds = ElementBounds.Fixed(300, bottom, 36, 30);
-            ElementBounds copyBounds = ElementBounds.Fixed(ListWidth - 230, bottom, 130, 30);
-            ElementBounds closeBounds = ElementBounds.Fixed(ListWidth - 90, bottom, 90, 30);
+            // 5. Paging, copy and close.
+            ElementBounds prevBounds = ElementBounds.Fixed(0, y, 36, 30);
+            ElementBounds countBounds = ElementBounds.Fixed(42, y + 6, Width - 42 - 36 - 236 - 8, 24);
+            ElementBounds nextBounds = ElementBounds.Fixed(Width - 236 - 44, y, 36, 30);
+            ElementBounds copyBounds = ElementBounds.Fixed(Width - 230, y, 130, 30);
+            ElementBounds closeBounds = ElementBounds.Fixed(Width - 90, y, 90, 30);
+            y += 40;
 
-            double selRow = bottom + 40;
-            ElementBounds selectedBounds = ElementBounds.Fixed(0, selRow + 6, 330, 24);
-            ElementBounds selectAllBounds = ElementBounds.Fixed(ListWidth - 230, selRow, 130, 30);
-            ElementBounds clearBounds = ElementBounds.Fixed(ListWidth - 90, selRow, 90, 30);
+            // Rows with a text on the left and buttons on the right: the text gets the room left of the buttons and the
+            // row is as tall as that text needs.
+            double textWidth = Width - ButtonWidth - 12;
+            double RowHeight(params string[] texts) => Math.Max(30, texts.Max(t => GuiLayout.TextHeight(capi, detail, t, textWidth)));
 
-            double editRow = selRow + 38;
-            ElementBounds valueBounds = ElementBounds.Fixed(0, editRow, 120, 30);
-            ElementBounds setBounds = ElementBounds.Fixed(130, editRow, 100, 30);
-            ElementBounds listButtonBounds = ElementBounds.Fixed(ListWidth - 230, editRow, 230, 30);
+            // 6. Selection status / select shown / clear.
+            double selHeight = RowHeight(Lang.Get("vintagee:missing-select"), Lang.Get("vintagee:missing-selected", new string('W', 40)));
+            ElementBounds selectedBounds = ElementBounds.Fixed(0, y + 4, textWidth, selHeight);
+            ElementBounds selectAllBounds = ElementBounds.Fixed(Width - ButtonWidth, y, 130, 30);
+            ElementBounds clearBounds = ElementBounds.Fixed(Width - 90, y, 90, 30);
+            y += selHeight + 8;
 
-            bool unblacklistRow = canShowOther && ShowOther;
-            double unblRow = editRow + 38;
-            ElementBounds unblButtonBounds = ElementBounds.Fixed(ListWidth - 230, unblRow, 230, 30);
-            ElementBounds unblHintBounds = ElementBounds.Fixed(0, unblRow + 6, ListWidth - 240, 24);
-            double modRow = unblacklistRow ? unblRow + 38 : editRow + 38;
-            ElementBounds modButtonBounds = ElementBounds.Fixed(ListWidth - 230, modRow, 230, 30);
-            ElementBounds modHintBounds = ElementBounds.Fixed(0, modRow + 6, ListWidth - 240, 24);
+            // 7. Value / set value / the window's own list button.
+            ElementBounds valueBounds = ElementBounds.Fixed(0, y, 120, 30);
+            ElementBounds setBounds = ElementBounds.Fixed(130, y, 110, 30);
+            ElementBounds listButtonBounds = ElementBounds.Fixed(Width - ButtonWidth, y, ButtonWidth, 30);
+            y += 38;
+
+            // 8. The second list's button, while it's shown.
+            bool otherRow = canShowOther && ShowOther;
+            string otherHint = L("vintagee:missing-unblacklisthint", "vintagee:blacklist-blacklisthint", "vintagee:notransmute-addhint");
+            ElementBounds otherHintBounds = null, otherButtonBounds = null;
+            if (otherRow)
+            {
+                double h = RowHeight(otherHint);
+                otherHintBounds = ElementBounds.Fixed(0, y + 4, textWidth, h);
+                otherButtonBounds = ElementBounds.Fixed(Width - ButtonWidth, y, ButtonWidth, 30);
+                y += h + 8;
+            }
+
+            // 9. Whole mod.
+            double modHeight = RowHeight(Lang.Get("vintagee:missing-modhint-pick"), Lang.Get("vintagee:missing-modhint", new string('w', 24)));
+            ElementBounds modHintBounds = ElementBounds.Fixed(0, y + 4, textWidth, modHeight);
+            ElementBounds modButtonBounds = ElementBounds.Fixed(Width - ButtonWidth, y, ButtonWidth, 30);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
             bgBounds.WithChildren(summaryBounds, searchBounds, domainBounds, typeBounds, clipBounds, prevBounds, countBounds, nextBounds, copyBounds, closeBounds,
                 selectedBounds, selectAllBounds, clearBounds, valueBounds, setBounds, listButtonBounds, modButtonBounds, modHintBounds);
             if (canShowOther) bgBounds.WithChildren(showSwitchBounds, showLabelBounds);
-            if (unblacklistRow) bgBounds.WithChildren(unblButtonBounds, unblHintBounds);
+            if (otherRow) bgBounds.WithChildren(otherHintBounds, otherButtonBounds);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
-            // Counts and filters cover what can be listed right now (the other list only while it's shown).
-            List<Entry> listable = all.Where(e => !e.Other || ShowOther).ToList();
-            int mainCount = all.Count(e => !e.Other), otherCount = all.Count - mainCount;
             string[] domains = listable.Select(e => e.Domain).Distinct().OrderBy(d => d == "game" ? "" : d, StringComparer.Ordinal).ToArray();
             string[] domainValues = new[] { "*" }.Concat(domains).ToArray();
             string[] domainNames = new[] { Lang.Get("vintagee:missing-allmods") }
@@ -194,19 +257,23 @@ namespace VintageE
                 Lang.Get("vintagee:missing-items") + " (" + listable.Count(e => !e.IsBlock) + ")"
             };
 
-            string summary = IsBlacklist
-                ? Lang.Get(mainCount == 0 ? "vintagee:blacklist-summary-none" : "vintagee:blacklist-summary", mainCount, packet.ValueCount, packet.Version)
-                : mainCount == 0
-                    ? Lang.Get("vintagee:missing-summary-none", packet.CreativeTotal, packet.Version)
-                    : Lang.Get("vintagee:missing-summary", mainCount, packet.CreativeTotal, packet.ValueCount, packet.Version);
+            string listButton = L("vintagee:missing-blacklist", "vintagee:missing-unblacklist", "vintagee:notransmute-remove");
+            string modButton = L("vintagee:missing-blacklistmod", "vintagee:missing-unblacklistmod", "vintagee:notransmute-removemod");
+            string otherButton = L("vintagee:missing-unblacklist", "vintagee:missing-blacklist", "vintagee:notransmute-add");
+            string showLabel = Kind switch
+            {
+                EmcListKind.Blacklist => Lang.Get("vintagee:blacklist-hidemissing", otherCount),
+                EmcListKind.NoTransmute => Lang.Get("vintagee:notransmute-showvalued", otherCount),
+                _ => Lang.Get("vintagee:missing-showblacklisted", otherCount)
+            };
 
             composing = true;
             GuiComposer composer = capi.Gui
-                .CreateCompo(IsBlacklist ? "vintagee-blacklist" : "vintagee-missing", dialogBounds)
+                .CreateCompo("vintagee-list-" + Kind, dialogBounds)
                 .AddShadedDialogBG(bgBounds)
-                .AddDialogTitleBar(Lang.Get(IsBlacklist ? "vintagee:blacklist-title" : "vintagee:missing-title"), () => TryClose())
+                .AddDialogTitleBar(L("vintagee:missing-title", "vintagee:blacklist-title", "vintagee:notransmute-title"), () => TryClose())
                 .BeginChildElements(bgBounds)
-                    .AddStaticText(summary, CairoFont.WhiteDetailText(), summaryBounds)
+                    .AddStaticText(summary, detail, summaryBounds)
                     .AddTextInput(searchBounds, OnSearch, CairoFont.WhiteSmallText(), "search")
                     .AddDropDown(domainValues, domainNames, Math.Max(0, Array.IndexOf(domainValues, domainFilter)), OnDomain, domainBounds, "domain")
                     .AddDropDown(typeValues, typeNames, Math.Max(0, Array.IndexOf(typeValues, typeFilter)), OnType, typeBounds, "type")
@@ -220,27 +287,26 @@ namespace VintageE
                     .AddSmallButton(">", OnNext, nextBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-copy"), OnCopy, copyBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-close"), () => TryClose(), closeBounds)
-                    .AddDynamicText("", CairoFont.WhiteDetailText(), selectedBounds, "selected")
+                    .AddDynamicText("", detail, selectedBounds, "selected")
                     .AddSmallButton(Lang.Get("vintagee:missing-selectshown"), OnSelectShown, selectAllBounds)
                     .AddSmallButton(Lang.Get("vintagee:missing-clearselection"), OnClearSelection, clearBounds)
                     .AddTextInput(valueBounds, null, CairoFont.WhiteSmallText(), "value")
                     .AddSmallButton(Lang.Get("vintagee:missing-set"), OnSet, setBounds)
-                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklist" : "vintagee:missing-blacklist"), OnBlacklistButton, listButtonBounds)
-                    .AddDynamicText("", CairoFont.WhiteDetailText(), modHintBounds, "modhint")
-                    .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistmod" : "vintagee:missing-blacklistmod"), OnModButton, modButtonBounds);
+                    .AddSmallButton(listButton, OnListButton, listButtonBounds)
+                    .AddDynamicText("", detail, modHintBounds, "modhint")
+                    .AddSmallButton(modButton, OnModButton, modButtonBounds);
             if (canShowOther)
             {
                 composer.AddSwitch(OnToggleOther, showSwitchBounds, "showother", 26)
-                        .AddStaticText(Lang.Get(IsBlacklist ? "vintagee:blacklist-hidemissing" : "vintagee:missing-showblacklisted", otherCount), CairoFont.WhiteDetailText(), showLabelBounds);
+                        .AddStaticText(showLabel, detail, showLabelBounds);
             }
-            if (unblacklistRow)
+            if (otherRow)
             {
-                // Its own button for the mixed-in entries: take blacklisted ones off the blacklist, or blacklist missing ones.
-                composer.AddStaticText(Lang.Get(IsBlacklist ? "vintagee:blacklist-blacklisthint" : "vintagee:missing-unblacklisthint"), CairoFont.WhiteDetailText(), unblHintBounds)
-                        .AddSmallButton(Lang.Get(IsBlacklist ? "vintagee:missing-blacklist" : "vintagee:missing-unblacklist"), OnOtherButton, unblButtonBounds);
+                composer.AddStaticText(otherHint, detail, otherHintBounds)
+                        .AddSmallButton(otherButton, OnOtherButton, otherButtonBounds);
             }
             SingleComposer = composer.EndChildElements().Compose();
-            SingleComposer.GetSwitch("showother")?.SetValue(IsBlacklist ? hideMissing : showBlacklisted);
+            SingleComposer.GetSwitch("showother")?.SetValue(Kind == EmcListKind.Blacklist ? hideMissing : ShowOther);
 
             composing = false;
             SingleComposer.GetTextInput("search")?.SetPlaceHolderText(Lang.Get("vintagee:gui-search-missing"));
@@ -269,9 +335,15 @@ namespace VintageE
                 CairoFont pickedFont = CairoFont.WhiteSmallText().WithColor(new double[] { 0.55, 1, 0.55, 1 }).WithWeight(Cairo.FontWeight.Bold);
                 CairoFont codeFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
                 CairoFont whyFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.85, 0.75, 0.5, 1 });
-                // Mixed-in entries: red for blacklisted ones, amber for missing ones.
-                CairoFont otherFont = CairoFont.WhiteSmallText().WithColor(IsBlacklist ? new double[] { 1, 0.8, 0.4, 1 } : new double[] { 1, 0.55, 0.5, 1 });
-                string otherTag = Lang.Get(IsBlacklist ? "vintagee:blacklist-missingtag" : "vintagee:missing-blacklistedtag") + "  ";
+                // Mixed-in entries: red for blacklisted, amber for missing, blue for valued.
+                double[] otherColor = Kind switch
+                {
+                    EmcListKind.Blacklist => new double[] { 1, 0.8, 0.4, 1 },
+                    EmcListKind.NoTransmute => new double[] { 0.6, 0.8, 1, 1 },
+                    _ => new double[] { 1, 0.55, 0.5, 1 }
+                };
+                CairoFont otherFont = CairoFont.WhiteSmallText().WithColor(otherColor);
+                string otherTag = L("vintagee:missing-blacklistedtag", "vintagee:blacklist-missingtag", "vintagee:notransmute-valuedtag") + "  ";
                 foreach (Entry e in shown.Skip(page * PerPage).Take(PerPage))
                 {
                     ItemStack stack = null;
@@ -289,7 +361,7 @@ namespace VintageE
                 int listable = all.Count(e => !e.Other || ShowOther);
                 if (shown.Count == 0)
                 {
-                    comps.Add(new RichTextComponent(capi, Lang.Get(listable == 0 ? (IsBlacklist ? "vintagee:blacklist-empty" : "vintagee:missing-empty") : "vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
+                    comps.Add(new RichTextComponent(capi, listable == 0 ? L("vintagee:missing-empty", "vintagee:blacklist-empty", "vintagee:notransmute-empty") : Lang.Get("vintagee:missing-nomatch"), CairoFont.WhiteSmallText()));
                 }
 
                 GuiElementRichtext list = SingleComposer.GetRichtext("list");
@@ -319,6 +391,8 @@ namespace VintageE
             }
         }
 
+        static string Short(string s) => s == null ? "" : s.Length <= 40 ? s : s.Substring(0, 39) + "…";
+
         void UpdateStatus(string text = null)
         {
             if (SingleComposer == null) return;
@@ -328,7 +402,7 @@ namespace VintageE
                 else if (selected.Count == 1)
                 {
                     Entry e = all.FirstOrDefault(x => selected.Contains(x.Key));
-                    text = Lang.Get("vintagee:missing-selected", e?.Name ?? selected.First());
+                    text = Lang.Get("vintagee:missing-selected", Short(e?.Name ?? selected.First()));
                 }
                 else text = Lang.Get("vintagee:missing-selectedmany", selected.Count);
             }
@@ -338,9 +412,28 @@ namespace VintageE
                 : Lang.Get("vintagee:missing-modhint", domainFilter));
         }
 
+        public static bool ShiftHeld(ICoreClientAPI capi)
+        {
+            bool[] keys = capi.Input.KeyboardKeyStateRaw;
+            if (keys == null) return false;
+            int l = (int)GlKeys.LShift, r = (int)GlKeys.RShift;
+            return (l < keys.Length && keys[l]) || (r < keys.Length && keys[r]);
+        }
+
         void Toggle(Entry e)
         {
-            if (!selected.Remove(e.Key)) selected.Add(e.Key);
+            int from = anchor == null ? -1 : shown.FindIndex(x => x.Key == anchor);
+            int to = shown.IndexOf(e);
+            if (ShiftHeld(capi) && from >= 0 && to >= 0)
+            {
+                // Shift-click: everything from the last clicked entry to this one (in the order shown) is selected.
+                for (int i = Math.Min(from, to); i <= Math.Max(from, to); i++) selected.Add(shown[i].Key);
+            }
+            else
+            {
+                if (!selected.Remove(e.Key)) selected.Add(e.Key);
+                anchor = e.Key;
+            }
             Refill();
         }
 
@@ -354,6 +447,7 @@ namespace VintageE
         bool OnClearSelection()
         {
             selected.Clear();
+            anchor = null;
             Refill();
             return true;
         }
@@ -377,46 +471,56 @@ namespace VintageE
             return true;
         }
 
-        /// <summary>"Show blacklisted" (missing window) / "Hide missing" (blacklist window).</summary>
+        /// <summary>"Show blacklisted" / "Hide missing" / "Show valued items".</summary>
         void OnToggleOther(bool on)
         {
             if (composing) return;
-            if (IsBlacklist) hideMissing = on;
-            else showBlacklisted = on;
+            switch (Kind)
+            {
+                case EmcListKind.Blacklist: hideMissing = on; break;
+                case EmcListKind.NoTransmute: showValued = on; break;
+                default: showBlacklisted = on; break;
+            }
             page = 0;
             // Recompose after the click (the switch belongs to the current layout): adds or removes the extra button row.
             capi.Event.EnqueueMainThreadTask(() => { if (IsOpened()) Compose(); }, "vintagee-missing");
         }
 
-        /// <summary>The mixed-in entries' button: takes blacklisted ones off the blacklist, or blacklists missing ones.</summary>
+        /// <summary>The mixed-in entries' button: unblacklists blacklisted ones, blacklists missing ones, or stops valued ones transmuting.</summary>
         bool OnOtherButton()
         {
             string[] keys = all.Where(e => selected.Contains(e.Key) && e.Other).Select(e => e.Key).ToArray();
-            if (keys.Length == 0) { UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:blacklist-selectmissing" : "vintagee:missing-selectblacklisted")); return true; }
-            if (onBlacklist == null) return true;
-            onBlacklist(keys, IsBlacklist);
-            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-blacklistingmany" : "vintagee:missing-unblacklistingmany", keys.Length));
+            if (keys.Length == 0) { UpdateStatus(L("vintagee:missing-selectblacklisted", "vintagee:blacklist-selectmissing", "vintagee:notransmute-selectvalued")); return true; }
+            if (onList == null) return true;
+            bool add = Kind != EmcListKind.Missing; // missing window: take blacklisted ones off; the others: put on this window's list
+            onList(keys, add);
+            UpdateStatus(Kind == EmcListKind.NoTransmute ? Lang.Get("vintagee:notransmute-adding", keys.Length)
+                : Lang.Get(add ? "vintagee:missing-blacklistingmany" : "vintagee:missing-unblacklistingmany", keys.Length));
             return true;
         }
 
-        bool OnBlacklistButton()
+        /// <summary>The window's own button: blacklist (missing window), unblacklist (blacklist window), allow transmuting (no-transmute window).</summary>
+        bool OnListButton()
         {
-            // The window's own button only acts on its own list's entries (not the mixed-in ones).
             string[] keys = all.Where(e => selected.Contains(e.Key) && !e.Other).Select(e => e.Key).ToArray();
             if (keys.Length == 0) { UpdateStatus(Lang.Get("vintagee:missing-select")); return true; }
-            if (onBlacklist == null) return true;
-            onBlacklist(keys, !IsBlacklist);
-            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistingmany" : "vintagee:missing-blacklistingmany", keys.Length));
+            if (onList == null) return true;
+            bool add = Kind == EmcListKind.Missing;
+            onList(keys, add);
+            UpdateStatus(Kind == EmcListKind.NoTransmute ? Lang.Get("vintagee:notransmute-removing", keys.Length)
+                : Lang.Get(add ? "vintagee:missing-blacklistingmany" : "vintagee:missing-unblacklistingmany", keys.Length));
             return true;
         }
 
         bool OnModButton()
         {
             if (domainFilter == "*") { UpdateStatus(Lang.Get("vintagee:missing-modhint-pick")); return true; }
-            if (domainFilter == "game") { UpdateStatus(Lang.Get("vintagee:missing-nogame")); return true; }
-            if (onBlacklistMod == null) return true;
-            onBlacklistMod(domainFilter, !IsBlacklist);
-            UpdateStatus(Lang.Get(IsBlacklist ? "vintagee:missing-unblacklistingmod" : "vintagee:missing-blacklistingmod", domainFilter));
+            if (domainFilter == "game" && Kind != EmcListKind.NoTransmute) { UpdateStatus(Lang.Get("vintagee:missing-nogame")); return true; }
+            if (onListMod == null) return true;
+            bool add = Kind == EmcListKind.Missing;
+            onListMod(domainFilter, add);
+            UpdateStatus(Kind == EmcListKind.NoTransmute ? Lang.Get("vintagee:notransmute-removingmod", domainFilter)
+                : Lang.Get(add ? "vintagee:missing-blacklistingmod" : "vintagee:missing-unblacklistingmod", domainFilter));
             return true;
         }
 

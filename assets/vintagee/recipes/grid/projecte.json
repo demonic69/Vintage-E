@@ -787,34 +787,6 @@
     "name": "vintagee:archangelssmite"
   },
   {
-    "ingredientPattern": "PKP,RBR,PKP",
-    "ingredients": {
-      "P": {
-        "type": "item",
-        "code": "game:paper-parchment"
-      },
-      "K": {
-        "type": "item",
-        "code": "vintagee:kleinstar-vier"
-      },
-      "R": {
-        "type": "item",
-        "code": "vintagee:matter-red"
-      },
-      "B": {
-        "type": "item",
-        "code": "game:book-normal-*"
-      }
-    },
-    "width": 3,
-    "height": 3,
-    "output": {
-      "type": "item",
-      "code": "vintagee:gadget-tomeofknowledge"
-    },
-    "name": "vintagee:tomeofknowledge"
-  },
-  {
     "ingredientPattern": "__L,_S_,S__",
     "ingredients": {
       "L": {
@@ -1677,5 +1649,29 @@
       "code": "vintagee:pedestal-empty"
     },
     "name": "vintagee:pedestal"
+  },
+  {
+    "ingredientPattern": "R_R,RPR,BBB",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "P": {
+        "type": "block",
+        "code": "vintagee:pedestal-empty"
+      },
+      "B": {
+        "type": "block",
+        "code": "vintagee:matterblock-red"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "vintagee:redmatterpedestal-empty"
+    },
+    "name": "vintagee:redmatterpedestal"
   }
 ]

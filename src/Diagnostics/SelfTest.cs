@@ -67,6 +67,7 @@ namespace VintageE
                 CheckContents();
                 CheckConfigure();
                 CheckProjectELook();
+                Check180();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -360,6 +361,84 @@ namespace VintageE
         }
 
         /// <summary>
+        /// 1.8.0: value rules (bone arrow, free schematic, translocator parts, creative-only Tome), the red matter pedestal,
+        /// the no-transmute list, the tablet magnet's filter, value loops, dump files in ModData/vintagee, and resetting settings.
+        /// </summary>
+        void Check180()
+        {
+            EmcMappingReport report = mod.LastReport;
+            CollectibleObject C(string code) => (CollectibleObject)sapi.World.GetItem(new AssetLocation(code)) ?? sapi.World.GetBlock(new AssetLocation(code));
+            double V(string code) => mod.Emc.GetValue(C(code));
+
+            double flint = V("game:arrow-flint"), bone = V("game:arrow-bone");
+            Check(flint > 0 && Math.Abs(bone - flint) < 1e-6, $"bone arrow is worth a flint arrow: {EmcFormat.Format(bone)} / {EmcFormat.Format(flint)}");
+
+            CollectibleObject schematic = C("game:schematic-customtranslocator");
+            Check(schematic != null && report.Free.Contains(schematic) && report.Blacklisted.Contains(schematic) && V("game:schematic-customtranslocator") <= 0,
+                "custom translocator schematic is a free ingredient (blacklisted, no value)");
+            CollectibleObject part = C("game:tobtlocatorpart");
+            var tobt = sapi.World.Collectibles.Where(c => c.Code?.Domain == "game" && c.Code.Path.StartsWith("tobtlocator-")).ToList();
+            Check(part != null && !report.Blacklisted.Contains(part) && tobt.Count > 0 && tobt.All(c => !report.Blacklisted.Contains(c)),
+                $"translocator part and {tobt.Count} rickety translocators are off the blacklist (part: {EmcFormat.Format(V("game:tobtlocatorpart"))} EMC)");
+            foreach (CollectibleObject t in tobt.Take(1))
+            {
+                string why = report.MissingWhy.TryGetValue(t, out string w) ? w : null;
+                Check(why == null || !why.Contains("schematic-customtranslocator"), $"{t.Code}: the schematic isn't what's missing ({(why == null ? EmcFormat.Format(mod.Emc.GetValue(t)) + " EMC" : why)})");
+            }
+
+            CollectibleObject tome = C("vintagee:gadget-tomeofknowledge");
+            bool tomeRecipe = sapi.World.GridRecipes.Any(r => r.Output?.Code != null && r.Output.Code.ToString() == "vintagee:gadget-tomeofknowledge");
+            Check(tome != null && !tomeRecipe && V("vintagee:gadget-tomeofknowledge") <= 0, "Tome of Knowledge has no recipe and no EMC value");
+
+            CollectibleObject dmPed = C("vintagee:pedestal-empty"), rmPed = C("vintagee:redmatterpedestal-empty");
+            Check(rmPed is Block rb && rb.Attributes?["pedestalRange"].AsFloat(1) == 2 && rb.Attributes?["pedestalPower"].AsFloat(1) == 2,
+                "red matter pedestal: twice the range and power");
+            Check(V("vintagee:redmatterpedestal-empty") > V("vintagee:pedestal-empty") && V("vintagee:pedestal-empty") > 0,
+                $"red matter pedestal is worth more than the dark one: {EmcFormat.Format(V("vintagee:redmatterpedestal-empty"))} > {EmcFormat.Format(V("vintagee:pedestal-empty"))}");
+
+            // No-transmute list: a value is kept, burning and creating are refused, and taking it off works.
+            CollectibleObject granite = C("game:rock-granite");
+            string key = VintageEModSystem.ConfigKey(granite);
+            mod.SetNoTransmute(new[] { key }, true);
+            string refused = mod.Transmutation.PlanBurn(null, new ItemStack(granite), out _, out _);
+            Check(mod.Emc.IsNoTransmute(granite) && mod.Emc.GetValue(granite) > 0 && refused == "notransmute", $"no-transmute: granite keeps its value but can't be burned ({refused})");
+            Check(mod.Emc.ToPacket().NoTransmuteKeys?.Contains(PlayerEmc.KeyOf(granite)) == true, "no-transmute list goes to clients");
+            mod.SetNoTransmute(new[] { key }, false);
+            Check(!mod.Emc.IsNoTransmute(granite) && mod.Transmutation.PlanBurn(null, new ItemStack(granite), out _, out _) == null, "no-transmute: taken off again");
+
+            // Tablet magnet filter.
+            Item tabletItem = sapi.World.GetItem(new AssetLocation("vintagee:transmutationtablet"));
+            var tablet = new ItemStack(tabletItem);
+            Check(!TabletMagnet.Passes(tablet, granite), "magnet: an empty 'only these' filter pulls nothing");
+            ((TreeAttribute)tablet.Attributes).SetStringArray(TabletMagnet.FilterKey, new[] { PlayerEmc.KeyOf(granite), "", "" });
+            Check(TabletMagnet.Passes(tablet, granite) && !TabletMagnet.Passes(tablet, C("game:rock-andesite")), "magnet: 'only these' pulls just the filtered item");
+            tablet.Attributes.SetBool(TabletMagnet.ExcludeKey, true);
+            Check(!TabletMagnet.Passes(tablet, granite) && TabletMagnet.Passes(tablet, C("game:rock-andesite")), "magnet: 'all except these' skips the filtered item");
+            Check(TabletMagnet.IsMagnet(new ItemStack(sapi.World.GetItem(new AssetLocation("vintagee:trinket-blackholeband")))) && !TabletMagnet.IsMagnet(new ItemStack(granite)),
+                "magnet: Black Hole Band fits, a rock doesn't");
+
+            // Loops and reasons.
+            Line($"  value loops: {report.Loops.Count}, settled loops: {report.SettledLoops.Count}");
+            foreach (var loop in report.Loops.Take(5)) Line("    " + MissingAnalysis.LoopText(loop));
+            Check(report.Missing.All(c => report.MissingWhy.ContainsKey(c)), "every missing item has a reason");
+
+            // Files go to ModData/vintagee and the chat says where.
+            string dir = VintageEModSystem.DataFolder(sapi);
+            string dumpAnswer = RunCommand("/emc dump");
+            Check(File.Exists(Path.Combine(dir, "emc-values.csv")) && dumpAnswer.Contains(dir), "/emc dump writes ModData/vintagee/emc-values.csv and says where: " + dumpAnswer);
+            string loopAnswer = RunCommand("/emc loop");
+            Check(File.Exists(Path.Combine(dir, "emc-loops.txt")) && loopAnswer.Contains("emc-loops.txt"), "/emc loop writes emc-loops.txt: " + loopAnswer.Split('\n')[0]);
+            Check(dir.Replace('\\', '/').Contains("ModData/vintagee"), "data folder is ModData/vintagee: " + dir);
+
+            // Resetting settings.
+            double defaultRange = new VintageEConfig().TableUseRange;
+            RunCommand("/emc configure TableUseRange 13");
+            string reset = RunCommand("/emc configure TableUseRange default");
+            Check(Math.Abs(mod.Config.TableUseRange - defaultRange) < 1e-9, "/emc configure <setting> default resets it: " + reset);
+            Check(ConfigureCommand.DefaultTexts().Length == ConfigureCommand.Snapshot(mod.Config).names.Length, "every setting has a default for the window");
+        }
+
+        /// <summary>
         /// ProjectETextures / ProjectESounds: every ProjectE file the swap list names is there, and - when the server
         /// test turns the settings on - blocks, items and projectiles really use ProjectE's textures.
         /// </summary>
@@ -549,7 +628,7 @@ namespace VintageE
             Line(failures == 0 ? "ALL PASSED" : failures + " FAILED");
             try
             {
-                string dir = sapi.GetOrCreateDataPath(VintageEModSystem.ModId);
+                string dir = VintageEModSystem.DataFolder(sapi);
                 File.WriteAllText(Path.Combine(dir, "selftest.txt"), log.ToString());
             }
             catch (Exception e) { sapi.Logger.Error("Vintage-E self-test: could not write the report: {0}", e); }

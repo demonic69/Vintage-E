@@ -34,6 +34,14 @@ namespace VintageE
         public int OtherModCount, GuessCount;
         /// <summary>For each block/item still without a value: whether anything makes it, and which ingredient has no value.</summary>
         public Dictionary<CollectibleObject, string> MissingWhy = new Dictionary<CollectibleObject, string>();
+        /// <summary>Every way the mod knows of making each unvalued item (missing ones and the unvalued things they need). Not cached.</summary>
+        public Dictionary<CollectibleObject, List<Conversion>> MissingRecipes = new Dictionary<CollectibleObject, List<Conversion>>();
+        /// <summary>Value loops: rings of unvalued items each only made from the next (see <see cref="MissingAnalysis"/>).</summary>
+        public List<List<CollectibleObject>> Loops = new List<List<CollectibleObject>>();
+        /// <summary>Which of <see cref="Loops"/> each item is in.</summary>
+        public Dictionary<CollectibleObject, int> LoopOf = new Dictionary<CollectibleObject, int>();
+        /// <summary>Rings of recipes that kept making each other cheaper; their items kept their first value.</summary>
+        public List<List<CollectibleObject>> SettledLoops = new List<List<CollectibleObject>>();
         /// <summary>Material-specific values (a gold round shield...) from recipes that put data on what they make.</summary>
         public Dictionary<CollectibleObject, List<VariantValue>> Variants = new Dictionary<CollectibleObject, List<VariantValue>>();
         public double TraderRate;
@@ -45,6 +53,8 @@ namespace VintageE
         public List<CollectibleObject> Missing = new List<CollectibleObject>();
         /// <summary>Everything the blacklist keeps from having a value (for the /emc blacklist window).</summary>
         public List<CollectibleObject> Blacklisted = new List<CollectibleObject>();
+        /// <summary>Free ingredients: on the blacklist, but cost nothing in recipes.</summary>
+        public List<CollectibleObject> Free = new List<CollectibleObject>();
         /// <summary>True when the values were loaded from the on-disk cache instead of being mapped.</summary>
         public bool FromCache;
         public string CachedAt;
@@ -65,6 +75,8 @@ namespace VintageE
         readonly VintageEConfig config;
         readonly EmcRuleSet rules;
         readonly ILogger logger;
+        /// <summary>Free ingredients (see <see cref="EmcRuleSet.FreeIngredients"/>), set by Seed.</summary>
+        HashSet<CollectibleObject> free = new HashSet<CollectibleObject>();
 
         public EmcMapper(ICoreServerAPI sapi, VintageEConfig config, EmcRuleSet rules, ILogger logger)
         {
@@ -294,7 +306,7 @@ namespace VintageE
             report.Variants = VariantValues(collector.Conversions, report.Values, excluded);
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
             FillCoverage(index, report, excluded);
-            ExplainMissing(report, collector.Conversions);
+            MissingAnalysis.Run(report, collector.Conversions, solver.Frozen);
             report.Sources = collector.SourceCounts;
             report.SourceCount = collector.SourceCounts.Count(s => s.Value > 0);
             report.UnstableRemoved = solver.Unstable.Count;
@@ -351,6 +363,11 @@ namespace VintageE
             {
                 excluded.ExceptWith(index.Match(pattern));
             }
+            // Free ingredients: no value of their own (so blacklisted), but recipes using them only cost the rest.
+            free = new HashSet<CollectibleObject>();
+            foreach (string pattern in rules.FreeIngredients.Concat(config.FreeIngredients)) free.UnionWith(index.Match(pattern));
+            excluded.UnionWith(free);
+            report.Free = free.Where(c => c?.Code != null).ToList();
 
             // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
             fixedValues = new Dictionary<CollectibleObject, double>();
@@ -413,6 +430,7 @@ namespace VintageE
             {
                 Fixed = fixedValues,
                 Excluded = excluded,
+                Free = free,
                 MaxPasses = config.MaxMappingPasses,
                 InferBackwards = config.InferValuesFromProcessing,
                 InferFromCrafting = config.InferValuesFromProcessing && config.InferValuesFromCrafting
@@ -487,32 +505,6 @@ namespace VintageE
         }
 
         /// <summary>Why each missing block/item has no value: nothing makes it, or what it's made from has no value.</summary>
-        static void ExplainMissing(EmcMappingReport report, List<Conversion> conversions)
-        {
-            var producers = new Dictionary<CollectibleObject, List<Conversion>>();
-            foreach (Conversion conv in conversions)
-            {
-                IEnumerable<CollectibleObject> outs = conv.JointOutputs != null ? conv.JointOutputs.Select(o => o.Key) : new[] { conv.Output };
-                foreach (CollectibleObject o in outs)
-                {
-                    if (o == null) continue;
-                    if (!producers.TryGetValue(o, out var list)) producers[o] = list = new List<Conversion>();
-                    list.Add(conv);
-                }
-            }
-            foreach (CollectibleObject c in report.Missing)
-            {
-                if (!producers.TryGetValue(c, out var list) || list.Count == 0)
-                {
-                    report.MissingWhy[c] = "nothing the mod can read makes it (no recipe, drop or process): loot, creative-only, or made a way the mod doesn't know";
-                    continue;
-                }
-                Conversion first = list[0];
-                var lacking = first.Inputs.Where(i => !i.Choices.Any(ch => report.Values.ContainsKey(ch))).Select(i => i.Choices.FirstOrDefault()?.Code?.ToString() ?? "?").Distinct().ToList();
-                report.MissingWhy[c] = list.Count + " way(s) to make it, e.g. " + Describe(first) + (lacking.Count > 0 ? "; no value for: " + string.Join(", ", lacking) : "");
-            }
-        }
-
         /// <summary>"grid: 1 game:log-placed-oak-ud (+11 more) -> 12" — a short, human-readable description of a conversion.</summary>
         internal static string Describe(Conversion conv)
         {

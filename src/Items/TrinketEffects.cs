@@ -500,7 +500,7 @@ namespace VintageE
         }
 
         /// <summary>Sets nearby hostile creatures on fire. <paramref name="payer"/> null = free (pedestal, Ring of Arcana).</summary>
-        public int Burn(Vec3d center, float radius, Entity source, IServerPlayer payer, double costEach)
+        public int Burn(Vec3d center, float radius, Entity source, IServerPlayer payer, double costEach, float damage = 3f)
         {
             int hit = 0;
             foreach (Entity e in sapi.World.GetEntitiesAround(center, radius, radius / 2, IsHostile))
@@ -512,7 +512,7 @@ namespace VintageE
                     SourceEntity = source,
                     CauseEntity = source,
                     Type = EnumDamageType.Fire
-                }, 3f);
+                }, damage);
                 e.Ignite();
                 hit++;
             }
@@ -666,7 +666,7 @@ namespace VintageE
         {
             int mode = GameMath.Clamp(ItemEmcTrinket.GetMode(gemSlot.Itemstack), 0, ItemEmcTrinket.DensityTargets.Length - 1);
             CollectibleObject target = ItemEmcTrinket.Resolve(sapi.World, ItemEmcTrinket.DensityTargets[mode]);
-            double targetValue = target == null ? 0 : mod.Emc.GetValue(target);
+            double targetValue = target == null || mod.Emc.IsNoTransmute(target) ? 0 : mod.Emc.GetValue(target);
             if (targetValue <= 0) return;
             double maxInput = gemSlot.Itemstack.Collectible.Attributes?["maxInputValue"].AsDouble(8) ?? 8;
 
@@ -683,7 +683,7 @@ namespace VintageE
                     CollectibleObject c = stack.Collectible;
                     if (c == target || c is ItemEmcTrinket || c is IEmcStorageItem || c.GetMaxDurability(stack) > 0) continue;
                     if (StackContents.HasNestedStacks(stack)) continue;
-                    double value = mod.Emc.GetValue(stack);
+                    double value = mod.Emc.IsNoTransmute(c) ? 0 : mod.Emc.GetValue(stack);
                     if (value <= 0 || value > maxInput) continue;
                     stored += value * stack.StackSize;
                     slot.Itemstack = null;

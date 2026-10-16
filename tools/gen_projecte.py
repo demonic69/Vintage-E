@@ -386,6 +386,28 @@ def blocks():
         ("requiredMiningTier", 4),
         ("sounds", SOUNDS_METAL),
     ]))
+    # 1.8.0: the red matter pedestal reaches twice as far and its effects are twice as strong (BEPedestal reads these attributes).
+    write("blocktypes/redmatterpedestal.json", O([
+        ("code", "redmatterpedestal"),
+        ("class", "BlockEmcMachine"),
+        ("entityClass", "VintageEPedestal"),
+        ("variantgroups", [O([("code", "state"), ("states", ["empty", "active"])])]),
+        ("creativeinventoryByType", O([("*-empty", CREATIVE)])),
+        ("blockmaterial", "Metal"),
+        ("drawtype", "json"),
+        ("shape", O([("base", "block/pedestal")])),
+        ("textures", O([("body", O([("base", "item/tool/material/redmatter")])), ("top", O([("base", "block/matterblock-dark")]))])),
+        ("drops", [O([("type", "block"), ("code", "redmatterpedestal-empty")])]),
+        ("attributes", O([("interactionHelp", "vintagee:blockhelp-pedestal"), ("pedestalRange", 2), ("pedestalPower", 2)])),
+        ("lightHsvByType", O([("*-active", [0, 6, 12])])),
+        ("sidesolid", O([("all", False), ("down", True)])),
+        ("sideopaque", O([("all", False)])),
+        ("collisionbox", O([("x1", 0.125), ("y1", 0), ("z1", 0.125), ("x2", 0.875), ("y2", 0.75), ("z2", 0.875)])),
+        ("selectionbox", O([("x1", 0.125), ("y1", 0), ("z1", 0.125), ("x2", 0.875), ("y2", 0.75), ("z2", 0.875)])),
+        ("resistance", 12),
+        ("requiredMiningTier", 5),
+        ("sounds", SOUNDS_METAL),
+    ]))
     shapes()
 
 
@@ -606,7 +628,7 @@ def recipes():
     rs.append(R("catalyticlens", "DDD,LHC,DDD", O([("D", DM), ("L", I(g("hyperkineticlens"))), ("H", dust("high")), ("C", I(g("destructioncatalyst")))]), g("catalyticlens")))
     rs.append(R("mercurialeye", "_R_,DKD,_R_", O([("R", RM), ("D", DM), ("K", I("vintagee:kleinstar-ein"))]), g("mercurialeye")))
     rs.append(R("archangelssmite", "FFF,DBD,FFF", O([("F", I("game:feather")), ("D", DM), ("B", I("game:bow-*"))]), g("archangelssmite")))
-    rs.append(R("tomeofknowledge", "PKP,RBR,PKP", O([("P", I("game:paper-parchment")), ("K", I("vintagee:kleinstar-vier")), ("R", RM), ("B", I("game:book-normal-*"))]), g("tomeofknowledge")))
+    # The Tome of Knowledge is creative-only (1.8.0): no recipe.
     rs.append(R("diviningrodlow", "__L,_S_,S__", O([("L", dust("low")), ("S", I("game:stick"))]), g("diviningrodlow")))
     rs.append(R("diviningrodmedium", "__M,_R_,M__", O([("M", dust("medium")), ("R", I(g("diviningrodlow")))]), g("diviningrodmedium")))
     rs.append(R("diviningrodhigh", "__H,_R_,H__", O([("H", dust("high")), ("R", I(g("diviningrodmedium")))]), g("diviningrodhigh")))
@@ -647,6 +669,7 @@ def recipes():
     rs.append(R("matterfurnace-dark", "DDD,DFD,DDD", O([("D", DM), ("F", I("game:forge", "block"))]), "vintagee:furnace-dark-cold", out_type="block"))
     rs.append(R("matterfurnace-red", "_R_,RFR,_R_", O([("R", RM), ("F", I("vintagee:furnace-dark-cold", "block"))]), "vintagee:furnace-red-cold", out_type="block"))
     rs.append(R("pedestal", "R_R,RDR,DDD", O([("R", RM), ("D", I("vintagee:matterblock-dark", "block"))]), "vintagee:pedestal-empty", out_type="block"))
+    rs.append(R("redmatterpedestal", "R_R,RPR,BBB", O([("R", RM), ("P", I("vintagee:pedestal-empty", "block")), ("B", I("vintagee:matterblock-red", "block"))]), "vintagee:redmatterpedestal-empty", out_type="block"))
     write("recipes/grid/projecte.json", rs)
 
 
@@ -692,7 +715,7 @@ DESCS = O([
     ("gadget-catalyticlens", "A bigger explosion, or the destruction catalyst's tunnel (tool-mode key). Costs EMC."),
     ("gadget-mercurialeye", "Sneak + right-click a block to remember it, then right-click blocks to turn them into it (1x1 or 3x3). You pay the difference in EMC."),
     ("gadget-archangelssmite", "Right-click to strike the creature you're looking at, up to 48 blocks away. Costs EMC."),
-    ("gadget-tomeofknowledge", "Right-click to learn every item that has an EMC value."),
+    ("gadget-tomeofknowledge", "Creative mode only. Right-click to learn every block and item in the creative inventory that can be transmuted."),
     ("gadget-diviningrodlow", "Right-click a block to see how much EMC lies in the ground below it (3 blocks deep)."),
     ("gadget-diviningrodmedium", "Right-click a block to see how much EMC lies in the ground below it (16 blocks deep)."),
     ("gadget-diviningrodhigh", "Right-click a block to see how much EMC lies in the ground below it (64 blocks deep)."),
@@ -707,6 +730,7 @@ BLOCK_NAMES = O([
     ("antimatterrelay-mk1", "Anti-Matter Relay MK1"), ("antimatterrelay-mk2", "Anti-Matter Relay MK2"), ("antimatterrelay-mk3", "Anti-Matter Relay MK3"),
     ("novaexplosive-catalyst", "Nova Catalyst"), ("novaexplosive-cataclysm", "Nova Cataclysm"), ("interdictiontorch", "Interdiction Torch"),
     ("pedestal-empty", "Dark Matter Pedestal"), ("pedestal-active", "Dark Matter Pedestal"),
+    ("redmatterpedestal-empty", "Red Matter Pedestal"), ("redmatterpedestal-active", "Red Matter Pedestal"),
 ] + [(f"furnace-{m}-{st}", f"{n} Matter Furnace") for m, n in (("dark", "Dark"), ("red", "Red")) for st in ("cold", "lit", "extinct")])
 BLOCK_DESCS = O([
     ("alchemicalfuelblock-alchemicalcoal", "Nine alchemical coal. Burns nine times as long."),
@@ -723,6 +747,8 @@ BLOCK_DESCS = O([
     ("interdictiontorch", "Keeps hostile creatures away from it."),
     ("pedestal-empty", "Right-click with a ring, stone, amulet or talisman to set it here; it then works on the area around the pedestal for free."),
     ("pedestal-active", "Right-click with an empty hand to take back what's on it."),
+    ("redmatterpedestal-empty", "Like the Dark Matter Pedestal, but it reaches twice as far and its effects are twice as strong. Right-click with a ring, stone, amulet or talisman to set it here."),
+    ("redmatterpedestal-active", "Right-click with an empty hand to take back what's on it."),
 ])
 LANG = O([
     ("kleinstar-stored", "Stored EMC: {0} / {1}"),
@@ -860,6 +886,64 @@ LANG = O([
     ("blacklist-hidemissing", "Hide missing ({0})"), ("blacklist-missingtag", "(missing)"),
     ("blacklist-blacklisthint", "Missing entries (amber): select them, then blacklist them."),
     ("blacklist-selectmissing", "Select missing (amber) entries first."),
+    # 1.8.0
+    ("chat-announce", "Vintage-E version {0}: calculated {1} EMC values, {2} missing, {4} value loops (/emc loop)."),
+    ("chat-announce-cached", "Vintage-E version {0}: {1} EMC values (calculated earlier, nothing has changed), {2} missing, {4} value loops (/emc loop)."),
+    ("gui-sort-valuedesc", "Most EMC first"), ("gui-sort-valueasc", "Least EMC first"), ("gui-sort-nameasc", "Name A to Z"), ("gui-sort-namedesc", "Name Z to A"),
+    ("gui-forget-confirm", "Forget {0}? You'd have to burn one again to learn it back."),
+    ("gui-create-hint", "Left-click: take one  ·  Right-click: take a stack  ·  Shift-click: a stack straight into your inventory  ·  Ctrl + right-click: forget (asks first)"),
+    ("magnet-title", "Magnet"),
+    ("magnet-hint", "Put a Black Hole Band or Void Ring here. While you carry this tablet, items on the ground within {0} blocks that pass the filter are pulled in and transmuted into your EMC, and learned."),
+    ("magnet-mode-only", "Pull: only these"), ("magnet-mode-except", "Pull: all except these"),
+    ("magnet-none", "No magnet in the slot: nothing is pulled in. The filter is kept."),
+    ("magnet-filter-only", "Pulls in only these. Click a slot holding an item to add it; with an empty hand to clear it."),
+    ("magnet-filter-except", "Pulls in everything that can be transmuted except these. Click a slot holding an item to add it; with an empty hand to clear it."),
+    ("magnet-filter-empty", "Nothing chosen yet: click a slot while holding an item to pull that item in."),
+    ("error-notablet", "Carry a Transmutation Tablet to use its magnet."),
+    ("error-notamagnet", "{0} isn't a magnet: use a single Black Hole Band or Void Ring."),
+    ("error-notransmute", "{0} can't be transmuted on this server: it keeps its EMC value, but can't be burned, learned or created."),
+    ("tooltip-notransmute", "Can't be transmuted on this server"),
+    ("tome-creativeonly", "The Tome of Knowledge only works in creative mode."),
+    ("dump-remapping", "These values came from the cache, which doesn't keep the recipes behind them, so they were worked out again to explain them."),
+    ("dump-notransmute", "On the no-transmute list: it keeps its value, but can't be burned, learned or created."),
+    ("dump-free", "A free ingredient: no value of its own, and it costs nothing in recipes."),
+    ("dump-loop", "Stuck in a value loop: {0}. Each is only made from the next, and nothing outside the loop gives any of them a value. Give one of them a value (/emc set or BaseValues) to break it."),
+    ("dump-norecipe", "Nothing the mod can read makes it (no recipe, drop or process): loot, creative-only, or made a way the mod doesn't know. Give it a value with /emc set or BaseValues."),
+    ("dump-ways", "No value. {0} way(s) to make it, and what each is missing:"),
+    ("dump-moreways", "...and {0} more"), ("dump-lacks", "no value: {0} ({1})"), ("dump-inloop", "(part of the same loop)"),
+    ("dump-more", "...{0} more lines in the file."), ("dump-file", "Written to {0}"), ("dump-nofile", "Could not write the file (see the server log)."),
+    ("cmdhelp-dump", "Writes every value, and what it was worked out from, to ModData/vintagee/emc-values.csv (the chat says where)."),
+    ("cmdhelp-dumphand", "Show the held item's value and how it was worked out, or why it has none (missing ingredients, value loops); also written to a file in ModData/vintagee (the chat says where)"),
+    ("loop-none", "No value loops: nothing is waiting on itself for a value."),
+    ("loop-header", "{0} value loop(s). A -> B means A is only made from B, so none of them can get a value:"),
+    ("loop-settled", "{0} settled loop(s): recipes that kept making each other cheaper, so their items keep their first value:"),
+    ("cmdhelp-loop", "List the value loops: unvalued items that are each only made from the next (also written to ModData/vintagee/emc-loops.txt)"),
+    ("notransmute-title", "Not transmutable"),
+    ("notransmute-summary", "{0} blocks/items keep their EMC value but can't be burned, learned or created ({1} values in all, Vintage-E {2})."),
+    ("notransmute-summary-none", "Everything with an EMC value can be transmuted ({1} values, Vintage-E {2}). Tick \"Show valued items\" to pick some that can't."),
+    ("notransmute-empty", "Nothing is on the no-transmute list."),
+    ("notransmute-remove", "Allow transmuting"), ("notransmute-removemod", "Allow whole mod"), ("notransmute-add", "Stop transmuting"),
+    ("notransmute-addhint", "Valued items (blue): select them, then stop them being transmuted."),
+    ("notransmute-showvalued", "Show valued items ({0})"), ("notransmute-valuedtag", "(valued)"),
+    ("notransmute-selectvalued", "Select valued (blue) entries first."),
+    ("notransmute-adding", "Stopping {0} from being transmuted..."), ("notransmute-removing", "Letting {0} be transmuted again..."),
+    ("notransmute-removingmod", "Letting everything from {0} be transmuted again..."),
+    ("cmd-notransmute-added", "{0} can no longer be transmuted (they keep their EMC value)."), ("cmd-notransmute-removed", "{0} can be transmuted again."),
+    ("cmd-notransmute-addedmod", "Nothing from {0} can be transmuted now."), ("cmd-notransmute-removedmod", "Everything from {0} can be transmuted again."),
+    ("cmd-notransmute-stillwildcard", "({0} still matched by a wildcard in NoTransmute; change that in /emc configure.)"),
+    ("cmd-notransmute-held-added", "{0} ({1}) can no longer be transmuted."), ("cmd-notransmute-held-removed", "{0} ({1}) can be transmuted again."),
+    ("cmdhelp-notransmute", "Open the list of blocks/items that keep their EMC value but can't be burned, learned or created"),
+    ("cmdhelp-notransmuteset", "Add the held item to that list, or take it off"),
+    ("missing-summary", "{0} of {1} blocks/items in the creative inventory have no EMC value ({2} values, Vintage-E {3})."),
+    ("blacklist-summary", "{0} blocks/items are blacklisted and never get an EMC value ({1} have one, Vintage-E {2})."),
+    ("missing-select", "Click names to select them; Shift-click selects everything in between."),
+    ("cfg-default", "Default: {0}"), ("cfg-isdefault", "At its default ({0})."),
+    ("cfg-resetone", "Reset to default"), ("cfg-resetall", "Reset all"), ("cfg-resetlink", "   reset"),
+    ("cfg-resetone-confirm", "Put {0} back to its default ({1})?"),
+    ("cfg-resetall-confirm", "Put every setting back to its default? Your BaseValues, blacklist and every other change in ModConfig/vintagee.json will be lost."),
+    ("cfg-reset-done", "{0} is back to its default: {1}."),
+    ("cfg-resetall-done", "Every setting is back to its default, and the EMC values were worked out again."),
+    ("cmdhelp-configure", "Open the settings window, or show and change one setting from chat (true/false, numbers, list and table entries; /emc configure <setting> default resets one, /emc configure resetall resets everything, /emc configure list prints them all); saved and applied straight away"),
 ])
 
 

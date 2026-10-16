@@ -38,6 +38,8 @@ namespace VintageE
 
         readonly Action<string[], int> onSetMode;
         readonly HashSet<string> selected = new HashSet<string>();
+        /// <summary>The last entry clicked without Shift: where a Shift-click range starts.</summary>
+        string anchor;
         readonly List<Entry> all = new List<Entry>();
         readonly string version;
         List<Entry> shown = new List<Entry>();
@@ -97,9 +99,12 @@ namespace VintageE
         void Compose()
         {
             ClearComposers();
-            double top = GuiStyle.TitleBarHeight + 4;
-            ElementBounds helpBounds = ElementBounds.Fixed(0, top, ListWidth + 30, 74);
-            double row = top + 80;
+            double top = GuiStyle.TitleBarHeight + 6;
+            // The help is measured so the filters always sit below it, however long it wraps.
+            string help = Lang.Get("vintagee:contents-help", all.Count, version);
+            double helpHeight = GuiLayout.TextHeight(capi, CairoFont.WhiteDetailText(), help, ListWidth + 30);
+            ElementBounds helpBounds = ElementBounds.Fixed(0, top, ListWidth + 30, helpHeight);
+            double row = top + helpHeight + 8;
             ElementBounds searchBounds = ElementBounds.Fixed(0, row, 180, 30);
             ElementBounds domainBounds = ElementBounds.Fixed(190, row, 140, 30);
             ElementBounds kindBounds = ElementBounds.Fixed(340, row, 130, 30);
@@ -117,11 +122,14 @@ namespace VintageE
             ElementBounds closeBounds = ElementBounds.Fixed(ListWidth - 90, bottom, 90, 30);
 
             double selRow = bottom + 40;
-            ElementBounds selectedBounds = ElementBounds.Fixed(0, selRow + 6, 360, 24);
+            double selWidth = ListWidth - 240;
+            double selHeight = Math.Max(30, Math.Max(GuiLayout.TextHeight(capi, CairoFont.WhiteDetailText(), Lang.Get("vintagee:contents-select"), selWidth),
+                GuiLayout.TextHeight(capi, CairoFont.WhiteDetailText(), Lang.Get("vintagee:missing-selected", new string('W', 40)), selWidth)));
+            ElementBounds selectedBounds = ElementBounds.Fixed(0, selRow + 4, selWidth, selHeight);
             ElementBounds selectAllBounds = ElementBounds.Fixed(ListWidth - 230, selRow, 130, 30);
             ElementBounds clearBounds = ElementBounds.Fixed(ListWidth - 90, selRow, 90, 30);
 
-            double modeRow = selRow + 38;
+            double modeRow = selRow + selHeight + 8;
             double w = (ListWidth - 30) / 4;
             ElementBounds itemBounds = ElementBounds.Fixed(0, modeRow, w, 30);
             ElementBounds fullBounds = ElementBounds.Fixed(w + 10, modeRow, w, 30);
@@ -160,7 +168,7 @@ namespace VintageE
                 .AddShadedDialogBG(bgBounds)
                 .AddDialogTitleBar(Lang.Get("vintagee:contents-title"), () => TryClose())
                 .BeginChildElements(bgBounds)
-                    .AddStaticText(Lang.Get("vintagee:contents-help", all.Count, version), CairoFont.WhiteDetailText(), helpBounds)
+                    .AddStaticText(help, CairoFont.WhiteDetailText(), helpBounds)
                     .AddTextInput(searchBounds, OnSearch, CairoFont.WhiteSmallText(), "search")
                     .AddDropDown(domainValues, domainNames, Math.Max(0, Array.IndexOf(domainValues, domainFilter)), (c, s) => { domainFilter = c ?? "*"; Reset(); }, domainBounds, "domain")
                     .AddDropDown(kindValues, kindNames, Math.Max(0, Array.IndexOf(kindValues, kindFilter)), (c, s) => { kindFilter = c ?? "*"; Reset(); }, kindBounds, "kind")
@@ -224,7 +232,7 @@ namespace VintageE
                     if (stack != null) comps.Add(new ItemstackTextComponent(capi, stack, 32, 6, EnumFloat.Inline) { VerticalAlign = EnumVerticalAlign.Middle });
                     Entry entry = e;
                     bool picked = selected.Contains(e.Key);
-                    comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : nameFont, _ => { if (!selected.Remove(entry.Key)) selected.Add(entry.Key); Refill(); }) { VerticalAlign = EnumVerticalAlign.Middle });
+                    comps.Add(new LinkTextComponent(capi, (picked ? "✔ " : "") + e.Name + "  ", picked ? pickedFont : nameFont, _ => Toggle(entry)) { VerticalAlign = EnumVerticalAlign.Middle });
                     string kind = Lang.Get("vintagee:contents-kind-" + (e.Kind == StackDataKind.Contents ? "contents" : e.Kind == StackDataKind.Material ? "material" : "chiseled"));
                     string detail = ModeLabel(e.Mode) + (e.FromConfig ? " " + Lang.Get("vintagee:contents-setbyyou", ModeLabel(e.DefaultMode)) : " " + Lang.Get("vintagee:contents-isdefault"));
                     comps.Add(new RichTextComponent(capi, detail, e.FromConfig ? changedFont : detailFont) { VerticalAlign = EnumVerticalAlign.Middle });
@@ -262,10 +270,31 @@ namespace VintageE
             if (text == null)
             {
                 if (selected.Count == 0) text = Lang.Get("vintagee:contents-select");
-                else if (selected.Count == 1) text = Lang.Get("vintagee:missing-selected", all.FirstOrDefault(x => selected.Contains(x.Key))?.Name ?? selected.First());
+                else if (selected.Count == 1)
+                {
+                    string name = all.FirstOrDefault(x => selected.Contains(x.Key))?.Name ?? selected.First();
+                    text = Lang.Get("vintagee:missing-selected", name.Length <= 40 ? name : name.Substring(0, 39) + "…");
+                }
                 else text = Lang.Get("vintagee:missing-selectedmany", selected.Count);
             }
             SingleComposer.GetDynamicText("selected")?.SetNewText(text);
+        }
+
+        void Toggle(Entry e)
+        {
+            int from = anchor == null ? -1 : shown.FindIndex(x => x.Key == anchor);
+            int to = shown.IndexOf(e);
+            if (GuiDialogEmcMissing.ShiftHeld(capi) && from >= 0 && to >= 0)
+            {
+                // Shift-click: everything from the last clicked entry to this one (in the order shown) is selected.
+                for (int i = Math.Min(from, to); i <= Math.Max(from, to); i++) selected.Add(shown[i].Key);
+            }
+            else
+            {
+                if (!selected.Remove(e.Key)) selected.Add(e.Key);
+                anchor = e.Key;
+            }
+            Refill();
         }
 
         bool OnSelectShown()

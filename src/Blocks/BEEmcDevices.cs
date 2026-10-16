@@ -288,36 +288,45 @@ namespace VintageE
             }
         }
 
+        /// <summary>How much further the pedestal reaches than a Dark Matter Pedestal (block attribute "pedestalRange"; red matter: 2).</summary>
+        public float RangeMultiplier => Block?.Attributes?["pedestalRange"].AsFloat(1) ?? 1;
+        /// <summary>How much stronger its effects are (block attribute "pedestalPower"; red matter: 2).</summary>
+        public float PowerMultiplier => Block?.Attributes?["pedestalPower"].AsFloat(1) ?? 1;
+
+        int R(float r) => (int)Math.Round(r * RangeMultiplier);
+
         void PedestalEffect(TrinketEffects fx, string effect, Vec3d center, bool everySecond)
         {
+            float range = RangeMultiplier, power = PowerMultiplier;
             switch (effect)
             {
                 case "harvestgoddessband":
                     if (everySecond)
                     {
-                        fx.Grow(Pos, 8, 10, null, 0);
-                        fx.Harvest(Pos, 8, null);
+                        // A bigger area gets more growth attempts, so crops in it grow as often per block, then more with power.
+                        fx.Grow(Pos, R(8), (int)Math.Round(10 * range * range * power), null, 0);
+                        fx.Harvest(Pos, R(8), null);
                     }
                     break;
                 case "watchofflowingtime":
-                    if (everySecond) fx.Grow(Pos, 12, 24, null, 0);
-                    fx.Slow(center, 12);
+                    if (everySecond) fx.Grow(Pos, R(12), (int)Math.Round(24 * range * range * power), null, 0);
+                    fx.Slow(center, 12 * range);
                     break;
-                case "ignitionring": if (everySecond) fx.Burn(center, 8, null, null, 0); break;
+                case "ignitionring": if (everySecond) fx.Burn(center, 8 * range, null, null, 0, 3 * power); break;
                 case "zeroring":
-                    fx.Freeze(Pos.UpCopy(), 6, null);
-                    fx.Extinguish(center, 6);
+                    fx.Freeze(Pos.UpCopy(), R(6), null);
+                    fx.Extinguish(center, 6 * range);
                     break;
                 case "blackholeband":
-                    fx.Attract(center.AddCopy(0, 0.6, 0), 10);
+                    fx.Attract(center.AddCopy(0, 0.6, 0), 10 * range);
                     Collect(center);
                     break;
                 case "swiftwolfsrendinggale":
                     if (everySecond)
                     {
-                        foreach (Entity e in Api.World.GetEntitiesAround(center, 10, 6, fx.IsHostile))
+                        foreach (Entity e in Api.World.GetEntitiesAround(center, 10 * range, 6 * range, fx.IsHostile))
                         {
-                            e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Block, Type = EnumDamageType.PiercingAttack }, 4f);
+                            e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Block, Type = EnumDamageType.PiercingAttack }, 4f * power);
                         }
                     }
                     break;
@@ -360,7 +369,8 @@ namespace VintageE
 
         void HelpPlayers(string effect, Vec3d center)
         {
-            foreach (IPlayer p in Api.World.GetPlayersAround(center, 6, 4))
+            float range = RangeMultiplier, power = PowerMultiplier;
+            foreach (IPlayer p in Api.World.GetPlayersAround(center, 6 * range, 4 * range))
             {
                 if (!(p.Entity is EntityPlayer ep) || !ep.Alive) continue;
                 if (effect == "soulstone" || effect == "lifestone")
@@ -368,7 +378,7 @@ namespace VintageE
                     ITreeAttribute health = ep.WatchedAttributes.GetTreeAttribute("health");
                     if (health != null && health.GetFloat("currenthealth") < health.GetFloat("maxhealth"))
                     {
-                        ep.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.Heal }, 0.5f);
+                        ep.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.Heal }, 0.5f * power);
                         PESounds.Play(Api.World, PESounds.Heal, null, ep, 8);
                     }
                 }
@@ -380,14 +390,18 @@ namespace VintageE
                         float cur = hunger.GetFloat("currentsaturation"), max = hunger.GetFloat("maxsaturation");
                         if (max > 0 && cur < max)
                         {
-                            hunger.SetFloat("currentsaturation", Math.Min(max, cur + 25));
+                            hunger.SetFloat("currentsaturation", Math.Min(max, cur + 25 * power));
                             ep.WatchedAttributes.MarkPathDirty("hunger");
                         }
                     }
                 }
                 if (effect == "repairtalisman")
                 {
-                    foreach (ItemSlot slot in EmcWallet.CarriedSlots(p)) TrinketEffects.RepairOnce(slot, Api.ModLoader.GetModSystem<VintageEModSystem>()?.Config);
+                    VintageEConfig config = Api.ModLoader.GetModSystem<VintageEModSystem>()?.Config;
+                    for (int n = 0; n < Math.Max(1, (int)Math.Round(power)); n++)
+                    {
+                        foreach (ItemSlot slot in EmcWallet.CarriedSlots(p)) TrinketEffects.RepairOnce(slot, config);
+                    }
                 }
             }
         }

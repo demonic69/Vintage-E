@@ -10,8 +10,11 @@ namespace VintageE
 {
     /// <summary>
     /// The transmutation GUI shared by the table and the tablet.
-    /// Top: personal EMC and the burn slot. Bottom: a searchable, paged grid of everything you have learned,
-    /// most valuable first. All actions are requests to the server; nothing changes locally.
+    /// Top: personal EMC and the burn slot. Then a searchable, sortable, paged grid of everything you have learned.
+    /// The tablet also has its magnet: a slot for a Black Hole Band or Void Ring and a row of filter slots.
+    /// All actions are requests to the server; nothing changes locally.
+    /// <para>Known entries are resolved once and kept (names, stacks, values), so opening the window and typing in the
+    /// search box only filter and sort; a value update from the server re-reads the values.</para>
     /// </summary>
     public class GuiDialogTransmutation : GuiDialog
     {
@@ -23,14 +26,29 @@ namespace VintageE
         readonly BlockPos tablePos;
         readonly DisplayInventory burnInv;
         readonly DisplayInventory knownInv;
+        readonly DisplayInventory magnetInv;
+        readonly DisplayInventory filterInv;
 
         sealed class Entry
         {
             public string Key;
+            /// <summary>Exact versions of something switched to "item only" show as the plain item, once.</summary>
+            public string ShownKey;
             public ItemStack Stack;
             public double Value;
             public string Name;
+            /// <summary>Lower-case name and code, for the search box.</summary>
+            public string Search;
+            public int TableVersion;
         }
+
+        /// <summary>Resolved knowledge entries, kept between openings (cleared when the world is left).</summary>
+        static readonly Dictionary<string, Entry> cache = new Dictionary<string, Entry>();
+        static IWorldAccessor cacheWorld;
+
+        /// <summary>0 = most EMC first, 1 = least EMC first, 2 = name A-Z, 3 = name Z-A. Remembered while the game runs.</summary>
+        static int sortMode;
+        static readonly string[] SortValues = { "0", "1", "2", "3" };
 
         List<Entry> entries = new List<Entry>();
         /// <summary>The knowledge key behind each grid slot on the current page.</summary>
@@ -38,8 +56,14 @@ namespace VintageE
         string search = "";
         int page;
         double shownEmc = -1;
-        int shownKnownCount = -1;
+        string[] shownKnown;
+        int shownTableVersion = -1;
+        string shownMagnet;
+        /// <summary>The filter mode the "only these / all except these" button was drawn with.</summary>
+        bool composedExclude;
         long tickListener;
+
+        bool IsTablet => tablePos == null;
 
         public override string ToggleKeyCombinationCode => null;
 
@@ -47,8 +71,12 @@ namespace VintageE
         {
             this.mod = mod;
             this.tablePos = tablePos?.Copy();
-            burnInv = new DisplayInventory(capi, "burn-" + capi.World.Player.PlayerUID, 1);
-            knownInv = new DisplayInventory(capi, "known-" + capi.World.Player.PlayerUID, PerPage);
+            string uid = capi.World.Player.PlayerUID;
+            burnInv = new DisplayInventory(capi, "burn-" + uid, 1);
+            knownInv = new DisplayInventory(capi, "known-" + uid, PerPage);
+            magnetInv = new DisplayInventory(capi, "magnet-" + uid, 1);
+            filterInv = new DisplayInventory(capi, "magnetfilter-" + uid, TabletMagnet.FilterSlots);
+            if (cacheWorld != capi.World) { cache.Clear(); cacheWorld = capi.World; }
             Compose();
             mod.OnEmcTableUpdated += OnTableUpdated;
         }
@@ -58,48 +86,90 @@ namespace VintageE
             double slot = GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGridBase.unscaledSlotPadding;
             double width = Cols * slot;
             double top = GuiStyle.TitleBarHeight;
+            CairoFont detail = CairoFont.WhiteDetailText();
 
-            ElementBounds emcBounds = ElementBounds.Fixed(0, top + 4, width - 70, 28);
-            ElementBounds burnHintBounds = ElementBounds.Fixed(0, top + 34, width - 70, 40);
+            // Header: EMC on the left, the burn slot on the right; the hint wraps under the EMC.
+            double leftWidth = width - slot - 24;
+            string burnHint = Lang.Get("vintagee:gui-burn-hint");
+            double burnHintHeight = GuiLayout.TextHeight(capi, detail, burnHint, leftWidth);
+            ElementBounds emcBounds = ElementBounds.Fixed(0, top + 4, leftWidth, 28);
+            ElementBounds burnHintBounds = ElementBounds.Fixed(0, top + 34, leftWidth, burnHintHeight);
             ElementBounds burnSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, width - slot, top + 8, 1, 1);
-            ElementBounds burnLabelBounds = ElementBounds.Fixed(width - slot - 10, top + 8 + slot, slot + 20, 20);
+            ElementBounds burnLabelBounds = ElementBounds.Fixed(width - slot - 14, top + 10 + slot, slot + 28, 20);
 
-            double row = top + 92;
-            ElementBounds searchBounds = ElementBounds.Fixed(0, row, width - 160, 30);
-            ElementBounds prevBounds = ElementBounds.Fixed(width - 150, row, 36, 30);
-            ElementBounds pageBounds = ElementBounds.Fixed(width - 110, row + 5, 72, 24);
-            ElementBounds nextBounds = ElementBounds.Fixed(width - 36, row, 36, 30);
+            double row = Math.Max(top + 34 + burnHintHeight, top + 32 + slot) + 8;
+            ElementBounds searchBounds = ElementBounds.Fixed(0, row, width - 180, 30);
+            ElementBounds sortBounds = ElementBounds.Fixed(width - 170, row, 170, 30);
             ElementBounds gridBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, row + 40, Cols, Rows);
-            ElementBounds helpBounds = ElementBounds.Fixed(0, row + 48 + Rows * slot, width, 36);
+
+            double pageRow = row + 40 + Rows * slot + 8;
+            ElementBounds prevBounds = ElementBounds.Fixed(width / 2 - 96, pageRow, 36, 30);
+            ElementBounds pageBounds = ElementBounds.Fixed(width / 2 - 56, pageRow + 5, 112, 24);
+            ElementBounds nextBounds = ElementBounds.Fixed(width / 2 + 60, pageRow, 36, 30);
+
+            string help = Lang.Get("vintagee:gui-create-hint");
+            double helpHeight = GuiLayout.TextHeight(capi, detail, help, width);
+            ElementBounds helpBounds = ElementBounds.Fixed(0, pageRow + 38, width, helpHeight);
+
+            var children = new List<ElementBounds> { emcBounds, burnHintBounds, burnSlotBounds, burnLabelBounds, searchBounds, sortBounds, gridBounds, prevBounds, pageBounds, nextBounds, helpBounds };
+
+            // The tablet's magnet: a title row with the filter mode, the magnet slot with its hint, then the filter slots.
+            ElementBounds magnetTitleBounds = null, modeBounds = null, magnetSlotBounds = null, magnetHintBounds = null, filterLabelBounds = null, filterBounds = null;
+            string magnetHint = Lang.Get("vintagee:magnet-hint", TabletMagnet.Radius);
+            if (IsTablet)
+            {
+                double y = pageRow + 38 + helpHeight + 10;
+                magnetTitleBounds = ElementBounds.Fixed(0, y + 4, width - 230, 24);
+                modeBounds = ElementBounds.Fixed(width - 220, y, 220, 28);
+                double hintWidth = width - slot - 12;
+                double magnetHintHeight = GuiLayout.TextHeight(capi, detail, magnetHint, hintWidth);
+                magnetSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, y + 34, 1, 1);
+                magnetHintBounds = ElementBounds.Fixed(slot + 12, y + 34, hintWidth, magnetHintHeight);
+                double fy = y + 34 + Math.Max(slot, magnetHintHeight) + 8;
+                filterLabelBounds = ElementBounds.Fixed(0, fy, width, 20);
+                filterBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, fy + 22, TabletMagnet.FilterSlots, 1);
+                children.AddRange(new[] { magnetTitleBounds, modeBounds, magnetSlotBounds, magnetHintBounds, filterLabelBounds, filterBounds });
+            }
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(emcBounds, burnHintBounds, burnSlotBounds, burnLabelBounds, searchBounds, prevBounds, pageBounds, nextBounds, gridBounds, helpBounds);
+            bgBounds.WithChildren(children.ToArray());
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
+            string title = Lang.Get(IsTablet ? "vintagee:gui-tablet-title" : "vintagee:gui-table-title");
+            string[] sortNames = { Lang.Get("vintagee:gui-sort-valuedesc"), Lang.Get("vintagee:gui-sort-valueasc"), Lang.Get("vintagee:gui-sort-nameasc"), Lang.Get("vintagee:gui-sort-namedesc") };
 
-            string title = Lang.Get(tablePos == null ? "vintagee:gui-tablet-title" : "vintagee:gui-table-title");
-
-            SingleComposer = capi.Gui
+            GuiComposer composer = capi.Gui
                 .CreateCompo("vintagee-transmutation", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
                 .AddDialogTitleBar(title, () => TryClose())
                 .BeginChildElements(bgBounds)
                     .AddDynamicText("", CairoFont.WhiteSmallishText(), emcBounds, "emc")
-                    .AddStaticText(Lang.Get("vintagee:gui-burn-hint"), CairoFont.WhiteDetailText(), burnHintBounds)
+                    .AddStaticText(burnHint, detail, burnHintBounds)
                     .AddItemSlotGrid(burnInv, OnSlotPacket, 1, burnSlotBounds, "burnslot")
                     .AddStaticText(Lang.Get("vintagee:gui-burn-label"), CairoFont.WhiteDetailText().WithOrientation(EnumTextOrientation.Center), burnLabelBounds)
                     .AddTextInput(searchBounds, OnSearchChanged, CairoFont.WhiteSmallText(), "search")
+                    .AddDropDown(SortValues, sortNames, GameMath.Clamp(sortMode, 0, 3), OnSort, sortBounds, "sort")
+                    .AddItemSlotGrid(knownInv, OnSlotPacket, Cols, gridBounds, "knowngrid")
                     .AddSmallButton("<", OnPrevPage, prevBounds)
                     .AddDynamicText("", CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Center), pageBounds, "page")
                     .AddSmallButton(">", OnNextPage, nextBounds)
-                    .AddItemSlotGrid(knownInv, OnSlotPacket, Cols, gridBounds, "knowngrid")
-                    .AddStaticText(Lang.Get("vintagee:gui-create-hint"), CairoFont.WhiteDetailText(), helpBounds)
-                .EndChildElements()
-                .Compose();
+                    .AddStaticText(help, detail, helpBounds);
+            if (IsTablet)
+            {
+                composedExclude = TabletMagnet.Excludes(TabletMagnet.FindTablet(capi.World.Player)?.Itemstack);
+                composer
+                    .AddStaticText(Lang.Get("vintagee:magnet-title"), CairoFont.WhiteSmallishText(), magnetTitleBounds)
+                    .AddSmallButton(Lang.Get(composedExclude ? "vintagee:magnet-mode-except" : "vintagee:magnet-mode-only"), OnMagnetMode, modeBounds, EnumButtonStyle.Small, "magnetmode")
+                    .AddItemSlotGrid(magnetInv, OnSlotPacket, 1, magnetSlotBounds, "magnetslot")
+                    .AddStaticText(magnetHint, detail, magnetHintBounds)
+                    .AddDynamicText("", detail, filterLabelBounds, "filterlabel")
+                    .AddItemSlotGrid(filterInv, OnSlotPacket, TabletMagnet.FilterSlots, filterBounds, "filtergrid");
+            }
+            SingleComposer = composer.EndChildElements().Compose();
 
             SingleComposer.GetTextInput("search").SetPlaceHolderText(Lang.Get("vintagee:gui-search"));
-            Refresh(true);
+            if (search.Length > 0) SingleComposer.GetTextInput("search").SetValue(search, false);
         }
 
         public override void OnGuiOpened()
@@ -124,24 +194,38 @@ namespace VintageE
                 TryClose(); // walked away from the table
                 return;
             }
-            double emc = PlayerEmc.GetEmc(player);
-            int knownCount = PlayerEmc.GetKnown(player).Length;
-            if (knownCount != shownKnownCount) Refresh(true);
-            else if (Math.Abs(emc - shownEmc) > 1e-9) Refresh(false);
+            // The knowledge array is replaced whenever it changes, so comparing the reference is enough.
+            string[] known = PlayerEmc.GetKnown(player);
+            if (!ReferenceEquals(known, shownKnown) || shownTableVersion != mod.TableVersion) Refresh(true);
+            else if (Math.Abs(PlayerEmc.GetEmc(player) - shownEmc) > 1e-9) Refresh(false);
+            if (IsTablet) RefreshMagnet();
         }
 
-        void OnTableUpdated() => capi.Event.EnqueueMainThreadTask(() => Refresh(true), "vintagee-refresh");
+        void OnTableUpdated() => capi.Event.EnqueueMainThreadTask(() => { if (IsOpened()) Refresh(true); }, "vintagee-refresh");
 
-        public void OnServerResult(TransmuteResultPacket packet)
+        public void OnServerResult(TransmuteResultPacket packet) { }
+
+        Entry GetEntry(string key)
         {
-            if (packet.LearnedKey != null)
+            if (cache.TryGetValue(key, out Entry e) && e.TableVersion == mod.TableVersion) return e;
+            ItemStack stack = TransmutationService.Prototype(mod, capi.World, key);
+            if (stack == null) { cache[key] = null; return null; }
+            if (e == null || e.Stack?.Collectible != stack.Collectible)
             {
-                ItemStack learned = PlayerEmc.ResolveStack(capi.World, packet.LearnedKey);
-                if (learned != null) capi.ShowChatMessage(Lang.Get("vintagee:learned", learned.GetName()));
+                string name;
+                try { name = stack.GetName(); }
+                catch { name = stack.Collectible.Code.ToShortString(); }
+                e = new Entry { Key = key, Name = name, Search = (name ?? "").ToLowerInvariant() + "\n" + stack.Collectible.Code.ToString().ToLowerInvariant() };
             }
+            e.Stack = stack;
+            e.ShownKey = StackDataUtil.KeptData(stack) == null ? PlayerEmc.KeyOf(stack.Collectible) : key;
+            e.Value = mod.Emc.GetValue(stack);
+            e.TableVersion = mod.TableVersion;
+            cache[key] = e;
+            return e;
         }
 
-        /// <param name="rebuildList">Re-read knowledge and re-filter; otherwise only the EMC text changes.</param>
+        /// <param name="rebuildList">Re-read knowledge and re-filter; otherwise only the EMC text and page change.</param>
         void Refresh(bool rebuildList)
         {
             if (SingleComposer == null) return;
@@ -153,28 +237,18 @@ namespace VintageE
             {
                 string needle = search.Trim().ToLowerInvariant();
                 var seen = new HashSet<string>();
-                entries = new List<Entry>();
+                var list = new List<Entry>(known.Length);
                 foreach (string k in known)
                 {
-                    ItemStack stack = TransmutationService.Prototype(mod, capi.World, k);
-                    if (stack == null) continue;
-                    // Exact versions of something switched to "item only" show as the plain item, once.
-                    string shownKey = StackDataUtil.KeptData(stack) == null ? PlayerEmc.KeyOf(stack.Collectible) : k;
-                    if (!seen.Add(shownKey)) continue;
-                    double value = mod.Emc.GetValue(stack);
-                    if (value <= 0) continue;
-                    string name;
-                    try { name = stack.GetName(); }
-                    catch { name = stack.Collectible.Code.ToShortString(); }
-                    if (!Matches(stack.Collectible, name, needle)) continue;
-                    entries.Add(new Entry { Key = k, Stack = stack, Value = value, Name = name });
+                    Entry e = GetEntry(k);
+                    if (e == null || e.Value <= 0 || mod.Emc.IsNoTransmute(e.Stack.Collectible)) continue;
+                    if (!seen.Add(e.ShownKey)) continue;
+                    if (needle.Length > 0 && !e.Search.Contains(needle)) continue;
+                    list.Add(e);
                 }
-                entries = entries
-                    .OrderByDescending(e => e.Value)
-                    .ThenBy(e => e.Stack.Collectible.Code.ToString(), StringComparer.Ordinal)
-                    .ThenBy(e => e.Key, StringComparer.Ordinal)
-                    .ToList();
-                shownKnownCount = known.Length;
+                entries = Sort(list);
+                shownKnown = known;
+                shownTableVersion = mod.TableVersion;
             }
 
             int pages = Math.Max(1, (entries.Count + PerPage - 1) / PerPage);
@@ -189,17 +263,68 @@ namespace VintageE
             shownEmc = emc;
             SingleComposer.GetDynamicText("emc").SetNewText(Lang.Get("vintagee:gui-emc", EmcFormat.Format(emc), known.Length));
             SingleComposer.GetDynamicText("page").SetNewText((page + 1) + " / " + pages);
+            if (IsTablet) RefreshMagnet(true);
         }
 
-        static bool Matches(CollectibleObject c, string name, string needle)
+        static List<Entry> Sort(List<Entry> list)
         {
-            if (needle.Length == 0) return true;
-            return c.Code.ToString().Contains(needle) || (name ?? "").ToLowerInvariant().Contains(needle);
+            IOrderedEnumerable<Entry> sorted;
+            switch (sortMode)
+            {
+                case 1: sorted = list.OrderBy(e => e.Value); break;
+                case 2: sorted = list.OrderBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase); break;
+                case 3: sorted = list.OrderByDescending(e => e.Name, StringComparer.CurrentCultureIgnoreCase); break;
+                default: sorted = list.OrderByDescending(e => e.Value); break;
+            }
+            return sorted
+                .ThenBy(e => e.Stack.Collectible.Code.ToString(), StringComparer.Ordinal)
+                .ThenBy(e => e.Key, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        /// <summary>Shows the tablet's magnet and filter (the tablet's stored data is synced with the inventory).</summary>
+        void RefreshMagnet(bool force = false)
+        {
+            ItemStack tablet = TabletMagnet.FindTablet(capi.World.Player)?.Itemstack;
+            ItemStack magnet = TabletMagnet.GetMagnet(tablet, capi.World);
+            string[] filter = TabletMagnet.GetFilter(tablet);
+            bool exclude = TabletMagnet.Excludes(tablet);
+            string signature = (magnet?.Collectible.Code.ToString() ?? "-") + "|" + exclude + "|" + string.Join(",", filter);
+            if (!force && signature == shownMagnet) return;
+            shownMagnet = signature;
+
+            magnetInv[0].Itemstack = magnet?.Clone();
+            for (int i = 0; i < TabletMagnet.FilterSlots; i++)
+            {
+                CollectibleObject c = filter[i] == null ? null : PlayerEmc.Resolve(capi.World, filter[i]);
+                ItemStack shown = null;
+                if (c != null) { try { shown = new ItemStack(c); } catch { /* no icon */ } }
+                filterInv[i].Itemstack = shown;
+            }
+            if (exclude != composedExclude)
+            {
+                // The button's label is drawn when composing, so draw the window again with the other label.
+                Compose();
+                Refresh(true);
+                return;
+            }
+            string state = magnet == null ? Lang.Get("vintagee:magnet-none")
+                : exclude ? Lang.Get("vintagee:magnet-filter-except") : filter.All(f => f == null) ? Lang.Get("vintagee:magnet-filter-empty") : Lang.Get("vintagee:magnet-filter-only");
+            SingleComposer?.GetDynamicText("filterlabel")?.SetNewText(state);
         }
 
         void OnSearchChanged(string text)
         {
+            if ((text ?? "") == search) return;
             search = text ?? "";
+            page = 0;
+            Refresh(true);
+        }
+
+        void OnSort(string code, bool selected)
+        {
+            if (!int.TryParse(code, out int mode)) return;
+            sortMode = GameMath.Clamp(mode, 0, 3);
             page = 0;
             Refresh(true);
         }
@@ -218,6 +343,12 @@ namespace VintageE
             return true;
         }
 
+        bool OnMagnetMode()
+        {
+            mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.MagnetMode });
+            return true;
+        }
+
         void OnSlotPacket(object packet)
         {
             if (!(packet is DisplaySlotClick click) || click.Button == EnumMouseButton.Wheel) return;
@@ -230,6 +361,19 @@ namespace VintageE
                 return;
             }
 
+            if (click.Inventory == magnetInv)
+            {
+                mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.MagnetSwap });
+                return;
+            }
+
+            if (click.Inventory == filterInv)
+            {
+                // An item on the cursor goes in the filter (it stays on the cursor); an empty cursor clears the slot.
+                mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.MagnetFilter, Mode = click.SlotId });
+                return;
+            }
+
             if (click.Inventory == knownInv)
             {
                 ItemStack shown = knownInv[click.SlotId]?.Itemstack;
@@ -237,8 +381,15 @@ namespace VintageE
                 if (shown == null || key == null) return;
                 if (click.Ctrl)
                 {
-                    // Ctrl + right-click forgets an entry (handy for exact versions you no longer want).
-                    if (click.Button == EnumMouseButton.Right) mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.Forget, Key = key });
+                    // Ctrl + right-click forgets an entry, after asking (you'd have to burn one again to learn it back).
+                    if (click.Button == EnumMouseButton.Right)
+                    {
+                        string name = shown.GetName();
+                        new GuiDialogConfirm(capi, Lang.Get("vintagee:gui-forget-confirm", name), ok =>
+                        {
+                            if (ok) mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.Forget, Key = key });
+                        }).TryOpen();
+                    }
                     return;
                 }
                 int mode = click.Shift ? 2 : (click.Button == EnumMouseButton.Right ? 1 : 0);

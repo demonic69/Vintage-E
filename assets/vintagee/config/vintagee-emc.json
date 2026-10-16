@@ -228,6 +228,11 @@
       "code": "game:farmland-moist-*",
       "of": "game:soil-*-none",
       "ratio": 1
+    },
+    {
+      "code": "game:arrow-bone",
+      "of": "game:arrow-flint",
+      "ratio": 1
     }
   ],
   "defaultValues": {
@@ -378,7 +383,6 @@
     "game:returnbase-*",
     "game:returndeath-*",
     "game:rustypart-*",
-    "game:tobtlocatorpart",
     "block:game:water-*",
     "block:game:saltwater-*",
     "block:game:boilingwater-*",
@@ -399,7 +403,6 @@
     "game:teleporterbase",
     "game:basereturnteleporter",
     "game:corpsereturnteleporter-*",
-    "game:tobtlocator-*",
     "*:locatormap-*",
     "game:decorlore-*",
     "game:clutteredbookshelfwithlore",
@@ -421,7 +424,12 @@
     "game:paint-*",
     "block:game:rapidwater-*",
     "game:ember",
-    "game:genericwood"
+    "game:genericwood",
+    "vintagee:gadget-tomeofknowledge"
+  ],
+  "//freeIngredients": "Blacklisted (no value, can't be burned or created) but free when a recipe uses them: the customized translocator schematic is only a pattern, so whatever is made with it costs just its other ingredients.",
+  "freeIngredients": [
+    "game:schematic-customtranslocator"
   ],
   "//allow": "Exceptions to the blacklist: live butterflies (bug net) and live fish (fishing) can really be caught, unlike other creature items (spawners, traders and other NPCs). Loose paper found in ruins is worth the same as parchment.",
   "allow": [

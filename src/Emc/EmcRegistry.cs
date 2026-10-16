@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 
@@ -16,6 +17,17 @@ namespace VintageE
 
         /// <summary>Whether ProjectE's sounds are on (mirrors the server config on clients).</summary>
         public bool ProjectESounds { get; set; }
+
+        /// <summary>
+        /// Items that keep their EMC value (recipes still use it) but can't be burned for EMC, learned or created
+        /// (the server's NoTransmute list, matched to codes; mirrored on clients).
+        /// </summary>
+        public HashSet<CollectibleObject> NoTransmute { get; set; } = new HashSet<CollectibleObject>();
+
+        public bool IsNoTransmute(CollectibleObject c) => c != null && NoTransmute.Contains(c);
+
+        /// <summary>Whether this item can be burned, learned or created: it has a value and isn't on the NoTransmute list.</summary>
+        public bool CanTransmute(CollectibleObject c) => c != null && !NoTransmute.Contains(c) && GetValue(c) > 0;
 
         public int Count => values.Count;
 
@@ -175,6 +187,7 @@ namespace VintageE
                 BlockValues = blockValues.ToArray(),
                 DurabilityScales = DurabilityScales,
                 ProjectESounds = ProjectESounds,
+                NoTransmuteKeys = NoTransmute.Select(PlayerEmc.KeyOf).Where(k => k != null).ToArray(),
                 DataKeys = dataKeys.ToArray(),
                 DataKindModes = dataKindModes.ToArray(),
                 VariantKeys = variantKeys.ToArray(),
@@ -203,6 +216,13 @@ namespace VintageE
             values = fresh;
             DurabilityScales = packet.DurabilityScales;
             ProjectESounds = packet.ProjectESounds;
+            var noTransmute = new HashSet<CollectibleObject>();
+            foreach (string key in packet.NoTransmuteKeys ?? Array.Empty<string>())
+            {
+                CollectibleObject c = PlayerEmc.Resolve(world, key);
+                if (c != null) noTransmute.Add(c);
+            }
+            NoTransmute = noTransmute;
             World = world;
 
             var table = new StackDataTable();

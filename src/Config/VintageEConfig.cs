@@ -193,6 +193,14 @@ namespace VintageE
         [System.ComponentModel.Description("Multiplies the EMC that rings, stones, amulets and gadgets cost to run.")]
         public double TrinketCostMultiplier = 1.0;
 
+        /// <summary>Codes or wildcards of blocks/items that keep their EMC value (recipes still use it) but can't be burned for EMC, learned or created from EMC: not at the transmutation table, in condensers, or by the tablet's magnet. Change it in game with /emc notransmute.</summary>
+        [System.ComponentModel.Description("Codes or wildcards of blocks/items that keep their EMC value (recipes still use it) but can't be burned for EMC, learned or created from EMC: not at the transmutation table, in condensers, or by the tablet's magnet. Change it in game with /emc notransmute.")]
+        public List<string> NoTransmute = new List<string>();
+
+        /// <summary>Codes or wildcards that have no EMC value themselves (they can't be burned or created) but cost nothing in recipes that use them, like a schematic that isn't used up. Added to the value files' freeIngredients.</summary>
+        [System.ComponentModel.Description("Codes or wildcards that have no EMC value themselves (they can't be burned or created) but cost nothing in recipes that use them, like a schematic that isn't used up. Added to the value files' freeIngredients.")]
+        public List<string> FreeIngredients = new List<string>();
+
         /// <summary>Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.</summary>
         [System.ComponentModel.Description("Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.")]
         public bool ProjectETextures = false;
@@ -207,6 +215,8 @@ namespace VintageE
             FixedValues ??= new Dictionary<string, double>();
             Blacklist ??= new List<string>();
             Allow ??= new List<string>();
+            FreeIngredients ??= new List<string>();
+            NoTransmute ??= new List<string>();
             TransitionEmcPerDay ??= new Dictionary<string, double>();
             HostileCreatures ??= new List<string>();
             StackDataModes ??= new Dictionary<string, string>();

@@ -27,6 +27,14 @@ namespace VintageE
         double emcPerSecond = 2;
 
         static readonly MethodInfo ContentMesh = typeof(BlockEntityFirepit).GetMethod("getContentMesh", BindingFlags.Instance | BindingFlags.NonPublic);
+        static readonly FieldInfo ContentsRendererField = typeof(BlockEntityFirepit).GetField("renderer", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// <summary>
+        /// The firepit draws items cooked on a spit (meat...) 0.6 blocks up, where its spit is. The furnace has no spit,
+        /// so they'd float: they're lowered by this much to lie on the furnace instead.
+        /// </summary>
+        const float SpitDrop = 0.55f;
+        ModelTransform loweredTransform;
 
         public override float HeatModifier => heatModifier;
         public override float BurnDurationModifier => burnDurationModifier;
@@ -51,6 +59,28 @@ namespace VintageE
             emcPerSecond = attrs?["emcPerSecond"].AsDouble(2) ?? 2;
             emcTemperature = attrs?["emcTemperature"].AsFloat(1300) ?? 1300;
             if (api.Side == EnumAppSide.Server) RegisterGameTickListener(OnEmcTick, 1000);
+            else
+            {
+                LowerSpitItem();
+                RegisterGameTickListener(_ => LowerSpitItem(), 250);
+            }
+        }
+
+        /// <summary>Client: whenever the firepit renderer shows a spit item, lowers it onto the furnace (a lowered copy of its transform).</summary>
+        void LowerSpitItem()
+        {
+            // The renderer's fields are public in the game's FirepitContentsRenderer; read them by name.
+            object r = ContentsRendererField?.GetValue(this);
+            if (r == null) return;
+            Type type = r.GetType();
+            FieldInfo stackField = type.GetField("ContentStack"), childField = type.GetField("contentStackRenderer"), transformField = type.GetField("Transform");
+            if (stackField == null || childField == null || transformField == null) return;
+            if (!(stackField.GetValue(r) is ItemStack stack) || stack.Class != EnumItemClass.Item || childField.GetValue(r) != null) return;
+            if (!(transformField.GetValue(r) is ModelTransform current) || ReferenceEquals(current, loweredTransform)) return;
+            ModelTransform t = current.Clone();
+            t.Translation.Y -= SpitDrop;
+            loweredTransform = t;
+            transformField.SetValue(r, t);
         }
 
         public double AcceptEmc(double amount)
@@ -114,6 +144,7 @@ namespace VintageE
         {
             base.FromTreeAttributes(tree, worldAccessForResolve);
             emcBuffer = tree.GetDouble("vintageeEmc");
+            if (Api?.Side == EnumAppSide.Client) LowerSpitItem();
         }
 
         public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)

@@ -9,21 +9,26 @@ using Vintagestory.API.Config;
 namespace VintageE
 {
     /// <summary>
-    /// Window opened by /emc configure: every server setting on the left (searchable), the picked one on the right with
-    /// what it does and an editor that fits it - a switch for on/off settings, a box for numbers, and a text area for
-    /// lists (one entry per line) and tables ("key = value" per line). Save sends it to the server, which checks it,
-    /// saves ModConfig/vintagee.json and applies it straight away, then sends the settings back.
+    /// Window opened by /emc configure: every server setting on the left (searchable), each with a "reset" link that puts
+    /// it back to its default; the picked one on the right with what it does, its default, and an editor that fits it - a
+    /// switch for on/off settings, a box for numbers, and a text area for lists (one entry per line) and tables
+    /// ("key = value" per line). Save sends it to the server, which checks it, saves ModConfig/vintagee.json and applies
+    /// it straight away, then sends the settings back. "Reset all" puts every setting back to its default (after asking).
+    /// <para>The list keeps its scroll position when a setting is picked or saved, and the description is measured so the
+    /// editor always sits below it.</para>
     /// </summary>
     public class GuiDialogEmcConfig : GuiDialog
     {
-        const double ListWidth = 270;
+        const double ListWidth = 300;
         const double ListHeight = 440;
         const double PaneWidth = 470;
-        const double AreaHeight = 220;
+        const double AreaHeight = 200;
 
         readonly Action<string, string> onSave;
+        readonly Action<string> onReset;
         string[] names = Array.Empty<string>();
         Dictionary<string, string> values = new Dictionary<string, string>();
+        Dictionary<string, string> defaults = new Dictionary<string, string>();
         string selected;
         string search = "";
         string status = "";
@@ -31,13 +36,16 @@ namespace VintageE
         /// <summary>Unsaved text in the editor, kept across redraws.</summary>
         string draft;
         bool composing;
+        /// <summary>How far the settings list is scrolled, kept across redraws.</summary>
+        float listScroll;
         ElementBounds listClip, areaClip;
 
         public override string ToggleKeyCombinationCode => null;
 
-        public GuiDialogEmcConfig(ICoreClientAPI capi, EmcConfigPacket packet, Action<string, string> onSave) : base(capi)
+        public GuiDialogEmcConfig(ICoreClientAPI capi, EmcConfigPacket packet, Action<string, string> onSave, Action<string> onReset = null) : base(capi)
         {
             this.onSave = onSave;
+            this.onReset = onReset;
             Load(packet);
             selected = packet.Selected ?? names.FirstOrDefault();
             Compose();
@@ -47,7 +55,12 @@ namespace VintageE
         {
             names = packet.Names ?? Array.Empty<string>();
             values = new Dictionary<string, string>();
-            for (int i = 0; i < names.Length; i++) values[names[i]] = packet.Values != null && i < packet.Values.Length ? packet.Values[i] : "";
+            defaults = new Dictionary<string, string>();
+            for (int i = 0; i < names.Length; i++)
+            {
+                values[names[i]] = packet.Values != null && i < packet.Values.Length ? packet.Values[i] : "";
+                if (packet.Defaults != null && i < packet.Defaults.Length) defaults[names[i]] = packet.Defaults[i];
+            }
         }
 
         /// <summary>The server answered a change: new values and what happened.</summary>
@@ -79,9 +92,12 @@ namespace VintageE
             return value.Length > 18 ? value.Substring(0, 18) + "…" : value;
         }
 
+        bool IsDefault(string name) => !defaults.TryGetValue(name, out string d) || (values.TryGetValue(name, out string v) && v == d);
+
         void Compose()
         {
             ClearComposers();
+            CairoFont detail = CairoFont.WhiteDetailText();
             double top = GuiStyle.TitleBarHeight + 4;
             ElementBounds searchBounds = ElementBounds.Fixed(0, top, ListWidth, 30);
             ElementBounds listBounds = ElementBounds.Fixed(0, top + 40, ListWidth, ListHeight);
@@ -89,23 +105,48 @@ namespace VintageE
             ElementBounds listInset = listBounds.FlatCopy().FixedGrow(6).WithFixedOffset(-3, -3);
             ElementBounds listBar = listInset.CopyOffsetedSibling(listInset.fixedWidth + 4).WithFixedWidth(20);
 
-            double x = ListWidth + 40;
-            ElementBounds nameBounds = ElementBounds.Fixed(x, top, PaneWidth, 30);
-            ElementBounds aboutBounds = ElementBounds.Fixed(x, top + 34, PaneWidth, 120);
-            double editTop = top + 160;
-            ElementBounds hintBounds = ElementBounds.Fixed(x, editTop, PaneWidth, 22);
-            ElementBounds statusBounds = ElementBounds.Fixed(x, top + 40 + ListHeight - 64, PaneWidth, 40);
-            ElementBounds saveBounds = ElementBounds.Fixed(x + PaneWidth - 100, top + 40 + ListHeight - 20, 100, 30);
-            ElementBounds revertBounds = ElementBounds.Fixed(x + PaneWidth - 210, top + 40 + ListHeight - 20, 100, 30);
-            ElementBounds closeBounds = ElementBounds.Fixed(x, top + 40 + ListHeight - 20, 90, 30);
-
             string kind = selected == null ? "text" : KindOf(selected);
             string current = selected != null && values.TryGetValue(selected, out string v) ? v : "";
             string shownText = draft ?? current;
 
+            // The pane, top to bottom, each part below the one above it.
+            double x = ListWidth + 40;
+            double y = top;
+            ElementBounds nameBounds = ElementBounds.Fixed(x, y, PaneWidth, 30);
+            y += 34;
+            string about = selected == null ? "" : About(selected);
+            double aboutHeight = GuiLayout.TextHeight(capi, detail, about, PaneWidth);
+            ElementBounds aboutBounds = ElementBounds.Fixed(x, y, PaneWidth, aboutHeight);
+            y += aboutHeight + 6;
+            string defaultLine = selected != null && defaults.TryGetValue(selected, out string def)
+                ? Lang.Get(IsDefault(selected) ? "vintagee:cfg-isdefault" : "vintagee:cfg-default", Short(kind, def))
+                : "";
+            CairoFont grey = CairoFont.WhiteDetailText().WithColor(new double[] { 0.75, 0.75, 0.75, 1 });
+            double defaultHeight = GuiLayout.TextHeight(capi, grey, defaultLine, PaneWidth);
+            ElementBounds defaultBounds = ElementBounds.Fixed(x, y, PaneWidth, defaultHeight);
+            y += defaultHeight + 4;
+            string hint = Lang.Get("vintagee:cfg-hint-" + kind);
+            double hintHeight = GuiLayout.TextHeight(capi, grey, hint, PaneWidth);
+            ElementBounds hintBounds = ElementBounds.Fixed(x, y, PaneWidth, hintHeight);
+            y += hintHeight + 4;
+            double editorTop = y;
+            double editorHeight = kind == "bool" ? 40 : kind == "list" || kind == "table" ? AreaHeight : 30;
+            y += editorHeight + 10;
+
+            double statusHeight = Math.Max(20, GuiLayout.TextHeight(capi, detail, status, PaneWidth));
+            ElementBounds statusBounds = ElementBounds.Fixed(x, y, PaneWidth, statusHeight);
+            y += statusHeight + 8;
+            // Buttons at the bottom: level with the end of the list, or lower if the pane needs the room.
+            double buttonsY = Math.Max(top + 40 + ListHeight + 10, y);
+            ElementBounds closeBounds = ElementBounds.Fixed(0, buttonsY, 90, 30);
+            ElementBounds resetAllBounds = ElementBounds.Fixed(100, buttonsY, 130, 30);
+            ElementBounds saveBounds = ElementBounds.Fixed(x + PaneWidth - 100, buttonsY, 100, 30);
+            ElementBounds revertBounds = ElementBounds.Fixed(x + PaneWidth - 210, buttonsY, 100, 30);
+            ElementBounds resetBounds = ElementBounds.Fixed(x + PaneWidth - 370, buttonsY, 150, 30);
+
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(searchBounds, listClip, listBar, nameBounds, aboutBounds, hintBounds, statusBounds, saveBounds, revertBounds, closeBounds);
+            bgBounds.WithChildren(searchBounds, listClip, listBar, nameBounds, aboutBounds, defaultBounds, hintBounds, statusBounds, saveBounds, revertBounds, resetBounds, closeBounds, resetAllBounds);
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
             composing = true;
@@ -121,10 +162,10 @@ namespace VintageE
                     .EndClip()
                     .AddVerticalScrollbar(v2 => Scroll("list", v2), listBar, "listbar")
                     .AddStaticText(selected ?? "", CairoFont.WhiteSmallishText().WithWeight(Cairo.FontWeight.Bold), nameBounds)
-                    .AddStaticText(selected == null ? "" : About(selected), CairoFont.WhiteDetailText(), aboutBounds)
-                    .AddStaticText(Lang.Get("vintagee:cfg-hint-" + kind), CairoFont.WhiteDetailText().WithColor(new double[] { 0.75, 0.75, 0.75, 1 }), hintBounds);
+                    .AddStaticText(about, detail, aboutBounds)
+                    .AddStaticText(defaultLine, grey, defaultBounds)
+                    .AddStaticText(hint, grey, hintBounds);
 
-            double editorTop = editTop + 26;
             if (kind == "bool")
             {
                 ElementBounds switchBounds = ElementBounds.Fixed(x, editorTop, 40, 40);
@@ -157,6 +198,8 @@ namespace VintageE
             CairoFont statusFont = statusIsError ? CairoFont.WhiteDetailText().WithColor(new double[] { 1, 0.5, 0.45, 1 }) : CairoFont.WhiteDetailText().WithColor(new double[] { 0.55, 1, 0.55, 1 });
             c.AddStaticText(status, statusFont, statusBounds)
              .AddSmallButton(Lang.Get("vintagee:missing-close"), () => TryClose(), closeBounds)
+             .AddSmallButton(Lang.Get("vintagee:cfg-resetall"), OnResetAll, resetAllBounds)
+             .AddSmallButton(Lang.Get("vintagee:cfg-resetone"), () => { if (selected != null) AskReset(selected); return true; }, resetBounds)
              .AddSmallButton(Lang.Get("vintagee:cfg-revert"), OnRevert, revertBounds)
              .AddSmallButton(Lang.Get("vintagee:cfg-save"), OnSave, saveBounds)
              .EndChildElements();
@@ -180,19 +223,23 @@ namespace VintageE
             CairoFont normal = CairoFont.WhiteSmallText();
             CairoFont picked = CairoFont.WhiteSmallText().WithColor(new double[] { 0.55, 1, 0.55, 1 }).WithWeight(Cairo.FontWeight.Bold);
             CairoFont detail = CairoFont.WhiteDetailText().WithColor(new double[] { 0.7, 0.7, 0.7, 1 });
+            CairoFont resetFont = CairoFont.WhiteDetailText().WithColor(new double[] { 0.6, 0.8, 1, 1 });
             foreach (string name in names)
             {
                 if (needle.Length > 0 && !name.ToLowerInvariant().Contains(needle) && !About(name).ToLowerInvariant().Contains(needle)) continue;
                 string n = name;
                 comps.Add(new LinkTextComponent(capi, name, name == selected ? picked : normal, _ => Pick(n)));
-                comps.Add(new RichTextComponent(capi, "  " + Short(KindOf(name), values.TryGetValue(name, out string v) ? v : "") + "\n", detail));
+                comps.Add(new RichTextComponent(capi, "  " + Short(KindOf(name), values.TryGetValue(name, out string v) ? v : ""), detail));
+                // Settings that aren't at their default get a reset link at the right of their row.
+                if (!IsDefault(name)) comps.Add(new LinkTextComponent(capi, Lang.Get("vintagee:cfg-resetlink"), resetFont, _ => AskReset(n)) { Float = EnumFloat.Right });
+                comps.Add(new RichTextComponent(capi, "\n", detail));
             }
             if (comps.Count == 0) comps.Add(new RichTextComponent(capi, Lang.Get("vintagee:missing-nomatch"), normal));
             GuiElementRichtext list = SingleComposer.GetRichtext("list");
             if (list == null) return;
-            float scroll = (float)-list.Bounds.fixedY;
             list.SetNewText(comps.ToArray());
             list.Bounds.CalcWorldBounds();
+            float scroll = listScroll;
             GuiElementScrollbar bar = SingleComposer.GetScrollbar("listbar");
             if (bar != null)
             {
@@ -201,6 +248,7 @@ namespace VintageE
                 scroll = Math.Clamp(scroll, 0, (float)Math.Max(0, list.Bounds.fixedHeight - ListHeight));
                 bar.CurrentYPosition = scroll;
             }
+            listScroll = scroll;
             list.Bounds.fixedY = -scroll;
             list.Bounds.CalcWorldBounds();
         }
@@ -216,6 +264,7 @@ namespace VintageE
         void Scroll(string key, float value)
         {
             if (SingleComposer == null) return;
+            if (key == "list") listScroll = value;
             ElementBounds b = key == "list" ? SingleComposer.GetRichtext("list")?.Bounds : SingleComposer.GetTextArea("area")?.Bounds;
             if (b == null) return;
             b.fixedY = -value;
@@ -238,8 +287,7 @@ namespace VintageE
         {
             if (composing || (text ?? "") == search) return;
             search = text ?? "";
-            GuiElementRichtext list = SingleComposer?.GetRichtext("list");
-            if (list != null) list.Bounds.fixedY = 0;
+            listScroll = 0;
             FillList();
         }
 
@@ -258,6 +306,33 @@ namespace VintageE
             draft = null;
             status = "";
             Recompose();
+            return true;
+        }
+
+        void AskReset(string name)
+        {
+            string def = defaults.TryGetValue(name, out string d) ? Short(KindOf(name), d) : "?";
+            new GuiDialogConfirm(capi, Lang.Get("vintagee:cfg-resetone-confirm", name, def), ok =>
+            {
+                if (!ok) return;
+                selected = name;
+                draft = null;
+                status = Lang.Get("vintagee:cfg-saving");
+                statusIsError = false;
+                onReset?.Invoke(name);
+            }).TryOpen();
+        }
+
+        bool OnResetAll()
+        {
+            new GuiDialogConfirm(capi, Lang.Get("vintagee:cfg-resetall-confirm"), ok =>
+            {
+                if (!ok) return;
+                draft = null;
+                status = Lang.Get("vintagee:cfg-saving");
+                statusIsError = false;
+                onReset?.Invoke("*");
+            }).TryOpen();
             return true;
         }
     }

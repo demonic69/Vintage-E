@@ -74,7 +74,7 @@ ITEM = {
                            "You pay the difference in EMC, and get it back when the old block was worth more.",
     "gadget-archangelssmite": "Right-click: fires a homing arrow that steers towards hostile creatures (3 damage). Left-click: a volley of 10.\n"
                               "Each arrow costs what an arrow is worth in EMC.",
-    "gadget-tomeofknowledge": "Right-click to learn every item that has an EMC value. Not used up.",
+    "gadget-tomeofknowledge": "Creative mode only. Right-click to learn every block and item in the creative inventory that can be transmuted. Not used up, and it can't be crafted or made from EMC.",
     "gadget-diviningrodlow": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 3 blocks deep, and the most valuable block found.",
     "gadget-diviningrodmedium": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 16 blocks deep, and the most valuable block found.",
     "gadget-diviningrodhigh": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 64 blocks deep, and the most valuable block found.",

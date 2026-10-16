@@ -110,6 +110,9 @@ namespace VintageE
         /// <summary>What the ProjectETextures setting changed at start-up (null when it's off).</summary>
         public ProjectELook.Result LookResult { get; private set; }
 
+        /// <summary>VintagestoryData/ModData/vintagee: where the CSV files, dumps, self-test and cache go (created if needed).</summary>
+        public static string DataFolder(ICoreAPI api) => api.GetOrCreateDataPath(System.IO.Path.Combine("ModData", ModId));
+
         VintageEConfig PeekConfig(ICoreServerAPI sapi)
         {
             if (sapi == null) return null;
@@ -235,6 +238,7 @@ namespace VintageE
                         report = mapper.FromValues(cachedValues);
                         report.Variants = cachedVariants;
                         EmcCache.CopyCounts(cached, report);
+                        EmcCache.CopyAnalysis(cached, report, Sapi.World);
                     }
                 }
                 catch (Exception e)
@@ -292,6 +296,11 @@ namespace VintageE
             {
                 Mod.Logger.Notification("EMC: {0} items sit in self-cheapening recipe loops and keep their first value ({1} of them only settled that way at the end); {2} had to be dropped.", report.LoopFrozen, report.KeptAtFirstValue, report.UnstableRemoved);
             }
+            if (report.Loops.Count > 0)
+            {
+                Mod.Logger.Notification("EMC: {0} value loops keep items from getting a value (each is only made from the next): {1}. /emc loop lists them all.",
+                    report.Loops.Count, string.Join(" | ", report.Loops.Take(5).Select(MissingAnalysis.LoopText)));
+            }
 
             serverChannel?.BroadcastPacket(Emc.ToPacket());
             OnEmcTableUpdated?.Invoke();
@@ -315,6 +324,32 @@ namespace VintageE
             {
                 Mod.Logger.Error("Could not work out which items keep their contents: {0}", e);
             }
+            BuildNoTransmute();
+        }
+
+        /// <summary>Matches the NoTransmute setting to blocks/items.</summary>
+        public void BuildNoTransmute()
+        {
+            var set = new HashSet<CollectibleObject>();
+            if (Config?.NoTransmute != null && Config.NoTransmute.Count > 0)
+            {
+                var index = new CollectibleIndex(Sapi.World.Collectibles);
+                foreach (string pattern in Config.NoTransmute) set.UnionWith(index.Match(pattern));
+            }
+            Emc.NoTransmute = set;
+        }
+
+        /// <summary>Adds or removes codes on the NoTransmute list, saves the config and tells every client.</summary>
+        public void SetNoTransmute(IEnumerable<string> configKeys, bool add)
+        {
+            foreach (string key in configKeys)
+            {
+                if (string.IsNullOrEmpty(key)) continue;
+                if (add) { if (!Config.NoTransmute.Contains(key)) Config.NoTransmute.Add(key); }
+                else Config.NoTransmute.RemoveAll(k => k == key);
+            }
+            SaveConfig();
+            RefreshStackData();
         }
 
         /// <summary>After a change to the contents modes: rebuild them and send everyone the new table.</summary>
@@ -334,7 +369,7 @@ namespace VintageE
         public string AnnouncementText(EmcMappingReport report, string languageCode = null)
         {
             string key = report.FromCache ? "vintagee:chat-announce-cached" : "vintagee:chat-announce";
-            object[] args = { Version, report.Values.Count, report.Missing.Count, report.CreativeTotal };
+            object[] args = { Version, report.Values.Count, report.Missing.Count, report.CreativeTotal, report.Loops?.Count ?? 0 };
             return string.IsNullOrEmpty(languageCode) ? Lang.Get(key, args) : Lang.GetL(languageCode, key, args);
         }
 
@@ -383,7 +418,7 @@ namespace VintageE
         {
             try
             {
-                string file = System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-values.csv");
+                string file = System.IO.Path.Combine(DataFolder(Sapi), "emc-values.csv");
                 var sb = new System.Text.StringBuilder("type,code,emc,emc_per_litre,via,name\n");
                 foreach (var kv in Emc.All.OrderBy(k => k.Key.Code.ToString(), StringComparer.Ordinal))
                 {
@@ -408,7 +443,7 @@ namespace VintageE
                         bl.Append(c.ItemClass == EnumItemClass.Block ? "block" : "item").Append(',').Append(c.Code).Append(',')
                           .Append(listed ? "yes" : "no").Append(',').Append(Csv(NameOf(c))).Append('\n');
                     }
-                    System.IO.File.WriteAllText(System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-blacklisted.csv"), bl.ToString());
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(DataFolder(Sapi), "emc-blacklisted.csv"), bl.ToString());
                 }
 
                 // Items that hold contents or keep a material: their kind, mode and material-specific values.
@@ -429,7 +464,7 @@ namespace VintageE
                           .Append(Csv(v.Origin ?? "")).Append(',').Append(Csv(NameOf(c))).Append('\n');
                     }
                 }
-                System.IO.File.WriteAllText(System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-contents.csv"), ct.ToString());
+                System.IO.File.WriteAllText(System.IO.Path.Combine(DataFolder(Sapi), "emc-contents.csv"), ct.ToString());
                 return file;
             }
             catch (Exception e)
@@ -451,7 +486,7 @@ namespace VintageE
         {
             try
             {
-                string file = System.IO.Path.Combine(Sapi.GetOrCreateDataPath("vintagee"), "emc-missing.csv");
+                string file = System.IO.Path.Combine(DataFolder(Sapi), "emc-missing.csv");
                 var sb = new System.Text.StringBuilder("type,code,why,name\n");
                 foreach (CollectibleObject c in report.Missing.OrderBy(c => c.Code.ToString(), StringComparer.Ordinal))
                 {
@@ -497,7 +532,7 @@ namespace VintageE
             return key;
         }
 
-        static string ConfigKey(CollectibleObject c) => (c.ItemClass == EnumItemClass.Block ? "block:" : "item:") + c.Code;
+        public static string ConfigKey(CollectibleObject c) => (c.ItemClass == EnumItemClass.Block ? "block:" : "item:") + c.Code;
 
         /// <summary>
         /// Puts a block/item on the server blacklist (ModConfig Blacklist) or takes it off: removed from Blacklist if
@@ -527,6 +562,11 @@ namespace VintageE
             if (!player.HasPrivilege(Privilege.controlserver))
             {
                 player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            if (packet.List == (byte)EmcListKind.NoTransmute)
+            {
+                OnNoTransmuteRequest(player, packet);
                 return;
             }
             string msg;
@@ -564,8 +604,39 @@ namespace VintageE
                     : Lang.GetL(lang, "vintagee:cmd-unblacklisted", NameOf(c), c.Code);
             }
             player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
-            if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
+            if (report != null) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
         }
+
+        /// <summary>The no-transmute window's buttons: put items on the list or take them (or a whole mod) off. Values don't change.</summary>
+        void OnNoTransmuteRequest(IServerPlayer player, EmcBlacklistPacket packet)
+        {
+            string lang = player.LanguageCode;
+            string msg;
+            if (!string.IsNullOrEmpty(packet.Domain))
+            {
+                // Taking a whole mod off removes its "modid:*" entry and every entry of its own blocks/items.
+                string prefix = packet.Domain + ":";
+                var keys = Config.NoTransmute.Where(k => k == packet.Domain + ":*" || StripType(k).StartsWith(prefix, StringComparison.Ordinal)).ToList();
+                if (packet.Add) keys = new List<string> { packet.Domain + ":*" };
+                SetNoTransmute(keys, packet.Add);
+                msg = Lang.GetL(lang, packet.Add ? "vintagee:cmd-notransmute-addedmod" : "vintagee:cmd-notransmute-removedmod", packet.Domain);
+            }
+            else
+            {
+                List<CollectibleObject> items = ResolveKeys(Sapi.World, packet.Key, packet.Keys);
+                if (items.Count == 0) return;
+                SetNoTransmute(items.Select(ConfigKey), packet.Add);
+                int still = packet.Add ? 0 : items.Count(Emc.IsNoTransmute);
+                msg = Lang.GetL(lang, packet.Add ? "vintagee:cmd-notransmute-added" : "vintagee:cmd-notransmute-removed", items.Count);
+                if (still > 0) msg += " " + Lang.GetL(lang, "vintagee:cmd-notransmute-stillwildcard", still);
+            }
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
+            if (LastReport != null) SendMissingList(player, LastReport, null, FromKind(packet.FromKind, packet.FromBlacklist));
+        }
+
+        static string StripType(string key) => key.StartsWith("item:") ? key.Substring(5) : key.StartsWith("block:") ? key.Substring(6) : key;
+
+        static EmcListKind FromKind(byte kind, bool fromBlacklist) => kind != 0 ? (EmcListKind)kind : fromBlacklist ? EmcListKind.Blacklist : EmcListKind.Missing;
 
         static List<CollectibleObject> ResolveKeys(IWorldAccessor world, string key, string[] keys)
         {
@@ -596,7 +667,7 @@ namespace VintageE
                 ? Lang.GetL(lang, "vintagee:cmd-itemvalue", NameOf(items[0]), items[0].Code, EmcFormat.Format(Emc.GetValue(items[0])))
                 : Lang.GetL(lang, "vintagee:cmd-setmany", items.Count, EmcFormat.Format(packet.Value));
             player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
-            if (report != null) SendMissingList(player, report, null, packet.FromBlacklist);
+            if (report != null) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
         }
 
         /// <summary>Opens the /emc contents window for a player.</summary>
@@ -668,7 +739,7 @@ namespace VintageE
         public void SendConfig(IServerPlayer player, string message = null, bool error = false, string selected = null)
         {
             var (names, values) = ConfigureCommand.Snapshot(Config);
-            serverChannel.SendPacket(new EmcConfigPacket { Names = names, Values = values, Message = message ?? "", Error = error, Selected = selected }, player);
+            serverChannel.SendPacket(new EmcConfigPacket { Names = names, Values = values, Defaults = ConfigureCommand.DefaultTexts(), Message = message ?? "", Error = error, Selected = selected }, player);
         }
 
         void OnConfigSetRequest(IServerPlayer player, EmcConfigSetPacket packet)
@@ -678,37 +749,56 @@ namespace VintageE
             bool error = false;
             try
             {
-                message = ConfigureCommand.SetFromText(this, packet.Name, packet.Text ?? "", player.LanguageCode);
+                message = packet.Reset
+                    ? ConfigureCommand.Reset(this, packet.Name, player.LanguageCode)
+                    : ConfigureCommand.SetFromText(this, packet.Name, packet.Text ?? "", player.LanguageCode);
             }
             catch (FormatException e)
             {
                 message = e.Message;
                 error = true;
             }
-            SendConfig(player, message, error, packet.Name);
+            SendConfig(player, message, error, packet.Name == "*" ? null : packet.Name);
         }
 
         /// <summary>Tells every client about a change to the watch's time speed, so their clocks and skies keep up.</summary>
         public void BroadcastWatchSpeed(float modifier) => serverChannel?.BroadcastPacket(new WatchSpeedPacket { Modifier = modifier });
 
         /// <summary>Opens the /emc missing window (or with <paramref name="blacklist"/>, the /emc blacklist window) for a player.</summary>
-        public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file, bool blacklist = false)
+        public void SendMissingList(IServerPlayer player, EmcMappingReport report, string file, EmcListKind kind = EmcListKind.Missing)
         {
-            var shownItems = (blacklist ? report.Blacklisted : report.Missing).Where(c => PlayerEmc.KeyOf(c) != null).ToList();
-            // The other list goes along so the window can mix it in: blacklisted items in the missing window, missing ones in the blacklist window.
-            var otherItems = (blacklist ? report.Missing : report.Blacklisted).Where(c => PlayerEmc.KeyOf(c) != null).ToList();
             string WhyOf(CollectibleObject c) => report.MissingWhy != null && report.MissingWhy.TryGetValue(c, out string w) ? w : "";
+            List<CollectibleObject> main, other;
+            switch (kind)
+            {
+                case EmcListKind.Blacklist:
+                    main = report.Blacklisted;
+                    other = report.Missing; // untick "Hide missing" to mix these in
+                    break;
+                case EmcListKind.NoTransmute:
+                    main = Emc.NoTransmute.OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).ToList();
+                    // "Show valued items": everything else in the creative inventory that has a value.
+                    other = report.Values.Keys.Where(c => CollectibleIndex.IsListed(c) && !Emc.NoTransmute.Contains(c)).ToList();
+                    break;
+                default:
+                    main = report.Missing;
+                    other = report.Blacklisted; // "Show blacklisted"
+                    break;
+            }
+            main = main.Where(c => PlayerEmc.KeyOf(c) != null).ToList();
+            other = other.Where(c => PlayerEmc.KeyOf(c) != null).ToList();
             serverChannel.SendPacket(new EmcMissingPacket
             {
-                Keys = shownItems.Select(PlayerEmc.KeyOf).ToArray(),
-                Why = blacklist ? null : shownItems.Select(WhyOf).ToArray(),
-                OtherKeys = otherItems.Select(PlayerEmc.KeyOf).ToArray(),
-                OtherWhy = blacklist ? otherItems.Select(WhyOf).ToArray() : null,
+                Keys = main.Select(PlayerEmc.KeyOf).ToArray(),
+                Why = kind == EmcListKind.Missing ? main.Select(WhyOf).ToArray() : null,
+                OtherKeys = other.Select(PlayerEmc.KeyOf).ToArray(),
+                OtherWhy = kind == EmcListKind.Blacklist ? other.Select(WhyOf).ToArray() : null,
                 CreativeTotal = report.CreativeTotal,
                 ValueCount = report.Values.Count,
                 Version = Version,
                 File = file,
-                Blacklist = blacklist
+                Blacklist = kind == EmcListKind.Blacklist,
+                Kind = (byte)kind
             }, player);
         }
 
@@ -787,9 +877,13 @@ namespace VintageE
             }
         }
 
+        /// <summary>Goes up by one every time the client gets a new EMC table (windows use it to know their values are stale).</summary>
+        public int TableVersion { get; private set; }
+
         void OnEmcTableReceived(EmcTablePacket packet)
         {
             Emc.LoadFromPacket(packet, Capi.World);
+            TableVersion++;
             OnEmcTableUpdated?.Invoke();
         }
 
@@ -798,6 +892,12 @@ namespace VintageE
             if (!string.IsNullOrEmpty(packet.ErrorCode))
             {
                 Capi.TriggerIngameError(this, packet.ErrorCode, Lang.Get("vintagee:error-" + packet.ErrorCode, packet.Args ?? Array.Empty<string>()));
+            }
+            // Learned at the table, or by the tablet's magnet while the window is shut.
+            if (packet.LearnedKey != null)
+            {
+                ItemStack learned = PlayerEmc.ResolveStack(Capi.World, packet.LearnedKey);
+                if (learned != null) Capi.ShowChatMessage(Lang.Get("vintagee:learned", learned.GetName()));
             }
             transmutationDialog?.OnServerResult(packet);
         }
@@ -808,11 +908,15 @@ namespace VintageE
 
         void OnMissingList(EmcMissingPacket packet)
         {
-            GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() && missingDialog.IsBlacklist == packet.Blacklist ? missingDialog : null;
+            EmcListKind kind = packet.Kind != 0 ? (EmcListKind)packet.Kind : packet.Blacklist ? EmcListKind.Blacklist : EmcListKind.Missing;
+            byte from = (byte)kind;
+            // The no-transmute window edits that list; the missing and blacklist windows edit the blacklist.
+            byte list = kind == EmcListKind.NoTransmute ? (byte)EmcListKind.NoTransmute : (byte)0;
+            GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() && missingDialog.Kind == kind ? missingDialog : null;
             var dialog = new GuiDialogEmcMissing(Capi, packet, previous,
-                (keys, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = keys, Value = value, FromBlacklist = packet.Blacklist }),
-                (keys, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Keys = keys, Add = add, FromBlacklist = packet.Blacklist }),
-                (domain, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Domain = domain, Add = add, FromBlacklist = packet.Blacklist }));
+                (keys, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = keys, Value = value, FromBlacklist = packet.Blacklist, FromKind = from }),
+                (keys, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Keys = keys, Add = add, FromBlacklist = packet.Blacklist, FromKind = from, List = list }),
+                (domain, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Domain = domain, Add = add, FromBlacklist = packet.Blacklist, FromKind = from, List = list }));
             missingDialog?.TryClose();
             missingDialog?.Dispose();
             missingDialog = dialog;
@@ -829,7 +933,8 @@ namespace VintageE
                 configDialog.Update(packet);
                 return;
             }
-            configDialog = new GuiDialogEmcConfig(Capi, packet, (name, text) => clientChannel.SendPacket(new EmcConfigSetPacket { Name = name, Text = text }));
+            configDialog = new GuiDialogEmcConfig(Capi, packet, (name, text) => clientChannel.SendPacket(new EmcConfigSetPacket { Name = name, Text = text }),
+                name => clientChannel.SendPacket(new EmcConfigSetPacket { Name = name, Reset = true }));
             configDialog.TryOpen();
         }
 

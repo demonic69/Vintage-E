@@ -44,6 +44,7 @@ namespace VintageE
                         dsc.AppendLine(Lang.Get("vintagee:tooltip-emc-stack", EmcFormat.Format(value * stack.StackSize)));
                     }
                 }
+                if (mod.Emc.IsNoTransmute(stack.Collectible)) dsc.AppendLine(Lang.Get("vintagee:tooltip-notransmute"));
             }
 
             StackDataTable data = mod.Emc.StackData;

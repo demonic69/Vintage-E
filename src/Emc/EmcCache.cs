@@ -26,6 +26,10 @@ namespace VintageE
         public int FuelCount, FoodCount, OtherModCount, GuessCount;
         /// <summary>Material-specific values: key, the stored data they apply to (base64), value.</summary>
         public List<CachedVariant> Variants = new List<CachedVariant>();
+        /// <summary>Value loops and settled loops, each as knowledge-style keys in order; and why each missing item has no value.</summary>
+        public List<List<string>> Loops = new List<List<string>>();
+        public List<List<string>> SettledLoops = new List<List<string>>();
+        public SortedDictionary<string, string> MissingWhy = new SortedDictionary<string, string>(StringComparer.Ordinal);
     }
 
     public class CachedVariant
@@ -47,11 +51,11 @@ namespace VintageE
     /// </summary>
     public static class EmcCache
     {
-        public const int Format = 8; // 2: barrel outputs counted in portions, liquid-container ingredients; 7: cooking pot recipes; 8: material-specific values, staged guesses
+        public const int Format = 9; // 2: barrel outputs counted in portions, liquid-container ingredients; 7: cooking pot recipes; 8: material-specific values, staged guesses; 9: loops, missing reasons, free ingredients
 
         public static string FilePath(ICoreServerAPI sapi)
         {
-            string dir = Path.Combine(sapi.GetOrCreateDataPath(VintageEModSystem.ModId), "cache");
+            string dir = Path.Combine(VintageEModSystem.DataFolder(sapi), "cache");
             Directory.CreateDirectory(dir);
             string world = sapi.World.SavegameIdentifier ?? "default";
             foreach (char ch in Path.GetInvalidFileNameChars()) world = world.Replace(ch, '_');
@@ -83,6 +87,7 @@ namespace VintageE
             foreach (EmcValueRule r in mod.Rules.Values) sb.Append("rule=").Append(r.Source).Append('|').Append(r.Pattern).Append(r.PerLitre ? "/L=" : "=").Append(r.Value.ToString("R")).Append('\n');
             foreach (string b in mod.Rules.Blacklist) sb.Append("bl=").Append(b).Append('\n');
             foreach (string a in mod.Rules.Allow) sb.Append("allow=").Append(a).Append('\n');
+            foreach (string a in mod.Rules.FreeIngredients) sb.Append("free=").Append(a).Append('\n');
             foreach (string a in mod.Rules.TraderCurrency) sb.Append("currency=").Append(a).Append('\n');
             foreach (EmcValueRule r in mod.Rules.Defaults) sb.Append("default=").Append(r.Source).Append('|').Append(r.Pattern).Append('=').Append(r.Value.ToString("R")).Append('\n');
             foreach (RelativeValueRule r in mod.Rules.Relative) sb.Append("rel=").Append(r.Source).Append('|').Append(r.Code).Append('=').Append(r.Of).Append('*').Append(r.Ratio.ToString("R")).Append('\n');
@@ -336,6 +341,14 @@ namespace VintageE
                     string key = PlayerEmc.KeyOf(kv.Key);
                     if (key != null) file.Values[key] = kv.Value;
                 }
+                List<List<string>> Keys(List<List<CollectibleObject>> loops) => loops.Select(l => l.Select(PlayerEmc.KeyOf).Where(k => k != null).ToList()).Where(l => l.Count > 0).ToList();
+                file.Loops = Keys(report.Loops);
+                file.SettledLoops = Keys(report.SettledLoops);
+                foreach (var kv in report.MissingWhy)
+                {
+                    string key = PlayerEmc.KeyOf(kv.Key);
+                    if (key != null) file.MissingWhy[key] = kv.Value;
+                }
                 string path = FilePath(sapi);
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(file, Formatting.Indented));
@@ -366,6 +379,23 @@ namespace VintageE
             to.OtherModCount = from.OtherModCount;
             to.GuessCount = from.GuessCount;
             to.CachedAt = from.CreatedUtc;
+        }
+
+        /// <summary>Loops and missing reasons from the cache file (the recipes behind them aren't cached).</summary>
+        public static void CopyAnalysis(EmcCacheFile from, EmcMappingReport to, IWorldAccessor world)
+        {
+            List<List<CollectibleObject>> Resolve(List<List<string>> loops) => (loops ?? new List<List<string>>())
+                .Select(l => l.Select(k => PlayerEmc.Resolve(world, k)).ToList())
+                .Where(l => l.Count > 0 && l.All(c => c != null)).ToList();
+            to.Loops = Resolve(from.Loops);
+            to.SettledLoops = Resolve(from.SettledLoops);
+            to.LoopOf.Clear();
+            for (int i = 0; i < to.Loops.Count; i++) foreach (CollectibleObject c in to.Loops[i]) if (!to.LoopOf.ContainsKey(c)) to.LoopOf[c] = i;
+            foreach (var kv in from.MissingWhy ?? new SortedDictionary<string, string>())
+            {
+                CollectibleObject c = PlayerEmc.Resolve(world, kv.Key);
+                if (c != null) to.MissingWhy[c] = kv.Value;
+            }
         }
     }
 }

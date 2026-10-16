@@ -20,6 +20,8 @@ namespace VintageE
         [ProtoMember(10, IsPacked = true)] public double[] VariantValues;
         /// <summary>The server's ProjectESounds setting (for sounds the client plays itself, like Swiftwolf's wind while flying).</summary>
         [ProtoMember(11)] public bool ProjectESounds;
+        /// <summary>Blocks/items on the server's NoTransmute list (valued, but can't be burned, learned or created).</summary>
+        [ProtoMember(12)] public string[] NoTransmuteKeys;
     }
 
     public enum TransmuteAction
@@ -32,7 +34,13 @@ namespace VintageE
         /// <summary>The GUI was closed.</summary>
         Close = 3,
         /// <summary>Remove an item from the player's knowledge.</summary>
-        Forget = 4
+        Forget = 4,
+        /// <summary>Tablet magnet slot: swap what's on the cursor (a Black Hole Band or Void Ring, or nothing) with the magnet.</summary>
+        MagnetSwap = 5,
+        /// <summary>Tablet magnet filter: Mode = filter slot; what's on the cursor goes in it (an empty cursor clears it).</summary>
+        MagnetFilter = 6,
+        /// <summary>Tablet magnet: switch between "only these" and "everything except these".</summary>
+        MagnetMode = 7
     }
 
     /// <summary>Client → server request from the transmutation GUI.</summary>
@@ -73,6 +81,8 @@ namespace VintageE
         [ProtoMember(8)] public string[] OtherKeys;
         /// <summary>Why each of <see cref="OtherKeys"/> has no value (blacklist window only, same order).</summary>
         [ProtoMember(9)] public string[] OtherWhy;
+        /// <summary>Which window this is (<see cref="EmcListKind"/>); 0 with Blacklist set means the blacklist window.</summary>
+        [ProtoMember(10)] public byte Kind;
     }
 
     /// <summary>Client → server: set a block/item's EMC value from the /emc missing window (admins only). Key is "i:code" / "b:code".</summary>
@@ -85,6 +95,8 @@ namespace VintageE
         [ProtoMember(3)] public bool FromBlacklist;
         /// <summary>Several blocks/items at once (Key is then unused).</summary>
         [ProtoMember(4)] public string[] Keys;
+        /// <summary>The window it was sent from (<see cref="EmcListKind"/>), which is shown again afterwards.</summary>
+        [ProtoMember(5)] public byte FromKind;
     }
 
     /// <summary>Client → server: put a block/item on the blacklist (Add) or take it off, from the missing/blacklist windows (admins only).</summary>
@@ -98,6 +110,10 @@ namespace VintageE
         [ProtoMember(4)] public string[] Keys;
         /// <summary>A whole mod (its domain) instead of single blocks/items.</summary>
         [ProtoMember(5)] public string Domain;
+        /// <summary>The list to change: <see cref="EmcListKind.NoTransmute"/> for the no-transmute list, otherwise the blacklist.</summary>
+        [ProtoMember(6)] public byte List;
+        /// <summary>The window it was sent from (<see cref="EmcListKind"/>), which is shown again afterwards.</summary>
+        [ProtoMember(7)] public byte FromKind;
     }
 
     /// <summary>Server → client: every block/item that can hold contents or carry a material, for the /emc contents window.</summary>
@@ -137,6 +153,8 @@ namespace VintageE
         [ProtoMember(4)] public bool Error;
         /// <summary>The setting to show selected.</summary>
         [ProtoMember(5)] public string Selected;
+        /// <summary>Each setting's default, in the same form as Values (same order as Names).</summary>
+        [ProtoMember(6)] public string[] Defaults;
     }
 
     /// <summary>Client → server: change one setting from the /emc configure window (admins only). Text is in the same form as <see cref="EmcConfigPacket.Values"/>.</summary>
@@ -145,6 +163,8 @@ namespace VintageE
     {
         [ProtoMember(1)] public string Name;
         [ProtoMember(2)] public string Text;
+        /// <summary>Put the setting back to its default instead (Name "*" = every setting).</summary>
+        [ProtoMember(3)] public bool Reset;
     }
 
     /// <summary>Server → client: the Watch of Flowing Time's current world time speed modifier (0 = none).</summary>

@@ -57,6 +57,8 @@ namespace VintageE
 
         public Dictionary<T, double> Fixed = new Dictionary<T, double>();
         public HashSet<T> Excluded = new HashSet<T>();
+        /// <summary>Items with no value of their own that cost nothing as ingredients (a pattern or schematic that isn't used up).</summary>
+        public HashSet<T> Free = new HashSet<T>();
         public List<Edge> Edges = new List<Edge>();
         public List<JointEdge> JointEdges = new List<JointEdge>();
         public int MaxPasses = 80;
@@ -226,6 +228,7 @@ namespace VintageE
                 double best = double.PositiveInfinity;
                 foreach (T c in e.Choices[i])
                 {
+                    if (Free.Contains(c)) { best = 0; break; }
                     if (Excluded.Contains(c) || Unstable.Contains(c)) continue;
                     if (Values.TryGetValue(c, out double v) && v < best) best = v;
                 }
@@ -323,6 +326,7 @@ namespace VintageE
                         bool anyOpen = false;
                         foreach (T c in e.Choices[i])
                         {
+                            if (Free.Contains(c)) { best = 0; break; }
                             if (Excluded.Contains(c) || Unstable.Contains(c)) continue;
                             if (Values.TryGetValue(c, out double v)) { if (v < best) best = v; }
                             else if (Open(c)) anyOpen = true;

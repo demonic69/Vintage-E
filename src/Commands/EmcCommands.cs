@@ -59,6 +59,12 @@ namespace VintageE
                     .WithArgs(parsers.OptionalWordRange("what", "hand"))
                     .HandleWith(args => (args[0] as string) == "hand" ? DumpHeld(mod, sapi, args) : Dump(mod, sapi))
                 .EndSubCommand()
+                .BeginSubCommand("loop")
+                    .WithAlias("loops")
+                    .WithDescription("List the value loops the mapper found: unvalued items that are each only made from the next")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .HandleWith(args => Loops(mod, sapi, args.LanguageCode))
+                .EndSubCommand()
                 .BeginSubCommand("missing")
                     .WithDescription("List blocks/items that ended up without an EMC value")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -68,6 +74,12 @@ namespace VintageE
                     .WithDescription("Open a window listing everything on the EMC blacklist")
                     .RequiresPrivilege(Privilege.controlserver)
                     .HandleWith(args => Blacklist(mod, args))
+                .EndSubCommand()
+                .BeginSubCommand("notransmute")
+                    .WithDescription("Open a window of everything that keeps its EMC value but can't be burned, learned or created; or add/remove the held item")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
+                    .HandleWith(args => NoTransmute(mod, args, args[0] as string))
                 .EndSubCommand()
                 .BeginSubCommand("contents")
                     .WithDescription("Open a window of everything that holds things or keeps its material, and how each is transmuted; or set the held item: item, full, itemprice or default")
@@ -129,6 +141,9 @@ namespace VintageE
             ("/emc recalc", "cmdhelp-recalc", true),
             ("/emc dump", "cmdhelp-dump", true),
             ("/emc dump hand", "cmdhelp-dumphand", true),
+            ("/emc loop", "cmdhelp-loop", true),
+            ("/emc notransmute", "cmdhelp-notransmute", true),
+            ("/emc notransmute add|remove", "cmdhelp-notransmuteset", true),
             ("/emc add <amount> [player]", "cmdhelp-add", true),
             ("/emc remove <amount> [player]", "cmdhelp-remove", true),
             ("/emc learn", "cmdhelp-learn", true),
@@ -235,13 +250,37 @@ namespace VintageE
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-missing", report.Missing.Count, report.CreativeTotal, top, file ?? "-"));
         }
 
+        /// <summary>/emc notransmute: the window; /emc notransmute add|remove: the held item.</summary>
+        static TextCommandResult NoTransmute(VintageEModSystem mod, TextCommandCallingArgs args, string action)
+        {
+            string lang = args.LanguageCode;
+            EmcMappingReport report = mod.LastReport;
+            if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
+            if (action == "add" || action == "remove")
+            {
+                ItemStack held = args.Caller.Player?.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+                if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
+                bool add = action == "add";
+                mod.SetNoTransmute(new[] { VintageEModSystem.ConfigKey(held.Collectible) }, add);
+                string msg = Lang.GetL(lang, add ? "vintagee:cmd-notransmute-held-added" : "vintagee:cmd-notransmute-held-removed", held.GetName(), held.Collectible.Code);
+                if (!add && mod.Emc.IsNoTransmute(held.Collectible)) msg += " " + Lang.GetL(lang, "vintagee:cmd-notransmute-stillwildcard", 1);
+                return TextCommandResult.Success(msg);
+            }
+            if (args.Caller.Player is IServerPlayer player)
+            {
+                mod.SendMissingList(player, report, null, EmcListKind.NoTransmute);
+                return TextCommandResult.Success();
+            }
+            return TextCommandResult.Success(mod.Emc.NoTransmute.Count + " can't be transmuted: " + string.Join(", ", mod.Emc.NoTransmute.Take(40).Select(c => c.Code.ToString())));
+        }
+
         static TextCommandResult Blacklist(VintageEModSystem mod, TextCommandCallingArgs args)
         {
             EmcMappingReport report = mod.LastReport;
             if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
             if (args.Caller.Player is IServerPlayer player)
             {
-                mod.SendMissingList(player, report, null, blacklist: true);
+                mod.SendMissingList(player, report, null, EmcListKind.Blacklist);
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Success(report.Blacklisted.Count + " blacklisted: " + string.Join(", ", report.Blacklisted.Take(40).Select(c => c.Code.ToString())));
@@ -291,8 +330,10 @@ namespace VintageE
         static readonly System.Text.RegularExpressions.Regex CodeToken = new System.Text.RegularExpressions.Regex(@"\b([a-z0-9_]+:[a-z0-9_.\-/]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         /// <summary>
-        /// /emc dump hand: the held item's value and where it came from, then the same for each block/item that
-        /// source mentions (two levels). Shown in chat and written to ModData/vintagee/emc-dump-&lt;code&gt;.txt.
+        /// /emc dump hand: the held item's value and where it came from, then the same for each block/item that source
+        /// mentions. For something without a value: every way the mod knows of making it, which ingredients have no
+        /// value and why (two levels), and the value loop it's stuck in, if any. Shown in chat and written to
+        /// ModData/vintagee/emc-dump-&lt;code&gt;.txt (the chat says where).
         /// </summary>
         static TextCommandResult DumpHeld(VintageEModSystem mod, ICoreServerAPI sapi, TextCommandCallingArgs args)
         {
@@ -301,38 +342,98 @@ namespace VintageE
             if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
             EmcMappingReport report = mod.LastReport;
             var sb = new StringBuilder();
+            if (report == null || report.FromCache)
+            {
+                // The cache keeps the values, not the recipes behind them: work everything out again to explain.
+                sb.AppendLine(Lang.GetL(lang, "vintagee:dump-remapping"));
+                report = mod.RecalculateEmc("/emc dump hand") ?? report;
+            }
+            CollectibleObject c = held.Collectible;
             double stackValue = mod.Emc.GetValue(held);
-            double baseValue = mod.Emc.GetValue(held.Collectible);
-            sb.AppendLine(Lang.GetL(lang, "vintagee:dump-held", held.GetName(), held.Collectible.Code, EmcFormat.Format(baseValue)));
+            double baseValue = mod.Emc.GetValue(c);
+            sb.AppendLine(Lang.GetL(lang, "vintagee:dump-held", held.GetName(), c.Code, EmcFormat.Format(baseValue)));
             if (Math.Abs(stackValue - baseValue * held.StackSize) > 0.0001 && held.StackSize > 0)
             {
                 sb.AppendLine(Lang.GetL(lang, "vintagee:dump-stack", held.StackSize, EmcFormat.Format(stackValue)));
             }
+            if (mod.Emc.IsNoTransmute(c)) sb.AppendLine(Lang.GetL(lang, "vintagee:dump-notransmute"));
             if (report == null || report.FromCache)
             {
                 sb.AppendLine(Lang.GetL(lang, "vintagee:dump-cached"));
             }
+            else if (report.Values.ContainsKey(c))
+            {
+                var seen = new HashSet<CollectibleObject> { c };
+                Explain(mod, sapi, report, c, sb, "  ", 0, seen, lang);
+            }
             else
             {
-                var seen = new HashSet<CollectibleObject> { held.Collectible };
-                Explain(mod, sapi, report, held.Collectible, sb, "  ", 0, seen, lang);
+                ExplainMissing(mod, report, c, sb, "  ", 0, new HashSet<CollectibleObject> { c }, lang);
             }
+
             string text = sb.ToString().TrimEnd();
+            string file = null;
             try
             {
-                string safe = held.Collectible.Code.ToString().Replace(':', '_').Replace('/', '_').Replace('*', '_');
-                string file = System.IO.Path.Combine(sapi.GetOrCreateDataPath("vintagee"), "emc-dump-" + safe + ".txt");
+                string safe = c.Code.ToString().Replace(':', '_').Replace('/', '_').Replace('*', '_');
+                file = System.IO.Path.Combine(VintageEModSystem.DataFolder(sapi), "emc-dump-" + safe + ".txt");
                 System.IO.File.WriteAllText(file, text + "\n");
             }
-            catch (Exception e) { sapi.Logger.Warning("Vintage-E: could not write the dump file: {0}", e.Message); }
-            return TextCommandResult.Success(text);
+            catch (Exception e)
+            {
+                sapi.Logger.Warning("Vintage-E: could not write the dump file: {0}", e.Message);
+                file = null;
+            }
+            // Chat shows the start; the file has all of it.
+            string[] lines = text.Split('\n');
+            string chat = lines.Length > 40 ? string.Join("\n", lines.Take(40)) + "\n" + Lang.GetL(lang, "vintagee:dump-more", lines.Length - 40) : text;
+            chat += "\n" + (file != null ? Lang.GetL(lang, "vintagee:dump-file", file) : Lang.GetL(lang, "vintagee:dump-nofile"));
+            return TextCommandResult.Success(chat);
+        }
+
+        /// <summary>Why <paramref name="c"/> has no value: blacklisted, nothing makes it, a value loop, or which ingredients are missing.</summary>
+        static void ExplainMissing(VintageEModSystem mod, EmcMappingReport report, CollectibleObject c, StringBuilder sb, string indent, int depth, HashSet<CollectibleObject> seen, string lang)
+        {
+            if (report.Free.Contains(c)) { sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-free")); return; }
+            if (report.Blacklisted.Contains(c)) { sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-blacklisted")); return; }
+            if (report.LoopOf.TryGetValue(c, out int loop))
+            {
+                sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-loop", MissingAnalysis.LoopText(report.Loops[loop])));
+            }
+            if (!report.MissingRecipes.TryGetValue(c, out List<Conversion> recipes) || recipes.Count == 0)
+            {
+                sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-norecipe"));
+                return;
+            }
+            bool Valued(CollectibleObject x) => x != null && (report.Values.ContainsKey(x) || report.Free.Contains(x));
+            sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-ways", recipes.Count));
+            int n = 0;
+            foreach (Conversion conv in recipes)
+            {
+                if (++n > (depth == 0 ? 12 : 4))
+                {
+                    sb.AppendLine(indent + "  " + Lang.GetL(lang, "vintagee:dump-moreways", recipes.Count - n + 1));
+                    break;
+                }
+                sb.AppendLine(indent + "  " + n + ". " + EmcMapper.Describe(conv));
+                foreach (CollectibleObject part in MissingAnalysis.Lacking(conv, Valued).Distinct())
+                {
+                    string name;
+                    try { name = part.GetHeldItemName(new ItemStack(part)); } catch { name = part.Code.ToShortString(); }
+                    sb.AppendLine(indent + "     " + Lang.GetL(lang, "vintagee:dump-lacks", name, part.Code));
+                    if (depth < 2 && seen.Add(part)) ExplainMissing(mod, report, part, sb, indent + "       ", depth + 1, seen, lang);
+                    else if (report.LoopOf.TryGetValue(part, out int l) && report.LoopOf.TryGetValue(c, out int mine) && l == mine)
+                        sb.AppendLine(indent + "       " + Lang.GetL(lang, "vintagee:dump-inloop"));
+                }
+            }
         }
 
         static void Explain(VintageEModSystem mod, ICoreServerAPI sapi, EmcMappingReport report, CollectibleObject c, StringBuilder sb, string indent, int depth, HashSet<CollectibleObject> seen, string lang)
         {
             if (!report.Origins.TryGetValue(c, out string origin) || string.IsNullOrEmpty(origin))
             {
-                sb.AppendLine(indent + Lang.GetL(lang, mod.Emc.GetValue(c) > 0 ? "vintagee:dump-noorigin" : (report.Blacklisted.Contains(c) ? "vintagee:dump-blacklisted" : "vintagee:dump-novalue")));
+                if (mod.Emc.GetValue(c) > 0) sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-noorigin"));
+                else ExplainMissing(mod, report, c, sb, indent, depth + 1, seen, lang);
                 return;
             }
             sb.AppendLine(indent + Lang.GetL(lang, "vintagee:dump-from", origin));
@@ -356,6 +457,33 @@ namespace VintageE
             string file = mod.WriteValuesFile(mod.LastReport);
             if (file == null) return TextCommandResult.Error("Could not write the file, see server log");
             return TextCommandResult.Success(Lang.Get("vintagee:cmd-dumped", mod.Emc.Count, file));
+        }
+
+        /// <summary>/emc loop: every value loop (and settled loop) the mapper found, also written to ModData/vintagee/emc-loops.txt.</summary>
+        static TextCommandResult Loops(VintageEModSystem mod, ICoreServerAPI sapi, string lang)
+        {
+            EmcMappingReport report = mod.LastReport;
+            if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
+            var sb = new StringBuilder();
+            sb.AppendLine(Lang.GetL(lang, report.Loops.Count == 0 ? "vintagee:loop-none" : "vintagee:loop-header", report.Loops.Count));
+            for (int i = 0; i < report.Loops.Count; i++) sb.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.Loops[i]));
+            if (report.SettledLoops.Count > 0)
+            {
+                sb.AppendLine(Lang.GetL(lang, "vintagee:loop-settled", report.SettledLoops.Count));
+                for (int i = 0; i < report.SettledLoops.Count; i++) sb.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.SettledLoops[i]));
+            }
+            string text = sb.ToString().TrimEnd();
+            string file = null;
+            try
+            {
+                file = System.IO.Path.Combine(VintageEModSystem.DataFolder(sapi), "emc-loops.txt");
+                System.IO.File.WriteAllText(file, text + "\n");
+            }
+            catch (Exception e) { sapi.Logger.Warning("Vintage-E: could not write the loop list: {0}", e.Message); file = null; }
+            string[] lines = text.Split('\n');
+            string chat = lines.Length > 40 ? string.Join("\n", lines.Take(40)) + "\n" + Lang.GetL(lang, "vintagee:dump-more", lines.Length - 40) : text;
+            if (file != null) chat += "\n" + Lang.GetL(lang, "vintagee:dump-file", file);
+            return TextCommandResult.Success(chat);
         }
     }
 }

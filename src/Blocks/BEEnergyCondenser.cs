@@ -106,7 +106,8 @@ namespace VintageE
             double speed = mod.Config.MachineSpeedMultiplier;
             ItemStack target = inventory[TargetSlot].Itemstack;
             ItemStack copy = target == null ? null : CopyOf(mod, target);
-            double targetValue = copy == null ? 0 : mod.Emc.GetValue(copy);
+            // Things on the NoTransmute list are never made from EMC (nor burned, below).
+            double targetValue = copy == null || mod.Emc.IsNoTransmute(copy.Collectible) ? 0 : mod.Emc.GetValue(copy);
             bool changed = false;
 
             // 1. Burn storage (anything that isn't the target) into EMC, while there's room for it.
@@ -118,7 +119,7 @@ namespace VintageE
                 if (stack == null) continue;
                 if (target != null && stack.Collectible == target.Collectible) continue;
                 if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack) && mod.Emc.StackData.ModeOf(stack.Collectible) == StackDataMode.Item) continue;
-                double value = mod.Emc.GetValue(stack);
+                double value = mod.Emc.IsNoTransmute(stack.Collectible) ? 0 : mod.Emc.GetValue(stack);
                 if (value <= 0 || Stored + value > capacity) continue;
 
                 int n = (int)Math.Min(Math.Floor(burnBudget), Math.Min(stack.StackSize, Math.Floor((capacity - Stored) / value)));
