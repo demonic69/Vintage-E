@@ -129,10 +129,12 @@ namespace VintageE
                 {
                     try
                     {
-                        Check(condenser != null && collector != null && condenser.Stored >= 400 && condenser.IncomingPerSecond > 0,
+                        // The rate is only what came in over the last few seconds (none at night), so it's shown, not checked.
+                        Check(condenser != null && collector != null && condenser.Stored >= 400,
                             $"condenser took the collector's EMC: {EmcFormat.Format(condenser?.Stored ?? 0)} stored, {EmcFormat.Format(condenser?.IncomingPerSecond ?? 0)} a second coming in");
                         Report("dark furnace on charcoal", fuelled);
                         Report("red furnace on EMC", onEmc);
+                        CheckPedestalWeather();
                     }
                     catch (Exception e) { Check(false, "furnace check threw " + e); }
                     Finish();
@@ -481,6 +483,14 @@ namespace VintageE
                     $"{code}: {slots} slots, upgraded from the smaller bag keeping its contents");
             }
 
+        }
+
+        /// <summary>
+        /// Evertide Amulet on a pedestal: rain, then the game's weather back. Run last, so the rain can't put out the
+        /// furnaces being tested.
+        /// </summary>
+        void CheckPedestalWeather()
+        {
             TrinketEffects fx = mod.Trinkets;
             ModSystem weather = sapi.ModLoader.Systems.FirstOrDefault(m => m.GetType().Name == "WeatherSystemServer");
             var prop = weather?.GetType().GetProperty("OverridePrecipitation");
