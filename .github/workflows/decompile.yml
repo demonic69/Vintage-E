@@ -1,0 +1,57 @@
+name: Look inside the game (diagnostics)
+
+# Decompiles the game's code around a crash so it can be read: the one-click mod install
+# (ModDbUtil.MaybeEnableMod, GuiScreenDownloadMods). Results go to the ci-decompile branch.
+on:
+  push:
+    branches: [wip-oneclick-crash]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    env:
+      VS_VERSION: "1.22.7"
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Download the game client
+        run: |
+          set -e
+          curl -fsSL -o client.tar.gz "https://cdn.vintagestory.at/gamefiles/stable/vs_client_linux-x64_${VS_VERSION}.tar.gz"
+          mkdir -p vs && tar -xzf client.tar.gz -C vs
+          lib=$(find "$PWD/vs" -name VintagestoryLib.dll | head -1)
+          echo "LIB=$lib" >> "$GITHUB_ENV"
+          echo "VSDIR=$(dirname "$lib")" >> "$GITHUB_ENV"
+          ls -la "$lib"
+
+      - name: Decompile
+        run: |
+          set +e
+          dotnet tool install -g ilspycmd
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          mkdir -p out
+          refs="-r $VSDIR -r $VSDIR/Lib"
+          [ -f "$VSDIR/../VintagestoryAPI.dll" ] && refs="$refs -r $VSDIR/.."
+          for t in Vintagestory.ModDb.ModDbUtil Vintagestory.Client.GuiScreenDownloadMods Vintagestory.Common.ModContainer; do
+            ilspycmd -t "$t" "$LIB" $refs > "out/$t.cs" 2> "out/$t.err"
+            echo "$t: $(wc -l < out/$t.cs) lines"
+          done
+          # Where the mod-install types live, in case a name above is wrong.
+          ilspycmd -l c "$LIB" $refs 2>/dev/null | grep -iE "moddb|downloadmod|modcontainer|modloader" > out/types.txt
+          cat out/types.txt | head -40
+
+      - name: Push to the ci-decompile branch
+        run: |
+          cd out
+          git init -q -b ci-decompile
+          git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Decompiled for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-decompile
