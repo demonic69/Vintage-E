@@ -40,7 +40,7 @@ jobs:
           mkdir -p out
           refs="-r $VSDIR -r $VSDIR/Lib"
           [ -f "$VSDIR/../VintagestoryAPI.dll" ] && refs="$refs -r $VSDIR/.."
-          for t in Vintagestory.ModDb.ModDbUtil Vintagestory.Client.GuiScreenDownloadMods Vintagestory.Common.ModContainer; do
+          for t in Vintagestory.ModDb.ModDbUtil Vintagestory.Client.GuiScreenDownloadMods Vintagestory.Common.ModContainer Vintagestory.Common.ModLoader; do
             ilspycmd -t "$t" "$LIB" $refs > "out/$t.cs" 2> "out/$t.err"
             echo "$t: $(wc -l < out/$t.cs) lines"
           done
