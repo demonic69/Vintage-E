@@ -934,10 +934,23 @@ namespace VintageE
         {
             string domain = etype.Code.Domain;
             var candidates = new List<string>();
-            if (etype.Code.Path.Contains("construction"))
+            string path = etype.Code.Path;
+            if (path.Contains("construction"))
             {
-                string stripped = System.Text.RegularExpressions.Regex.Replace(etype.Code.Path.Replace("construction", ""), "-{2,}", "-").Trim('-');
+                string stripped = System.Text.RegularExpressions.Regex.Replace(path.Replace("construction", ""), "-{2,}", "-").Trim('-');
                 if (stripped.Length > 0) candidates.Add(domain + ":" + stripped);
+                // What follows the word ("shipwrightconstruction-kayak-oak" → "kayak-oak"): that, or the one item of the
+                // mod named "…-kayak-oak" (Shipwright's shipwright:boat-kayak-oak).
+                int at = path.IndexOf("construction-", StringComparison.Ordinal);
+                if (at >= 0)
+                {
+                    string rest = path.Substring(at + "construction-".Length);
+                    candidates.Add(domain + ":" + rest);
+                    var named = index.All.Where(c => c.Code.Domain == domain && c.Code.Path.EndsWith("-" + rest, StringComparison.Ordinal)
+                                                     && !c.Code.Path.Contains("construction") && !c.Code.Path.Contains("roller"))
+                                         .OrderBy(c => c.Code.Path.Length).ToList();
+                    if (named.Count > 0) candidates.Add(named[0].Code.ToString());
+                }
             }
             // Codes the entity's settings name (a result or launch entity, say), in its own domain unless they say otherwise.
             void Walk(Newtonsoft.Json.Linq.JToken t, int depth)
