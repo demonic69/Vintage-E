@@ -2,6 +2,38 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.9.0 — 2026-10-17
+
+### Added
+- **Set a value from anywhere (admins).** Hover a block or item and press **Ctrl + K**: a small box shows its value and lets you set one (saved like `/emc set`) or **Unpin** it again. It works on inventory and container slots, the handbook (item pictures on a page, or the page's own item), any other window, the block you're looking at, and the held item. Change the key in the game's controls.
+- **Hand-written recipes.** `/emc recipe` opens a window to tell the mapper about things it can't see being made, like other mods' boats: put the result in the first slot and its ingredients in the others by clicking them with an item held on the mouse (pick a slot to change its amount), or edit the recipe line by hand, wildcards included (`game:plank-*`). The server checks each recipe against the mapper, saves it to the new `CustomRecipes` setting and works out the values again; recipes it can't use are refused with the reason. Saved recipes can be edited or removed there, or with `/emc recipe add|remove|list` from chat. Value files can carry them too (`recipes`).
+- **Constructions are found by themselves.** Things built in stages (like sailboats on rollers) from other mods, such as Shipwright's, are matched to the item they make by name, so they get a value without a `constructions` rule.
+- **Gray list.** For blocks/items nothing makes yet, but that a mod might later (uncraftable blocks, say): gray-listed ones are left out of `/emc missing` and never given a guessed value, but get one as soon as a recipe makes them. `/emc graylist` opens its window (select, take off, or untick **Hide missing** to add missing ones), `/emc graylist add|remove` does the held item, and the missing window has a **Gray-list it** button. Saved as `GrayList`; value files can have `grayList`.
+- **Blacklist only a mod's missing items.** With a mod picked in the `/emc missing` filter, **Blacklist its missing** blacklists just that mod's missing blocks/items by their own codes, instead of the whole mod with a wildcard, so the values its other items already have stay.
+- **Watch of Flowing Time indicator.** While the watch is on, an icon on screen shows how fast time runs (`Time x10`), and the watch glows. Type `.vintagee` in chat for this computer's settings: turn either off, and set the icon's size and position and the glow's colour.
+- **Nutrition from the Body and Life Stones.** A new tool mode feeds you through the game's hunger, so your food groups fill up too (the emptiest first), for 1 EMC per saturation instead of 0.5. A stone on a pedestal follows its mode.
+- **Bigger Alchemical Bags.** Upgrade an Alchemical Bag with 4 dark matter for a 48-slot Dark Matter Alchemical Bag, and that with 4 red matter for a 64-slot Red Matter Alchemical Bag. Upgrading keeps what's in the bag.
+- Pedestals show the item on them floating and turning above them.
+- Energy Condensers show how much EMC a second their collectors and relays are giving them.
+
+### Changed
+- **Shorter tooltips.** Vintage-E's items keep a one-line description in their tooltip; the full details are on their handbook page, under **How it works**.
+- **Rings go in the hand slot**, with gloves and other mods' rings, instead of the arm slot. Rings already worn on the arm keep working there.
+- **Nova Catalyst and Cataclysm are lit like the game's bombs**: hold right-click on them with a torch or a firestarter. Sneak + right-click with an empty hand no longer lights them.
+- The **illuminal divergence manifold** (translocator part) is a free ingredient, so the rickety translocator gets a value.
+- Tooltips of lenses, amulets and the Ignition Ring name the key the fire-projectile control is bound to now, instead of always saying R.
+- The Destruction Catalyst's and Catalytic Lens's charge labels show what the tunnel costs at most, so the Catalytic Lens's charges 3–7 no longer look the same. (Its shot stops growing at charge 3, the Hyperkinetic Lens's biggest; the tunnel keeps getting deeper.)
+- In the `/emc missing`, `/emc blacklist`, `/emc notransmute`, `/emc graylist` and `/emc contents` windows, picks are kept when you change the filters; the selection line now says how many of them the filters are hiding, and the button that drops them all is labelled **Clear selection** (it was **Clear**).
+- The `/emc configure` editor scrolls to keep the line you're typing on in view.
+
+### Fixed
+- **Full gem armour (and Swiftwolf's Rending Gale) stops fall damage again**: Vintage-E's protection now gets its turn before the game takes the damage off. The same goes for fire protection.
+- **Evertide and Volcanite Amulets on a pedestal change the weather.** The game's weather command needs a player to run it, so it did nothing; the pedestal now sets the rain directly. With several pedestals, rain wins; taking the amulet off (or the pedestal unloading) gives the weather back to the game.
+- **Energy Condensers fed by collectors and relays** show and keep the EMC they're given; before, their window and info only caught up when they made something.
+- Archangel's Smite arrows look like arrows and point where they fly; lens, fire, water and lava shots show their whole picture instead of one corner of it.
+- The cooked item on a Dark/Red Matter Furnace no longer jumps up for a moment when cooking finishes.
+- The tablet's magnet filter text no longer runs into the filter slots.
+
 ## 1.8.0 — 2026-10-17
 
 ### Added
