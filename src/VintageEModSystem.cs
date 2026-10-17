@@ -94,7 +94,10 @@ namespace VintageE
                 .RegisterMessageType<EmcConfigPacket>()
                 .RegisterMessageType<EmcConfigSetPacket>()
                 .RegisterMessageType<EmcRecipeListPacket>()
-                .RegisterMessageType<EmcRecipeEditPacket>();
+                .RegisterMessageType<EmcRecipeEditPacket>()
+                .RegisterMessageType<EmcItemStateRequestPacket>()
+                .RegisterMessageType<EmcItemStatePacket>()
+                .RegisterMessageType<EmcItemEditPacket>();
         }
 
         #region Server
@@ -137,6 +140,8 @@ namespace VintageE
             serverChannel.SetMessageHandler<EmcContentsSetPacket>(OnContentsSetRequest);
             serverChannel.SetMessageHandler<EmcConfigSetPacket>(OnConfigSetRequest);
             serverChannel.SetMessageHandler<EmcRecipeEditPacket>(OnRecipeEditRequest);
+            serverChannel.SetMessageHandler<EmcItemStateRequestPacket>(OnItemStateRequest);
+            serverChannel.SetMessageHandler<EmcItemEditPacket>(OnItemEditRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
@@ -733,6 +738,86 @@ namespace VintageE
             if (report != null && !packet.Quiet) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
         }
 
+        void OnItemStateRequest(IServerPlayer player, EmcItemStateRequestPacket packet)
+        {
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(player.LanguageCode, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet?.Key);
+            if (c?.Code == null) return;
+            serverChannel.SendPacket(ItemState(c, packet.Key), player);
+        }
+
+        internal EmcItemStatePacket ItemState(CollectibleObject c, string key)
+        {
+            EmcMappingReport report = LastReport;
+            string cfgKey = ConfigKey(c);
+            bool free = report?.Free?.Contains(c) == true;
+            bool gray = report?.Gray?.Contains(c) == true;
+            // What only the value files (or a wildcard) say can't be undone for this one item from the box.
+            var fromFiles = new List<string>();
+            if (gray && !Config.GrayList.Contains(cfgKey)) fromFiles.Add("gray");
+            if (free && !Config.FreeIngredients.Contains(cfgKey)) fromFiles.Add("free");
+            return new EmcItemStatePacket
+            {
+                Key = key,
+                Value = Emc.GetValue(c),
+                Pinned = Config.FixedValues.ContainsKey(cfgKey),
+                Blacklisted = !free && report?.Blacklisted?.Contains(c) == true,
+                Gray = gray,
+                Free = free,
+                FromFiles = fromFiles.ToArray()
+            };
+        }
+
+        /// <summary>The hovered-item box's Save: the free ingredient, blacklist and gray list boxes, then the value (or unpin); one remap.</summary>
+        void OnItemEditRequest(IServerPlayer player, EmcItemEditPacket packet)
+        {
+            string lang = player.LanguageCode;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet?.Key);
+            if (c?.Code == null) return;
+            if (packet.SetValue && (double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0)) return;
+            EmcItemStatePacket before = ItemState(c, packet.Key);
+            string key = ConfigKey(c);
+            var notes = new List<string>();
+
+            if (packet.Free != before.Free)
+            {
+                if (packet.Free)
+                {
+                    if (!Config.FreeIngredients.Contains(key)) Config.FreeIngredients.Add(key);
+                    Config.FixedValues.Remove(key);
+                }
+                else if (!Config.FreeIngredients.Remove(key)) notes.Add(Lang.GetL(lang, "vintagee:setvalue-freefromfiles"));
+            }
+            if (packet.Blacklist != before.Blacklisted) SetBlacklisted(c, packet.Blacklist, save: false);
+            if (packet.Gray != before.Gray)
+            {
+                if (packet.Gray) { if (!Config.GrayList.Contains(key)) Config.GrayList.Add(key); }
+                else if (Config.GrayList.RemoveAll(k => k == key) == 0) notes.Add(Lang.GetL(lang, "vintagee:setvalue-grayfromfiles"));
+            }
+            if (packet.Unpin) Config.FixedValues.Remove(key);
+            else if (packet.SetValue && !packet.Blacklist && !packet.Free) SetFixedValue(c, packet.Value, save: false);
+            SaveConfig();
+            RecalculateEmc("hovered-item value box");
+
+            EmcItemStatePacket after = ItemState(c, packet.Key);
+            string state = after.Free ? Lang.GetL(lang, "vintagee:setvalue-isfree")
+                : after.Blacklisted ? Lang.GetL(lang, "vintagee:setvalue-isblacklisted")
+                : after.Value > 0 ? EmcFormat.Format(after.Value) + " EMC" : Lang.GetL(lang, "vintagee:setvalue-novalue");
+            if (after.Gray) state += ", " + Lang.GetL(lang, "vintagee:setvalue-isgray");
+            string msg = Lang.GetL(lang, "vintagee:setvalue-result", NameOf(c), c.Code, state);
+            if (notes.Count > 0) msg += " " + string.Join(" ", notes);
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
+        }
+
         /// <summary>Opens (or refreshes) the /emc recipe window for a player.</summary>
         public void SendRecipeList(IServerPlayer player, string message = null, bool error = false)
         {
@@ -1019,6 +1104,7 @@ namespace VintageE
             capi.Input.RegisterHotKey(SetValueHotkey, Lang.Get("vintagee:hotkey-setvalue"), GlKeys.K, HotkeyType.GUIOrOtherControls, ctrlPressed: true);
             capi.Input.SetHotKeyHandler(SetValueHotkey, _ => OpenSetValueBox());
             clientChannel.SetMessageHandler<EmcRecipeListPacket>(OnRecipeList);
+            clientChannel.SetMessageHandler<EmcItemStatePacket>(OnItemState);
 
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>
@@ -1163,11 +1249,27 @@ namespace VintageE
             }
             string key = PlayerEmc.KeyOf(stack.Collectible);
             if (key == null) return true;
-            setValueDialog?.TryClose();
-            setValueDialog = new GuiDialogEmcSetValue(Capi, stack, Emc.GetValue(stack.Collectible),
-                value => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = new[] { key }, Value = value ?? 0, Clear = value == null, Quiet = true }));
-            setValueDialog.TryOpen();
+            // Ask the server about its lists first; the box opens when the answer comes (OnItemState).
+            pendingSetValueStack = stack.Clone();
+            clientChannel?.SendPacket(new EmcItemStateRequestPacket { Key = key });
             return true;
+        }
+
+        ItemStack pendingSetValueStack;
+
+        void OnItemState(EmcItemStatePacket packet)
+        {
+            ItemStack stack = pendingSetValueStack;
+            if (stack == null || PlayerEmc.KeyOf(stack.Collectible) != packet.Key) return;
+            pendingSetValueStack = null;
+            string key = packet.Key;
+            setValueDialog?.TryClose();
+            setValueDialog = new GuiDialogEmcSetValue(Capi, stack, packet, edit =>
+            {
+                edit.Key = key;
+                clientChannel?.SendPacket(edit);
+            });
+            setValueDialog.TryOpen();
         }
 
         GuiDialogEmcRecipe recipeDialog;

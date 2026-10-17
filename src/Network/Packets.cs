@@ -103,6 +103,42 @@ namespace VintageE
         [ProtoMember(7)] public bool Clear;
     }
 
+    /// <summary>Client → server: what the hovered-item box (Ctrl+K) needs to know about one block/item (admins only).</summary>
+    [ProtoContract]
+    public class EmcItemStateRequestPacket
+    {
+        [ProtoMember(1)] public string Key;
+    }
+
+    /// <summary>Server → client: one block/item's value and lists, to open the hovered-item box with.</summary>
+    [ProtoContract]
+    public class EmcItemStatePacket
+    {
+        [ProtoMember(1)] public string Key;
+        [ProtoMember(2)] public double Value;
+        /// <summary>Its value is set by hand (FixedValues).</summary>
+        [ProtoMember(3)] public bool Pinned;
+        /// <summary>On the blacklist (and not a free ingredient).</summary>
+        [ProtoMember(4)] public bool Blacklisted;
+        [ProtoMember(5)] public bool Gray;
+        [ProtoMember(6)] public bool Free;
+        /// <summary>Which of those come from the value files rather than the server config ("blacklist", "gray", "free"), so they can't all be undone here.</summary>
+        [ProtoMember(7)] public string[] FromFiles;
+    }
+
+    /// <summary>Client → server: the hovered-item box's changes: a value (or unpin), and the blacklist, gray list and free ingredient boxes.</summary>
+    [ProtoContract]
+    public class EmcItemEditPacket
+    {
+        [ProtoMember(1)] public string Key;
+        [ProtoMember(2)] public bool SetValue;
+        [ProtoMember(3)] public double Value;
+        [ProtoMember(4)] public bool Unpin;
+        [ProtoMember(5)] public bool Blacklist;
+        [ProtoMember(6)] public bool Gray;
+        [ProtoMember(7)] public bool Free;
+    }
+
     /// <summary>Server → client: opens (or refreshes) the /emc recipe window with the hand-written recipes in the server config.</summary>
     [ProtoContract]
     public class EmcRecipeListPacket

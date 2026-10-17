@@ -23,6 +23,11 @@ namespace VintageE
         const double ListHeight = 440;
         const double PaneWidth = 470;
         const double AreaHeight = 200;
+        /// <summary>
+        /// Lines of a list/table shown at once. The text area draws all its text into one texture, and a few hundred lines
+        /// (a long FixedValues table, say) made that taller than the graphics card allows, which showed as a black box.
+        /// </summary>
+        const int PageLines = 100;
 
         readonly Action<string, string> onSave;
         readonly Action<string> onReset;
@@ -38,6 +43,13 @@ namespace VintageE
         bool composing;
         /// <summary>How far the settings list is scrolled, kept across redraws.</summary>
         float listScroll;
+        // A list/table being edited, a page at a time: all its lines, which of them are on screen, and the edited page text.
+        List<string> lines;
+        string linesFor;
+        int[] shown = Array.Empty<int>();
+        int page;
+        string find = "";
+        string pageText;
         ElementBounds listClip, areaClip;
 
         public override string ToggleKeyCombinationCode => null;
@@ -70,7 +82,7 @@ namespace VintageE
             if (!string.IsNullOrEmpty(packet.Selected)) selected = packet.Selected;
             status = packet.Message ?? "";
             statusIsError = packet.Error;
-            if (!packet.Error) draft = null; // saved: show what the server has now
+            if (!packet.Error) { draft = null; linesFor = null; } // saved: show what the server has now
             Compose();
         }
 
@@ -108,6 +120,21 @@ namespace VintageE
             string kind = selected == null ? "text" : KindOf(selected);
             string current = selected != null && values.TryGetValue(selected, out string v) ? v : "";
             string shownText = draft ?? current;
+            bool isList = kind == "list" || kind == "table";
+            if (isList)
+            {
+                if (linesFor != selected)
+                {
+                    lines = (draft ?? current).Replace("\r", "").Split('\n').ToList();
+                    if (lines.Count == 1 && lines[0].Length == 0) lines.Clear();
+                    linesFor = selected;
+                    page = 0;
+                    find = "";
+                    pageText = null;
+                }
+                else ApplyPage();
+                shownText = PageView();
+            }
 
             // The pane, top to bottom, each part below the one above it.
             double x = ListWidth + 40;
@@ -129,6 +156,8 @@ namespace VintageE
             double hintHeight = GuiLayout.TextHeight(capi, grey, hint, PaneWidth);
             ElementBounds hintBounds = ElementBounds.Fixed(x, y, PaneWidth, hintHeight);
             y += hintHeight + 4;
+            double pagerTop = y;
+            if (isList) y += 36;
             double editorTop = y;
             double editorHeight = kind == "bool" ? 40 : kind == "list" || kind == "table" ? AreaHeight : 30;
             y += editorHeight + 10;
@@ -176,6 +205,16 @@ namespace VintageE
             }
             else if (kind == "list" || kind == "table")
             {
+                // Find box and pages: only PageLines lines are in the editor at once.
+                ElementBounds findBounds = ElementBounds.Fixed(x, pagerTop, 200, 30);
+                ElementBounds prevBounds = ElementBounds.Fixed(x + 210, pagerTop, 36, 30);
+                ElementBounds pageLabel = ElementBounds.Fixed(x + 250, pagerTop + 6, PaneWidth - 300, 22);
+                ElementBounds nextBounds = ElementBounds.Fixed(x + PaneWidth - 46, pagerTop, 36, 30);
+                c.AddTextInput(findBounds, OnFind, CairoFont.WhiteSmallText(), "find")
+                 .AddSmallButton("<", () => TurnPage(-1), prevBounds)
+                 .AddDynamicText(PageLabel(), CairoFont.WhiteDetailText().WithOrientation(EnumTextOrientation.Center), pageLabel, "pagelabel")
+                 .AddSmallButton(">", () => TurnPage(1), nextBounds);
+                bgBounds.WithChildren(findBounds, prevBounds, pageLabel, nextBounds);
                 ElementBounds areaBounds = ElementBounds.Fixed(0, 0, PaneWidth - 30, AreaHeight);
                 areaClip = ElementBounds.Fixed(x, editorTop, PaneWidth - 30, AreaHeight);
                 areaClip.WithChild(areaBounds);
@@ -183,7 +222,7 @@ namespace VintageE
                 ElementBounds areaBar = areaInset.CopyOffsetedSibling(areaInset.fixedWidth + 4).WithFixedWidth(20);
                 c.AddInset(areaInset, 3)
                  .BeginClip(areaClip)
-                    .AddTextArea(areaBounds, t => { if (!composing) { draft = t; UpdateAreaScroll(); } }, CairoFont.WhiteSmallText(), "area")
+                    .AddTextArea(areaBounds, t => { if (!composing) { pageText = t; UpdateAreaScroll(); } }, CairoFont.WhiteSmallText(), "area")
                  .EndClip()
                  .AddVerticalScrollbar(v2 => Scroll("area", v2), areaBar, "areabar");
                 bgBounds.WithChildren(areaInset, areaClip, areaBar);
@@ -208,7 +247,13 @@ namespace VintageE
             SingleComposer.GetTextInput("search")?.SetPlaceHolderText(Lang.Get("vintagee:cfg-search"));
             if (search.Length > 0) SingleComposer.GetTextInput("search")?.SetValue(search, false);
             if (kind == "bool") SingleComposer.GetSwitch("switch")?.SetValue(shownText == "true");
-            else if (kind == "list" || kind == "table") SingleComposer.GetTextArea("area")?.SetValue(shownText, false);
+            else if (kind == "list" || kind == "table")
+            {
+                SingleComposer.GetTextArea("area")?.SetValue(shownText, false);
+                GuiElementTextInput findInput = SingleComposer.GetTextInput("find");
+                findInput?.SetPlaceHolderText(Lang.Get("vintagee:cfg-find"));
+                if (find.Length > 0) findInput?.SetValue(find, false);
+            }
             else SingleComposer.GetTextInput("input")?.SetValue(shownText, false);
             composing = false;
             if (kind == "list" || kind == "table")
@@ -299,11 +344,87 @@ namespace VintageE
             b.CalcWorldBounds();
         }
 
+        /// <summary>Puts the edited page back into the whole list (lines added or removed on it are added or removed there).</summary>
+        void ApplyPage()
+        {
+            if (pageText == null || lines == null) return;
+            var edited = pageText.Replace("\r", "").Split('\n').ToList();
+            if (edited.Count > 0 && edited[edited.Count - 1].Length == 0) edited.RemoveAt(edited.Count - 1);
+            int at = shown.Length > 0 ? shown.Min() : lines.Count;
+            foreach (int i in shown.OrderByDescending(i => i)) if (i < lines.Count) lines.RemoveAt(i);
+            lines.InsertRange(Math.Min(at, lines.Count), edited);
+            pageText = null;
+            draft = string.Join("\n", lines);
+        }
+
+        /// <summary>Which lines match the find box, and the current page of them as editor text.</summary>
+        string PageView()
+        {
+            string needle = find.Trim();
+            int[] matching = Enumerable.Range(0, lines.Count)
+                .Where(i => needle.Length == 0 || lines[i].IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0).ToArray();
+            int pages = Math.Max(1, (matching.Length + PageLines - 1) / PageLines);
+            page = Math.Clamp(page, 0, pages - 1);
+            shown = matching.Skip(page * PageLines).Take(PageLines).ToArray();
+            matchCount = matching.Length;
+            return string.Join("\n", shown.Select(i => lines[i]));
+        }
+
+        int matchCount;
+
+        string PageLabel()
+        {
+            if (lines == null) return "";
+            if (matchCount == 0) return Lang.Get(find.Trim().Length > 0 ? "vintagee:cfg-lines-nomatch" : "vintagee:cfg-lines-empty");
+            int first = page * PageLines + 1, last = Math.Min(matchCount, (page + 1) * PageLines);
+            return Lang.Get(find.Trim().Length > 0 ? "vintagee:cfg-lines-found" : "vintagee:cfg-lines", first, last, matchCount);
+        }
+
+        /// <summary>Shows another page (or the find results) in the editor without redrawing the window, so typing in the find box keeps going.</summary>
+        void ShowPage()
+        {
+            if (SingleComposer == null || lines == null) return;
+            ApplyPage();
+            string text = PageView();
+            composing = true;
+            GuiElementTextArea area = SingleComposer.GetTextArea("area");
+            area?.SetValue(text, false);
+            composing = false;
+            if (area != null)
+            {
+                area.Bounds.fixedY = 0;
+                area.Bounds.CalcWorldBounds();
+            }
+            UpdateAreaScroll();
+            GuiElementScrollbar bar = SingleComposer.GetScrollbar("areabar");
+            if (bar != null) bar.CurrentYPosition = 0;
+            SingleComposer.GetDynamicText("pagelabel")?.SetNewText(PageLabel());
+        }
+
+        bool TurnPage(int by)
+        {
+            ApplyPage();
+            page += by;
+            ShowPage();
+            return true;
+        }
+
+        void OnFind(string text)
+        {
+            if (composing || (text ?? "") == find) return;
+            ApplyPage();
+            find = text ?? "";
+            page = 0;
+            ShowPage();
+        }
+
         void Pick(string name)
         {
             if (name == selected) return;
+            ApplyPage();
             selected = name;
             draft = null;
+            linesFor = null;
             status = "";
             Recompose();
         }
@@ -322,6 +443,7 @@ namespace VintageE
         bool OnSave()
         {
             if (selected == null) return true;
+            ApplyPage();
             string text = draft ?? (values.TryGetValue(selected, out string v) ? v : "");
             onSave?.Invoke(selected, text);
             status = Lang.Get("vintagee:cfg-saving");
@@ -332,6 +454,8 @@ namespace VintageE
         bool OnRevert()
         {
             draft = null;
+            linesFor = null;
+            pageText = null;
             status = "";
             Recompose();
             return true;

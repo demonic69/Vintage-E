@@ -2,6 +2,19 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.9.1 — 2026-10-18
+
+### Added
+- **The Ctrl + K box has switches for the blacklist, the gray list and free ingredients**, set to how the item is now. Tick or untick any of them, change the value or not, and press **Save**: the server applies it all and works the values out once. A value is only saved when you change it, so ticking a box doesn't also pin the item's current value. Where a value file (or a wildcard) puts an item on the gray list or makes it a free ingredient, the box says that unticking there can't undo it.
+
+### Changed
+- **Lore paper is blacklisted** again, with the rest of the lore.
+- `/emc configure` shows long lists and tables 100 lines at a time, with **<** and **>** to page through them and a **Find** box that shows only the lines containing what you type. Edits on each page are kept until you save.
+
+### Fixed
+- **The `FixedValues` page of `/emc configure` was a black box** once it held a few hundred values: the editor drew the whole table into one picture, taller than the graphics card allows. It now only holds a page at a time.
+- The note on free ingredients in the value file said the illuminal divergence manifold only comes from ruins. It's a story reward: Tobias gives it to you after you bring him the lens from the Devastation, along with the blueprint.
+
 ## 1.9.0 — 2026-10-17
 
 ### Added

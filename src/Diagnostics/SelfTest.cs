@@ -157,7 +157,7 @@ namespace VintageE
             foreach (var (code, expectMin, expectMax) in new[] { ("game:fat", 1.0, 64.0), ("game:fat-rendered", 1.0, 64.0), ("game:gem-emerald-rough", 2048.0, 2048.0), ("game:gem-diamond-rough", 8192.0, 8192.0),
                 ("game:creature-fish-freshwater-bass-largemouth-adult", 112.0, 112.0), ("game:jonasparts-tank01", 1024.0, 1024.0),
                 ("game:creature-trader-female-artisan-cold", 0.0, 0.0), ("game:locatormap-treasures", 0.0, 0.0),
-                ("game:lore-paper", 1.0, 1000.0), ("game:metal-parts", 1.0, 1000.0), ("game:nightvisiondevice", 4096.0, 4096.0),
+                ("game:lore-paper", 0.0, 0.0), ("game:metal-parts", 1.0, 1000.0), ("game:nightvisiondevice", 4096.0, 4096.0),
                 ("game:ore-fluorite", 32.0, 32.0), ("game:ore-fluorite-limestone", 1.0, 1000.0) })
             {
                 CollectibleObject c = (CollectibleObject)sapi.World.GetItem(new AssetLocation(code)) ?? sapi.World.GetBlock(new AssetLocation(code));
@@ -479,6 +479,14 @@ namespace VintageE
             Block nova = sapi.World.GetBlock(new AssetLocation("vintagee:novaexplosive-catalyst"));
             Check(nova?.EntityClass != null && typeof(Vintagestory.GameContent.IIgnitable).IsAssignableFrom(sapi.ClassRegistry.GetBlockEntity(nova.EntityClass)),
                 "nova explosives are lit by torches and firestarters (ignitable)");
+
+            // 1.9.1: what the hovered-item box (Ctrl+K) is told about an item's lists.
+            CollectibleObject manifold = sapi.World.GetItem(new AssetLocation("game:tobtlocatorpart"));
+            EmcItemStatePacket ms = manifold == null ? null : mod.ItemState(manifold, "i:game:tobtlocatorpart");
+            Check(ms != null && ms.Free && !ms.Blacklisted && ms.FromFiles.Contains("free"), "the box shows the manifold as a free ingredient from the value files");
+            CollectibleObject lore = sapi.World.GetItem(new AssetLocation("game:lore-paper"));
+            EmcItemStatePacket ls = lore == null ? null : mod.ItemState(lore, "i:game:lore-paper");
+            Check(ls != null && ls.Blacklisted && !ls.Free && ls.Value <= 0, "lore paper is blacklisted, and the box shows it");
 
             foreach (var (code, slots) in new[] { ("vintagee:alchemicalbagdark-red", 48), ("vintagee:alchemicalbagred-red", 64) })
             {
