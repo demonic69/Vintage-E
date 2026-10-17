@@ -32,7 +32,8 @@ namespace VintageE
         static readonly HashSet<string> Remaps = new HashSet<string>(StringComparer.Ordinal)
         {
             "BaseValues", "FixedValues", "Blacklist", "Allow", "DisableBuiltInBaseValues", "InferValuesFromProcessing", "InferValuesFromCrafting",
-            "InferFromVariantSiblings", "EstimateFuelAndFood", "UseTraderPrices", "FallbackValue", "TransitionEmcPerDay", "MaxMappingPasses", "FreeIngredients"
+            "InferFromVariantSiblings", "EstimateFuelAndFood", "UseTraderPrices", "FallbackValue", "TransitionEmcPerDay", "MaxMappingPasses", "FreeIngredients",
+            "GrayList", "CustomRecipes"
         };
 
         static IEnumerable<FieldInfo> Settings => typeof(VintageEConfig).GetFields(BindingFlags.Public | BindingFlags.Instance);

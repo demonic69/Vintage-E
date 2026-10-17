@@ -81,6 +81,13 @@ namespace VintageE
                     .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
                     .HandleWith(args => NoTransmute(mod, args, args[0] as string))
                 .EndSubCommand()
+                .BeginSubCommand("graylist")
+                    .WithAlias("greylist")
+                    .WithDescription("Open the gray list (left out of /emc missing, valued only by recipes); or add/remove the held item")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
+                    .HandleWith(args => GrayList(mod, args, args[0] as string))
+                .EndSubCommand()
                 .BeginSubCommand("contents")
                     .WithDescription("Open a window of everything that holds things or keeps its material, and how each is transmuted; or set the held item: item, full, itemprice or default")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -144,6 +151,8 @@ namespace VintageE
             ("/emc loop", "cmdhelp-loop", true),
             ("/emc notransmute", "cmdhelp-notransmute", true),
             ("/emc notransmute add|remove", "cmdhelp-notransmuteset", true),
+            ("/emc graylist", "cmdhelp-graylist", true),
+            ("/emc graylist add|remove", "cmdhelp-graylistset", true),
             ("/emc add <amount> [player]", "cmdhelp-add", true),
             ("/emc remove <amount> [player]", "cmdhelp-remove", true),
             ("/emc learn", "cmdhelp-learn", true),
@@ -272,6 +281,29 @@ namespace VintageE
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Success(mod.Emc.NoTransmute.Count + " can't be transmuted: " + string.Join(", ", mod.Emc.NoTransmute.Take(40).Select(c => c.Code.ToString())));
+        }
+
+        /// <summary>/emc graylist: the window; /emc graylist add|remove: the held item.</summary>
+        static TextCommandResult GrayList(VintageEModSystem mod, TextCommandCallingArgs args, string action)
+        {
+            string lang = args.LanguageCode;
+            EmcMappingReport report = mod.LastReport;
+            if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
+            if (action == "add" || action == "remove")
+            {
+                ItemStack held = args.Caller.Player?.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+                if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
+                bool add = action == "add";
+                mod.SetGrayList(new[] { VintageEModSystem.ConfigKey(held.Collectible) }, add);
+                mod.RecalculateEmc(add ? "/emc graylist add" : "/emc graylist remove");
+                return TextCommandResult.Success(Lang.GetL(lang, add ? "vintagee:cmd-gray-held-added" : "vintagee:cmd-gray-held-removed", held.GetName(), held.Collectible.Code));
+            }
+            if (args.Caller.Player is IServerPlayer player)
+            {
+                mod.SendMissingList(player, mod.LastReport ?? report, null, EmcListKind.GrayList);
+                return TextCommandResult.Success();
+            }
+            return TextCommandResult.Success((report.Gray?.Count ?? 0) + " gray-listed: " + string.Join(", ", (report.Gray ?? new List<CollectibleObject>()).Take(40).Select(c => c.Code.ToString())));
         }
 
         static TextCommandResult Blacklist(VintageEModSystem mod, TextCommandCallingArgs args)

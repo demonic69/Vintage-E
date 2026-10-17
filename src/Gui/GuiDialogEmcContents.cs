@@ -126,8 +126,8 @@ namespace VintageE
             double selHeight = Math.Max(30, Math.Max(GuiLayout.TextHeight(capi, CairoFont.WhiteDetailText(), Lang.Get("vintagee:contents-select"), selWidth),
                 GuiLayout.TextHeight(capi, CairoFont.WhiteDetailText(), Lang.Get("vintagee:missing-selected", new string('W', 40)), selWidth)));
             ElementBounds selectedBounds = ElementBounds.Fixed(0, selRow + 4, selWidth, selHeight);
-            ElementBounds selectAllBounds = ElementBounds.Fixed(ListWidth - 230, selRow, 130, 30);
-            ElementBounds clearBounds = ElementBounds.Fixed(ListWidth - 90, selRow, 90, 30);
+            ElementBounds selectAllBounds = ElementBounds.Fixed(ListWidth - 230, selRow, 104, 30);
+            ElementBounds clearBounds = ElementBounds.Fixed(ListWidth - 120, selRow, 120, 30);
 
             double modeRow = selRow + selHeight + 8;
             double w = (ListWidth - 30) / 4;

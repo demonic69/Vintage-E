@@ -46,6 +46,10 @@ namespace VintageE
         public readonly List<Conversion> Conversions = new List<Conversion>();
         /// <summary>Construction entity pattern → the item it becomes ("constructions" in the value files).</summary>
         public List<KeyValuePair<string, string>> Constructions = new List<KeyValuePair<string, string>>();
+        /// <summary>Recipes written by hand: the value files' "recipes" and the CustomRecipes setting (see <see cref="CustomRecipe"/>).</summary>
+        public List<string> CustomRecipes = new List<string>();
+        /// <summary>Hand-written recipes that couldn't be used, with why (for the log and the /emc recipe window).</summary>
+        public readonly List<string> CustomRecipeProblems = new List<string>();
         /// <summary>Human-readable name of every recipe list found → number of conversions it produced.</summary>
         public readonly SortedDictionary<string, int> SourceCounts = new SortedDictionary<string, int>();
         public int SkippedRecipes;
@@ -69,6 +73,42 @@ namespace VintageE
             CollectFromAttributes();
             CollectFromMolds();
             CollectFromBehaviors();
+            CollectCustomRecipes();
+        }
+
+        /// <summary>Recipes written by hand, as ordinary crafting recipes.</summary>
+        void CollectCustomRecipes()
+        {
+            int count = 0;
+            foreach (string line in CustomRecipes)
+            {
+                CustomRecipe r = CustomRecipe.Parse(line, out string error);
+                string problem = null;
+                if (r == null) problem = error;
+                else
+                {
+                    CollectibleObject output = index.Match(r.Output).FirstOrDefault();
+                    if (output == null) problem = "no block or item " + r.Output;
+                    else
+                    {
+                        var conv = new Conversion { Output = output, OutputQuantity = r.OutputQuantity, Kind = ConversionKind.Crafting, Source = "custom recipe" };
+                        foreach (var (code, qty) in r.Ingredients)
+                        {
+                            CollectibleObject[] choices = index.Match(code).ToArray();
+                            if (choices.Length == 0) { problem = "no block or item " + code; break; }
+                            conv.Inputs.Add(new ConversionInput { Choices = choices, Quantity = qty });
+                        }
+                        if (problem == null && !AddIfSane(conv)) problem = "it makes itself";
+                        if (problem == null) count++;
+                    }
+                }
+                if (problem != null)
+                {
+                    CustomRecipeProblems.Add(line + "  (" + problem + ")");
+                    logger.Warning("EMC: custom recipe \"{0}\" not used: {1}", line, problem);
+                }
+            }
+            Count("custom recipe", count);
         }
 
         #region Recipe lists discovered by reflection
@@ -806,14 +846,14 @@ namespace VintageE
         }
 
         /// <summary>
-        /// Things built in stages on the spot (sailboats on rollers): the construction entity lists what each stage takes
-        /// ("stages" → "requireStacks"), and the value files say which item it ends up as. {wood}-style placeholders are
-        /// filled from the construction's own variant (its material).
+        /// Things built in stages on the spot (sailboats on rollers, other mods' ships): the construction entity lists what
+        /// each stage takes ("stages" → "requireStacks"). Which item it ends up as comes from the value files'
+        /// "constructions" rules, or, for any mod's construction without a rule, is found by itself (see
+        /// <see cref="GuessConstructionResult"/>). {wood}-style placeholders are filled from the construction's own variant.
         /// </summary>
         void CollectConstructions()
         {
-            int count = 0;
-            if (Constructions.Count == 0) return;
+            int count = 0, guessed = 0;
             foreach (Vintagestory.API.Common.Entities.EntityProperties etype in sapi.World.EntityTypes ?? new List<Vintagestory.API.Common.Entities.EntityProperties>())
             {
                 JsonObject stages = etype?.Attributes?["stages"];
@@ -829,7 +869,16 @@ namespace VintageE
                     made = index.Match(target).FirstOrDefault();
                     if (made != null) break;
                 }
-                if (made == null) continue;
+                if (made == null)
+                {
+                    made = GuessConstructionResult(etype);
+                    if (made == null)
+                    {
+                        logger.Notification("EMC: construction {0} has stages but no item it becomes was found; add a \"constructions\" rule or an /emc recipe for it.", etype.Code);
+                        continue;
+                    }
+                    guessed++;
+                }
 
                 string material = null;
                 if (etype.Variant != null && etype.Variant.TryGetValue("material", out string m)) material = m;
@@ -859,6 +908,51 @@ namespace VintageE
                 if (ok && AddIfSane(conv)) count++;
             }
             Count("built in stages", count);
+            if (guessed > 0) logger.Notification("EMC: {0} constructions without a rule were matched to the item they become by name.", guessed);
+        }
+
+        /// <summary>
+        /// The item a construction entity becomes, when no rule says: an item or block named like the entity without
+        /// "construction" (game:boatconstruction-sailed-oak → game:boat-sailed-oak, mymod:construction-longship-oak →
+        /// mymod:longship-oak), or one named in the entity's own attributes.
+        /// </summary>
+        CollectibleObject GuessConstructionResult(Vintagestory.API.Common.Entities.EntityProperties etype)
+        {
+            string domain = etype.Code.Domain;
+            var candidates = new List<string>();
+            if (etype.Code.Path.Contains("construction"))
+            {
+                string stripped = System.Text.RegularExpressions.Regex.Replace(etype.Code.Path.Replace("construction", ""), "-{2,}", "-").Trim('-');
+                if (stripped.Length > 0) candidates.Add(domain + ":" + stripped);
+            }
+            // Codes the entity's settings name (a result or launch entity, say), in its own domain unless they say otherwise.
+            void Walk(Newtonsoft.Json.Linq.JToken t, int depth)
+            {
+                if (t == null || depth > 6) return;
+                if (t is Newtonsoft.Json.Linq.JProperty prop)
+                {
+                    if (prop.Name != "stages") Walk(prop.Value, depth + 1);
+                }
+                else if (t.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                {
+                    string v = (string)t;
+                    if (!string.IsNullOrEmpty(v) && v.Length < 120 && !v.Contains(' ') && !v.Contains('{'))
+                        candidates.Add(v.Contains(':') ? v : domain + ":" + v);
+                }
+                else foreach (var child in t.Children()) Walk(child, depth + 1);
+            }
+            Walk(etype.Attributes?.Token, 0);
+            foreach (string c in candidates.Distinct())
+            {
+                if (c.Contains("construction")) continue;
+                var loc = AssetLocation.Create(c, domain);
+                CollectibleObject item = sapi.World.GetItem(loc);
+                Block block = sapi.World.GetBlock(loc);
+                if (block != null && block.Id == 0) block = null;
+                if (item != null) return item;
+                if (block != null) return block;
+            }
+            return null;
         }
 
         /// <summary>

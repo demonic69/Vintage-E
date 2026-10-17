@@ -944,6 +944,27 @@ LANG = O([
     ("cfg-reset-done", "{0} is back to its default: {1}."),
     ("cfg-resetall-done", "Every setting is back to its default, and the EMC values were worked out again."),
     ("cmdhelp-configure", "Open the settings window, or show and change one setting from chat (true/false, numbers, list and table entries; /emc configure <setting> default resets one, /emc configure resetall resets everything, /emc configure list prints them all); saved and applied straight away"),
+    # 1.9.0
+    ("gray-title", "Gray list"),
+    ("gray-summary", "{0} blocks/items are on the gray list: left out of /emc missing and given no guessed value, but valued as soon as a recipe makes them ({1} values in all, Vintage-E {2})."),
+    ("gray-summary-none", "Nothing is on the gray list ({1} values, Vintage-E {2}). Untick \"Hide missing\" to gray-list things nothing makes yet."),
+    ("gray-empty", "Nothing is on the gray list."),
+    ("gray-remove", "Take off gray list"), ("gray-removemod", "Take whole mod off"), ("gray-add", "Gray-list it"),
+    ("gray-addhint", "Missing entries (amber): select them, then put them on the gray list."),
+    ("gray-adding", "Gray-listing {0}..."), ("gray-removing", "Taking {0} off the gray list..."),
+    ("gray-removingmod", "Taking everything from {0} off the gray list..."),
+    ("gray-valued", "valued by a recipe now: {0} EMC"), ("gray-waiting", "waiting: nothing makes it yet"),
+    ("cmd-gray-added", "{0} gray-listed: out of /emc missing, and valued only if a recipe makes them."),
+    ("cmd-gray-removed", "{0} taken off the gray list."),
+    ("cmd-gray-addedmod", "Everything from {0} is on the gray list."), ("cmd-gray-removedmod", "Everything from {0} is off the gray list."),
+    ("cmd-gray-held-added", "{0} ({1}) is on the gray list."), ("cmd-gray-held-removed", "{0} ({1}) is off the gray list."),
+    ("cmdhelp-graylist", "Open the gray list: blocks/items left out of /emc missing that only get a value if a recipe makes them"),
+    ("cmdhelp-graylistset", "Put the held item on the gray list, or take it off"),
+    ("missing-clearselection", "Clear selection"),
+    ("missing-selectedhidden", "({0} hidden by the filters)"),
+    ("missing-blacklistmodmissing", "Blacklist its missing"),
+    ("missing-modmissinghint-pick", "Pick a mod in the mod filter to blacklist only its missing blocks/items."),
+    ("missing-modmissinghint", "Only the {0} missing from {1}, by their own codes: everything of it that has a value keeps it."),
 ])
 
 

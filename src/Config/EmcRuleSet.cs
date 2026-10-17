@@ -57,6 +57,10 @@ namespace VintageE
         public List<string> Blacklist = new List<string>();
         /// <summary>"freeIngredients": blacklisted (no value of their own) but free in recipes that use them (a schematic that isn't used up).</summary>
         public List<string> FreeIngredients = new List<string>();
+        /// <summary>"grayList": left out of /emc missing and never given a guessed value, but valued as soon as a recipe makes them.</summary>
+        public List<string> GrayList = new List<string>();
+        /// <summary>"recipes": recipes the mapper can't see, as "output = ingredients" lines (same format as the CustomRecipes setting).</summary>
+        public List<string> Recipes = new List<string>();
         /// <summary>Exceptions to the blacklist ("allow": ["game:creature-butterfly-*"]), applied after it.</summary>
         public List<string> Allow = new List<string>();
         /// <summary>"traderCurrency": items worth exactly the measured EMC per unit of trader currency (rusty gears).</summary>
@@ -166,6 +170,14 @@ namespace VintageE
             if (root["freeIngredients"] is JArray freeIng)
             {
                 FreeIngredients.AddRange(freeIng.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["grayList"] is JArray gray)
+            {
+                GrayList.AddRange(gray.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            if (root["recipes"] is JArray recipes)
+            {
+                Recipes.AddRange(recipes.Values<string>().Where(s => !string.IsNullOrWhiteSpace(s)));
             }
             if (root["traderCurrency"] is JArray currency)
             {

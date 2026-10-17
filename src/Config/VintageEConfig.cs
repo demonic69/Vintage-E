@@ -201,6 +201,14 @@ namespace VintageE
         [System.ComponentModel.Description("Codes or wildcards that have no EMC value themselves (they can't be burned or created) but cost nothing in recipes that use them, like a schematic that isn't used up. Added to the value files' freeIngredients.")]
         public List<string> FreeIngredients = new List<string>();
 
+        /// <summary>Codes or wildcards of blocks/items on the gray list: they're left out of /emc missing and nothing guesses a value for them, but as soon as any recipe can make them (another mod adds one, say) they get its value. For things nothing makes yet that might be used later. Change it in game with /emc graylist.</summary>
+        [System.ComponentModel.Description("Codes or wildcards of blocks/items on the gray list: they're left out of /emc missing and nothing guesses a value for them, but as soon as any recipe can make them (another mod adds one, say) they get its value. For things nothing makes yet that might be used later. Change it in game with /emc graylist.")]
+        public List<string> GrayList = new List<string>();
+
+        /// <summary>Recipes of your own, for things the mapper can't see being made (another mod's boats built on the spot, say). One per entry: "output = ingredients", like "item:shipwright:longship-oak = 40 game:plank-oak + 8 game:rope"; a number before a code is how many (2 game:stick), and an ingredient may be a wildcard (the cheapest match counts). Easiest made with the /emc recipe window.</summary>
+        [System.ComponentModel.Description("Recipes of your own, for things the mapper can't see being made (another mod's boats built on the spot, say). One per entry: \"output = ingredients\", like \"item:shipwright:longship-oak = 40 game:plank-oak + 8 game:rope\"; a number before a code is how many (2 game:stick), and an ingredient may be a wildcard (the cheapest match counts). Easiest made with the /emc recipe window.")]
+        public List<string> CustomRecipes = new List<string>();
+
         /// <summary>Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.</summary>
         [System.ComponentModel.Description("Use ProjectE's original textures for Vintage-E's blocks, items and projectiles wherever ProjectE has one (rings and stones also light up while switched on, like in ProjectE). False = Vintage-E's own textures. Takes effect the next time the server starts; players don't need to change anything.")]
         public bool ProjectETextures = false;
@@ -217,6 +225,8 @@ namespace VintageE
             Allow ??= new List<string>();
             FreeIngredients ??= new List<string>();
             NoTransmute ??= new List<string>();
+            GrayList ??= new List<string>();
+            CustomRecipes ??= new List<string>();
             TransitionEmcPerDay ??= new Dictionary<string, double>();
             HostileCreatures ??= new List<string>();
             StackDataModes ??= new Dictionary<string, string>();

@@ -211,7 +211,12 @@ namespace VintageE
             else if (kind == "list" || kind == "table") SingleComposer.GetTextArea("area")?.SetValue(shownText, false);
             else SingleComposer.GetTextInput("input")?.SetValue(shownText, false);
             composing = false;
-            if (kind == "list" || kind == "table") UpdateAreaScroll();
+            if (kind == "list" || kind == "table")
+            {
+                UpdateAreaScroll();
+                GuiElementTextArea editor = SingleComposer.GetTextArea("area");
+                if (editor != null) editor.OnCursorMoved = (cx, cy) => KeepCaretInView(cy);
+            }
             FillList();
         }
 
@@ -259,6 +264,29 @@ namespace VintageE
             GuiElementScrollbar bar = SingleComposer?.GetScrollbar("areabar");
             if (area == null || bar == null) return;
             bar.SetHeights((float)AreaHeight, (float)Math.Max(AreaHeight, area.Bounds.fixedHeight));
+        }
+
+        /// <summary>Scrolls the list/table editor so the line being edited stays in view while typing or moving the caret.</summary>
+        void KeepCaretInView(double caretY)
+        {
+            GuiElementTextArea area = SingleComposer?.GetTextArea("area");
+            GuiElementScrollbar bar = SingleComposer?.GetScrollbar("areabar");
+            if (area == null) return;
+            double scale = RuntimeEnv.GUIScale <= 0 ? 1 : RuntimeEnv.GUIScale;
+            double y = caretY / scale;
+            double line = CairoFont.WhiteSmallText().GetFontExtents().Height / scale + 4;
+            double scroll = -area.Bounds.fixedY;
+            if (y < scroll) scroll = y;
+            else if (y + line > scroll + AreaHeight) scroll = y + line - AreaHeight;
+            else return;
+            scroll = Math.Clamp(scroll, 0, Math.Max(0, area.Bounds.fixedHeight - AreaHeight));
+            area.Bounds.fixedY = -scroll;
+            area.Bounds.CalcWorldBounds();
+            if (bar != null)
+            {
+                UpdateAreaScroll();
+                bar.CurrentYPosition = (float)scroll;
+            }
         }
 
         void Scroll(string key, float value)

@@ -569,6 +569,11 @@ namespace VintageE
                 OnNoTransmuteRequest(player, packet);
                 return;
             }
+            if (packet.List == (byte)EmcListKind.GrayList)
+            {
+                OnGrayListRequest(player, packet);
+                return;
+            }
             string msg;
             if (!string.IsNullOrEmpty(packet.Domain))
             {
@@ -632,6 +637,46 @@ namespace VintageE
             }
             player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
             if (LastReport != null) SendMissingList(player, LastReport, null, FromKind(packet.FromKind, packet.FromBlacklist));
+        }
+
+        /// <summary>
+        /// The gray list's buttons (from the missing window: "Gray-list it"; from the gray list window: take items or a
+        /// whole mod off it). The values are worked out again, since gray-listed things get no guessed value.
+        /// </summary>
+        void OnGrayListRequest(IServerPlayer player, EmcBlacklistPacket packet)
+        {
+            string lang = player.LanguageCode;
+            string msg;
+            if (!string.IsNullOrEmpty(packet.Domain))
+            {
+                string prefix = packet.Domain + ":";
+                var keys = packet.Add ? new List<string> { packet.Domain + ":*" }
+                    : Config.GrayList.Where(k => k == packet.Domain + ":*" || StripType(k).StartsWith(prefix, StringComparison.Ordinal)).ToList();
+                SetGrayList(keys, packet.Add);
+                msg = Lang.GetL(lang, packet.Add ? "vintagee:cmd-gray-addedmod" : "vintagee:cmd-gray-removedmod", packet.Domain);
+            }
+            else
+            {
+                List<CollectibleObject> items = ResolveKeys(Sapi.World, packet.Key, packet.Keys);
+                if (items.Count == 0) return;
+                SetGrayList(items.Select(ConfigKey), packet.Add);
+                msg = Lang.GetL(lang, packet.Add ? "vintagee:cmd-gray-added" : "vintagee:cmd-gray-removed", items.Count);
+            }
+            EmcMappingReport report = RecalculateEmc(packet.Add ? "gray-listed from the /emc missing window" : "taken off the gray list");
+            player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
+            if (report != null) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
+        }
+
+        /// <summary>Adds or removes codes on the GrayList setting and saves it (the caller remaps).</summary>
+        public void SetGrayList(IEnumerable<string> configKeys, bool add)
+        {
+            foreach (string key in configKeys)
+            {
+                if (string.IsNullOrEmpty(key)) continue;
+                if (add) { if (!Config.GrayList.Contains(key)) Config.GrayList.Add(key); }
+                else Config.GrayList.RemoveAll(k => k == key);
+            }
+            SaveConfig();
         }
 
         static string StripType(string key) => key.StartsWith("item:") ? key.Substring(5) : key.StartsWith("block:") ? key.Substring(6) : key;
@@ -775,6 +820,10 @@ namespace VintageE
                     main = report.Blacklisted;
                     other = report.Missing; // untick "Hide missing" to mix these in
                     break;
+                case EmcListKind.GrayList:
+                    main = report.Gray ?? new List<CollectibleObject>();
+                    other = report.Missing; // untick "Hide missing" to gray-list some
+                    break;
                 case EmcListKind.NoTransmute:
                     main = Emc.NoTransmute.OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).ToList();
                     // "Show valued items": everything else in the creative inventory that has a value.
@@ -790,9 +839,13 @@ namespace VintageE
             serverChannel.SendPacket(new EmcMissingPacket
             {
                 Keys = main.Select(PlayerEmc.KeyOf).ToArray(),
-                Why = kind == EmcListKind.Missing ? main.Select(WhyOf).ToArray() : null,
+                Why = kind == EmcListKind.Missing ? main.Select(WhyOf).ToArray()
+                    : kind == EmcListKind.GrayList ? main.Select(c => report.Values.TryGetValue(c, out double v)
+                        ? Lang.GetL(player.LanguageCode, "vintagee:gray-valued", EmcFormat.Format(v))
+                        : Lang.GetL(player.LanguageCode, "vintagee:gray-waiting")).ToArray()
+                    : null,
                 OtherKeys = other.Select(PlayerEmc.KeyOf).ToArray(),
-                OtherWhy = kind == EmcListKind.Blacklist ? other.Select(WhyOf).ToArray() : null,
+                OtherWhy = kind == EmcListKind.Blacklist || kind == EmcListKind.GrayList ? other.Select(WhyOf).ToArray() : null,
                 CreativeTotal = report.CreativeTotal,
                 ValueCount = report.Values.Count,
                 Version = Version,
@@ -910,13 +963,14 @@ namespace VintageE
         {
             EmcListKind kind = packet.Kind != 0 ? (EmcListKind)packet.Kind : packet.Blacklist ? EmcListKind.Blacklist : EmcListKind.Missing;
             byte from = (byte)kind;
-            // The no-transmute window edits that list; the missing and blacklist windows edit the blacklist.
-            byte list = kind == EmcListKind.NoTransmute ? (byte)EmcListKind.NoTransmute : (byte)0;
+            // The no-transmute and gray list windows edit their own lists; the missing and blacklist windows edit the blacklist.
+            byte list = kind == EmcListKind.NoTransmute || kind == EmcListKind.GrayList ? (byte)kind : (byte)0;
             GuiDialogEmcMissing previous = missingDialog != null && missingDialog.IsOpened() && missingDialog.Kind == kind ? missingDialog : null;
             var dialog = new GuiDialogEmcMissing(Capi, packet, previous,
                 (keys, value) => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = keys, Value = value, FromBlacklist = packet.Blacklist, FromKind = from }),
                 (keys, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Keys = keys, Add = add, FromBlacklist = packet.Blacklist, FromKind = from, List = list }),
-                (domain, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Domain = domain, Add = add, FromBlacklist = packet.Blacklist, FromKind = from, List = list }));
+                (domain, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Domain = domain, Add = add, FromBlacklist = packet.Blacklist, FromKind = from, List = list }),
+                (keys, add) => clientChannel?.SendPacket(new EmcBlacklistPacket { Keys = keys, Add = add, FromKind = from, List = (byte)EmcListKind.GrayList }));
             missingDialog?.TryClose();
             missingDialog?.Dispose();
             missingDialog = dialog;

@@ -55,6 +55,10 @@ namespace VintageE
         public List<CollectibleObject> Blacklisted = new List<CollectibleObject>();
         /// <summary>Free ingredients: on the blacklist, but cost nothing in recipes.</summary>
         public List<CollectibleObject> Free = new List<CollectibleObject>();
+        /// <summary>The gray list: kept out of <see cref="Missing"/> and never given a guessed value, but valued by recipes.</summary>
+        public List<CollectibleObject> Gray = new List<CollectibleObject>();
+        /// <summary>Hand-written recipes that couldn't be used, with why (empty when the values came from the cache).</summary>
+        public List<string> CustomRecipeProblems = new List<string>();
         /// <summary>True when the values were loaded from the on-disk cache instead of being mapped.</summary>
         public bool FromCache;
         public string CachedAt;
@@ -77,6 +81,8 @@ namespace VintageE
         readonly ILogger logger;
         /// <summary>Free ingredients (see <see cref="EmcRuleSet.FreeIngredients"/>), set by Seed.</summary>
         HashSet<CollectibleObject> free = new HashSet<CollectibleObject>();
+        /// <summary>The gray list (see <see cref="EmcMappingReport.Gray"/>), set by Seed.</summary>
+        HashSet<CollectibleObject> gray = new HashSet<CollectibleObject>();
 
         public EmcMapper(ICoreServerAPI sapi, VintageEConfig config, EmcRuleSet rules, ILogger logger)
         {
@@ -94,9 +100,14 @@ namespace VintageE
             Seed(index, report, out Dictionary<CollectibleObject, double> fixedValues, out HashSet<CollectibleObject> excluded);
 
             // 3. Every way of making things.
-            var collector = new ConversionCollector(sapi, index, logger, config) { Constructions = rules.Constructions };
+            var collector = new ConversionCollector(sapi, index, logger, config)
+            {
+                Constructions = rules.Constructions,
+                CustomRecipes = rules.Recipes.Concat(config.CustomRecipes ?? new List<string>()).ToList()
+            };
             collector.CollectAll();
             report.SkippedRecipes = collector.SkippedRecipes;
+            report.CustomRecipeProblems = collector.CustomRecipeProblems;
 
             // 4. Propagate.
             var edges = new List<EmcSolver<CollectibleObject>.Edge>();
@@ -141,8 +152,11 @@ namespace VintageE
             //    Then, only if the server owner asked for it, a flat fallback value for anything still left.
             var extra = new Dictionary<CollectibleObject, double>();
             var extraOrigin = new Dictionary<CollectibleObject, string>();
+            // The gray list is valued by recipes only: every guessing step below leaves it alone.
+            var noGuess = new HashSet<CollectibleObject>(excluded);
+            noGuess.UnionWith(gray);
             // Data-driven ratios first (metal bit = 1/20 ingot...), then variant siblings for whatever is left.
-            foreach (var kv in RelativeValues(index, solver.Values, excluded, extraOrigin)) extra[kv.Key] = kv.Value;
+            foreach (var kv in RelativeValues(index, solver.Values, noGuess, extraOrigin)) extra[kv.Key] = kv.Value;
             report.RelativeCount = extra.Count;
             if (config.UseTraderPrices)
             {
@@ -162,7 +176,7 @@ namespace VintageE
                         {
                             foreach (CollectibleObject c in index.Match(pattern))
                             {
-                                if (excluded.Contains(c) || PinnedByConfig(index, c)) continue;
+                                if (noGuess.Contains(c) || PinnedByConfig(index, c)) continue;
                                 extra[c] = rate;
                                 extraOrigin[c] = string.Format(System.Globalization.CultureInfo.InvariantCulture, "trader currency: {0:0.##} EMC per gear, measured on {1} traded items", rate, samples);
                             }
@@ -170,7 +184,7 @@ namespace VintageE
                         foreach (var kv in traders.PricePerItem)
                         {
                             CollectibleObject c = kv.Key;
-                            if (solver.Values.ContainsKey(c) || excluded.Contains(c) || extra.ContainsKey(c)) continue;
+                            if (solver.Values.ContainsKey(c) || noGuess.Contains(c) || extra.ContainsKey(c)) continue;
                             extra[c] = kv.Value * rate;
                             extraOrigin[c] = string.Format(System.Globalization.CultureInfo.InvariantCulture, "trader price: {0:0.##} x {1:0.##} EMC per gear", kv.Value, rate);
                             report.TraderCount++;
@@ -205,7 +219,7 @@ namespace VintageE
             }
             solver = Stage(solver); // ratios and trader prices
 
-            bool Skip(CollectibleObject c) => excluded.Contains(c) || extra.ContainsKey(c);
+            bool Skip(CollectibleObject c) => noGuess.Contains(c) || extra.ContainsKey(c);
             Dictionary<CollectibleObject, double> Known()
             {
                 var k = new Dictionary<CollectibleObject, double>(solver.Values);
@@ -216,7 +230,7 @@ namespace VintageE
             // Ratio rules again, now that trader prices may have valued what they're relative to (cheese slices of a
             // traded cheese, say).
             int relativeAgain = 0;
-            foreach (var kv in RelativeValues(index, Known(), excluded, extraOrigin))
+            foreach (var kv in RelativeValues(index, Known(), noGuess, extraOrigin))
             {
                 if (extra.ContainsKey(kv.Key) || solver.Values.ContainsKey(kv.Key)) continue;
                 extra[kv.Key] = kv.Value;
@@ -252,7 +266,7 @@ namespace VintageE
                 if (config.DisableBuiltInBaseValues && rule.Source.StartsWith(VintageEModSystem.ModId + ":", StringComparison.Ordinal)) continue;
                 foreach (CollectibleObject c in index.Match(rule.Pattern))
                 {
-                    if (solver.Values.ContainsKey(c) || excluded.Contains(c) || extra.ContainsKey(c)) continue;
+                    if (solver.Values.ContainsKey(c) || noGuess.Contains(c) || extra.ContainsKey(c)) continue;
                     if (rule.Value > 0) defaults[c] = (rule.Value, rule.Pattern);
                     else defaults.Remove(c);
                 }
@@ -284,7 +298,7 @@ namespace VintageE
             {
                 foreach (CollectibleObject c in index.All)
                 {
-                    if (IsListed(c) && !excluded.Contains(c) && !solver.Values.ContainsKey(c) && !extra.ContainsKey(c))
+                    if (IsListed(c) && !noGuess.Contains(c) && !solver.Values.ContainsKey(c) && !extra.ContainsKey(c))
                     {
                         extra[c] = config.FallbackValue;
                         extraOrigin[c] = "FallbackValue from the server config";
@@ -369,6 +383,11 @@ namespace VintageE
             excluded.UnionWith(free);
             report.Free = free.Where(c => c?.Code != null).ToList();
 
+            // The gray list: no guessed values, not "missing"; recipes still value it. Blacklisted things stay blacklisted.
+            gray = new HashSet<CollectibleObject>();
+            foreach (string pattern in rules.GrayList.Concat(config.GrayList ?? new List<string>())) gray.UnionWith(index.Match(pattern));
+            gray.ExceptWith(excluded);
+
             // 2. Seed values. Later sources win: asset files (ours, then other mods') → item attributes → server config.
             fixedValues = new Dictionary<CollectibleObject, double>();
             foreach (EmcValueRule rule in rules.Values)
@@ -411,14 +430,17 @@ namespace VintageE
             return report;
         }
 
-        static void FillCoverage(CollectibleIndex index, EmcMappingReport report, HashSet<CollectibleObject> excluded)
+        void FillCoverage(CollectibleIndex index, EmcMappingReport report, HashSet<CollectibleObject> excluded)
         {
             report.Blacklisted = excluded.Where(c => c?.Code != null).ToList();
+            report.Gray = gray.Where(c => c?.Code != null).OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).ToList();
             foreach (CollectibleObject c in index.All)
             {
                 if (!IsListed(c) || excluded.Contains(c)) continue;
+                bool valued = report.Values.ContainsKey(c);
+                if (!valued && gray.Contains(c)) continue; // waiting on the gray list: not counted until something makes it
                 report.CreativeTotal++;
-                if (!report.Values.ContainsKey(c)) report.Missing.Add(c);
+                if (!valued) report.Missing.Add(c);
             }
         }
 
