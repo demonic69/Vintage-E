@@ -101,6 +101,11 @@ namespace VintageE
                 // Projectiles fired straight down at the ground a little way off. The lens aims at its own column's
                 // ground height (hilly sites made it land outside the area that was counted).
                 int lensY = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z + 12)) + 1;
+                // Clear the way down (trees, bushes), so the charge reaches the ground it's counted at.
+                for (int dy = 0; dy < 16; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                        for (int dz = -1; dz <= 1; dz++)
+                            ba.SetBlock(0, new BlockPos(x + dx, lensY + dy, z + 12 + dz));
                 var lens = Fire("lens", new Vec3d(x + 0.5, lensY + 12, z + 12.5), p => p.Radius = 4);
                 // Well away from the furnaces: the water flows, and firepits go out in water.
                 var water = Fire("water", new Vec3d(x + 30.5, y + 8, z + 0.5), null);
