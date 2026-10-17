@@ -411,11 +411,7 @@ namespace VintageE
                     if (hunger != null)
                     {
                         float cur = hunger.GetFloat("currentsaturation"), max = hunger.GetFloat("maxsaturation");
-                        if (max > 0 && cur < max)
-                        {
-                            hunger.SetFloat("currentsaturation", Math.Min(max, cur + 25 * power));
-                            ep.WatchedAttributes.MarkPathDirty("hunger");
-                        }
+                        if (max > 0 && cur < max) TrinketEffects.GiveSaturation(ep, Math.Min(max - cur, 25 * power), ItemEmcTrinket.FeedsNutrition(held));
                     }
                 }
                 if (effect == "repairtalisman")

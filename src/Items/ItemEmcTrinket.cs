@@ -49,6 +49,10 @@ namespace VintageE
         /// <summary>Index into <see cref="GaleSpeeds"/> picked on this Swiftwolf's Rending Gale.</summary>
         public static int GetSpeedLevel(ItemStack stack) => GameMath.Clamp(stack?.Attributes?.GetInt(SpeedKey) ?? 0, 0, GaleSpeeds.Length - 1);
         public static readonly string[] WatchModes = { "faster", "slower" };
+        /// <summary>Body/Life Stone: saturation only (ProjectE's), or saturation and nutrition (the food groups too, for more EMC).</summary>
+        public static readonly string[] FoodModes = { "saturation", "nutrition" };
+        public bool UsesFoodModes => Kind == "bodystone" || Kind == "lifestone";
+        public static bool FeedsNutrition(ItemStack stack) => stack?.Collectible is ItemEmcTrinket t && t.UsesFoodModes && GetMode(stack) == 1;
         public static readonly string[] DensityTargets = { "game:ingot-iron", "game:ingot-gold", "game:gem-diamond-rough", "vintagee:matter-dark", "vintagee:matter-red" };
 
         /// <summary>EMC per lava block (amulet click or shot), as ProjectE.</summary>
@@ -133,6 +137,15 @@ namespace VintageE
                 {
                     modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "watch-" + WatchModes[i]), Name = Lang.Get("vintagee:watch-" + WatchModes[i]) }
                         .WithLetterIcon(capi, i == 0 ? "+" : "-");
+                }
+            }
+            else if (UsesFoodModes)
+            {
+                modes = new SkillItem[FoodModes.Length];
+                for (int i = 0; i < modes.Length; i++)
+                {
+                    modes[i] = new SkillItem { Code = new AssetLocation("vintagee", "food-" + FoodModes[i]), Name = Lang.Get("vintagee:food-" + FoodModes[i]) }
+                        .WithLetterIcon(capi, i == 0 ? "S" : "N");
                 }
             }
             else if (UsesDensityModes)
@@ -243,12 +256,24 @@ namespace VintageE
             PESounds.Play(world, on ? PESounds.Heal : PESounds.Uncharge, on ? "game:sounds/effect/latch" : "game:sounds/effect/woodswitch", byEntity, 8, 0.7f);
         }
 
+        VintageEModSystem watchMod;
+
         public override void OnBeforeRender(ICoreClientAPI capi, ItemStack itemstack, EnumItemRenderTarget target, ref ItemRenderInfo renderinfo)
         {
             base.OnBeforeRender(capi, itemstack, target, ref renderinfo);
             // With ProjectE's textures: its "on" look while switched on, and the Arcana/Swiftwolf mode looks.
             AssetLocation look = ProjectELook.TrinketLook(this, itemstack);
             if (look != null) ProjectELook.UseSprite(capi, look, ref renderinfo);
+            // The watch glows (a pulsing tint in this computer's chosen colour) while it's on: its sound is easy to miss.
+            if (Kind == "watchofflowingtime" && IsActive(itemstack))
+            {
+                LoadedTexture glow = (watchMod ??= capi.ModLoader.GetModSystem<VintageEModSystem>())?.WatchGlowTexture();
+                if (glow != null && glow.TextureId != 0)
+                {
+                    renderinfo.OverlayTexture = glow;
+                    renderinfo.OverlayOpacity = 0.35f + 0.2f * (float)Math.Sin(capi.ElapsedMilliseconds / 300.0);
+                }
+            }
         }
 
         // ------------------------------------------------------------------ fire-projectile key
@@ -302,6 +327,10 @@ namespace VintageE
             else if (Kind == "watchofflowingtime")
             {
                 dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:watch-" + WatchModes[GameMath.Clamp(GetMode(stack), 0, WatchModes.Length - 1)])));
+            }
+            else if (UsesFoodModes)
+            {
+                dsc.AppendLine(Lang.Get("vintagee:trinket-mode", Lang.Get("vintagee:food-" + FoodModes[GameMath.Clamp(GetMode(stack), 0, FoodModes.Length - 1)])));
             }
             if (UsesDensityModes)
             {

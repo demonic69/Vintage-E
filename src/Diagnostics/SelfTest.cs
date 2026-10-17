@@ -473,6 +473,14 @@ namespace VintageE
             Check(nova?.EntityClass != null && typeof(Vintagestory.GameContent.IIgnitable).IsAssignableFrom(sapi.ClassRegistry.GetBlockEntity(nova.EntityClass)),
                 "nova explosives are lit by torches and firestarters (ignitable)");
 
+            foreach (var (code, slots) in new[] { ("vintagee:alchemicalbagdark-red", 48), ("vintagee:alchemicalbagred-red", 64) })
+            {
+                Item bag = sapi.World.GetItem(new AssetLocation(code));
+                GridRecipe up = sapi.World.GridRecipes.FirstOrDefault(r => r.Output?.Code?.ToString() == code);
+                Check(bag?.Attributes?["backpack"]["quantitySlots"].AsInt() == slots && up != null && up.CopyAttributesFrom == "B",
+                    $"{code}: {slots} slots, upgraded from the smaller bag keeping its contents");
+            }
+
             TrinketEffects fx = mod.Trinkets;
             ModSystem weather = sapi.ModLoader.Systems.FirstOrDefault(m => m.GetType().Name == "WeatherSystemServer");
             var prop = weather?.GetType().GetProperty("OverridePrecipitation");

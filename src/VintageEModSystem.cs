@@ -984,7 +984,25 @@ namespace VintageE
             clientChannel.SetMessageHandler<EmcMissingPacket>(OnMissingList);
             clientChannel.SetMessageHandler<EmcContentsPacket>(OnContentsList);
             clientChannel.SetMessageHandler<EmcConfigPacket>(OnConfigList);
-            clientChannel.SetMessageHandler<WatchSpeedPacket>(p => TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier));
+            clientChannel.SetMessageHandler<WatchSpeedPacket>(p =>
+            {
+                ClientWatchModifier = p.Modifier;
+                TrinketEffects.ApplyTimeModifier(capi.World.Calendar, p.Modifier);
+                watchHud?.Update();
+            });
+
+            // This computer's settings (the watch's icon and glow), and the .vintagee command that opens them.
+            ClientConfig = VintageEClientConfig.Load(capi);
+            capi.ChatCommands.Create("vintagee")
+                .WithDescription("Vintage-E settings for this computer (how the Watch of Flowing Time shows it's on)")
+                .HandleWith(_ =>
+                {
+                    clientSettingsDialog?.TryClose();
+                    clientSettingsDialog = new GuiDialogClientSettings(capi, this);
+                    clientSettingsDialog.TryOpen();
+                    return TextCommandResult.Success();
+                });
+            capi.Event.LevelFinalize += () => watchHud = new HudWatchIndicator(capi, this);
 
             capi.Event.RegisterGameTickListener(WindTick, 250);
 
@@ -1079,6 +1097,42 @@ namespace VintageE
         public void SendTransmuteRequest(TransmuteRequestPacket packet) => clientChannel?.SendPacket(packet);
 
         public const string SetValueHotkey = "vintagee-setvalue";
+
+        /// <summary>Client: this computer's settings (ModConfig/vintagee-client.json).</summary>
+        public VintageEClientConfig ClientConfig { get; private set; }
+        /// <summary>Client: the watch's change to the world's time speed (0 = none), from the server.</summary>
+        public float ClientWatchModifier { get; private set; }
+        HudWatchIndicator watchHud;
+        GuiDialogClientSettings clientSettingsDialog;
+        LoadedTexture watchGlowTexture;
+        string watchGlowColor;
+
+        /// <summary>The client settings changed in their window: save them and show the change.</summary>
+        public void OnClientConfigChanged()
+        {
+            ClientConfig?.Save(Capi);
+            watchHud?.Update(true);
+        }
+
+        /// <summary>
+        /// Client: a plain texture of the watch's glow colour, drawn over the watch (as the game draws rot over food)
+        /// while it's on; null when the glow is off in the settings.
+        /// </summary>
+        public LoadedTexture WatchGlowTexture()
+        {
+            if (Capi == null || ClientConfig == null || !ClientConfig.WatchGlow) return null;
+            if (watchGlowTexture != null && watchGlowColor == ClientConfig.WatchGlowColor) return watchGlowTexture;
+            if (!VintageEClientConfig.TryParseColor(ClientConfig.WatchGlowColor, out int rgb)) rgb = 0x66CCFF;
+            int r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
+            int pixel = (255 << 24) | (b << 16) | (g << 8) | r; // RGBA bytes in memory order
+            int[] pixels = Enumerable.Repeat(pixel, 16).ToArray();
+            watchGlowTexture ??= new LoadedTexture(Capi, 0, 4, 4);
+            watchGlowTexture.Width = 4;
+            watchGlowTexture.Height = 4;
+            Capi.Render.LoadOrUpdateTextureFromRgba(pixels, false, 0, ref watchGlowTexture);
+            watchGlowColor = ClientConfig.WatchGlowColor;
+            return watchGlowTexture;
+        }
 
         /// <summary>Tooltip line naming the key the fire-projectile control is bound to now (it can be changed in the game's controls).</summary>
         public static void AppendFireKey(IWorldAccessor world, System.Text.StringBuilder dsc)
@@ -1199,6 +1253,8 @@ namespace VintageE
         {
             transmutationDialog?.Dispose();
             missingDialog?.Dispose();
+            watchHud?.Dispose();
+            watchGlowTexture?.Dispose();
             windSound?.Stop();
             windSound?.Dispose();
             windSound = null;

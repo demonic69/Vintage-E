@@ -871,6 +871,48 @@
     "name": "vintagee:alchemicalbag-white"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-white"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-white"
+    },
+    "name": "vintagee:alchemicalbagdark-white",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-white"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-white"
+    },
+    "name": "vintagee:alchemicalbagred-white",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -893,6 +935,48 @@
       "code": "vintagee:alchemicalbag-plain"
     },
     "name": "vintagee:alchemicalbag-plain"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-plain"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-plain"
+    },
+    "name": "vintagee:alchemicalbagdark-plain",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-plain"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-plain"
+    },
+    "name": "vintagee:alchemicalbagred-plain",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "HHH,CXC,CCC",
@@ -919,6 +1003,48 @@
     "name": "vintagee:alchemicalbag-gray"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-gray"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-gray"
+    },
+    "name": "vintagee:alchemicalbagdark-gray",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-gray"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-gray"
+    },
+    "name": "vintagee:alchemicalbagred-gray",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -941,6 +1067,48 @@
       "code": "vintagee:alchemicalbag-black"
     },
     "name": "vintagee:alchemicalbag-black"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-black"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-black"
+    },
+    "name": "vintagee:alchemicalbagdark-black",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-black"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-black"
+    },
+    "name": "vintagee:alchemicalbagred-black",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "HHH,CXC,CCC",
@@ -967,6 +1135,48 @@
     "name": "vintagee:alchemicalbag-brown"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-brown"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-brown"
+    },
+    "name": "vintagee:alchemicalbagdark-brown",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-brown"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-brown"
+    },
+    "name": "vintagee:alchemicalbagred-brown",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -989,6 +1199,48 @@
       "code": "vintagee:alchemicalbag-red"
     },
     "name": "vintagee:alchemicalbag-red"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-red"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-red"
+    },
+    "name": "vintagee:alchemicalbagdark-red",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-red"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-red"
+    },
+    "name": "vintagee:alchemicalbagred-red",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "HHH,CXC,CCC",
@@ -1015,6 +1267,48 @@
     "name": "vintagee:alchemicalbag-orange"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-orange"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-orange"
+    },
+    "name": "vintagee:alchemicalbagdark-orange",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-orange"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-orange"
+    },
+    "name": "vintagee:alchemicalbagred-orange",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -1037,6 +1331,48 @@
       "code": "vintagee:alchemicalbag-yellow"
     },
     "name": "vintagee:alchemicalbag-yellow"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-yellow"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-yellow"
+    },
+    "name": "vintagee:alchemicalbagdark-yellow",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-yellow"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-yellow"
+    },
+    "name": "vintagee:alchemicalbagred-yellow",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "HHH,CXC,CCC",
@@ -1063,6 +1399,48 @@
     "name": "vintagee:alchemicalbag-green"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-green"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-green"
+    },
+    "name": "vintagee:alchemicalbagdark-green",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-green"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-green"
+    },
+    "name": "vintagee:alchemicalbagred-green",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -1085,6 +1463,48 @@
       "code": "vintagee:alchemicalbag-blue"
     },
     "name": "vintagee:alchemicalbag-blue"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-blue"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-blue"
+    },
+    "name": "vintagee:alchemicalbagdark-blue",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-blue"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-blue"
+    },
+    "name": "vintagee:alchemicalbagred-blue",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "HHH,CXC,CCC",
@@ -1111,6 +1531,48 @@
     "name": "vintagee:alchemicalbag-purple"
   },
   {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-purple"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-purple"
+    },
+    "name": "vintagee:alchemicalbagdark-purple",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-purple"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-purple"
+    },
+    "name": "vintagee:alchemicalbagred-purple",
+    "copyAttributesFrom": "B"
+  },
+  {
     "ingredientPattern": "HHH,CXC,CCC",
     "ingredients": {
       "H": {
@@ -1133,6 +1595,48 @@
       "code": "vintagee:alchemicalbag-pink"
     },
     "name": "vintagee:alchemicalbag-pink"
+  },
+  {
+    "ingredientPattern": "_D_,DBD,_D_",
+    "ingredients": {
+      "D": {
+        "type": "item",
+        "code": "vintagee:matter-dark"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbag-pink"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagdark-pink"
+    },
+    "name": "vintagee:alchemicalbagdark-pink",
+    "copyAttributesFrom": "B"
+  },
+  {
+    "ingredientPattern": "_R_,RBR,_R_",
+    "ingredients": {
+      "R": {
+        "type": "item",
+        "code": "vintagee:matter-red"
+      },
+      "B": {
+        "type": "item",
+        "code": "vintagee:alchemicalbagdark-pink"
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "item",
+      "code": "vintagee:alchemicalbagred-pink"
+    },
+    "name": "vintagee:alchemicalbagred-pink",
+    "copyAttributesFrom": "B"
   },
   {
     "ingredientPattern": "DDD,D_D",

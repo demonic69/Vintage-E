@@ -48,6 +48,9 @@ RINGS = ["blackholeband", "swiftwolfsrendinggale", "harvestgoddessband", "igniti
 GADGETS = ["destructioncatalyst", "hyperkineticlens", "catalyticlens", "mercurialeye", "archangelssmite",
            "tomeofknowledge", "diviningrodlow", "diviningrodmedium", "diviningrodhigh"]
 BAGS = ["white", "plain", "gray", "black", "brown", "red", "orange", "yellow", "green", "blue", "purple", "pink"]
+# (item code, slots, top texture): the Alchemical Bag and its dark/red matter upgrades.
+BAG_TIERS = [("alchemicalbag", 32, "item/bag/alchemicalbag-top"), ("alchemicalbagdark", 48, "item/tool/material/darkmatter"),
+             ("alchemicalbagred", 64, "item/tool/material/redmatter")]
 ARMOR_MATS = ["dark", "red", "gem"]
 PARTS = ["head", "body", "legs"]
 FUELS = ["alchemicalcoal", "mobiusfuel", "aeternalisfuel"]
@@ -114,24 +117,26 @@ def items():
         ("materialDensity", 5000),
     ]))
     # Alchemical bags use the game's sack model and bag behaviours (worn in a backpack slot), with 32 slots.
-    write("itemtypes/alchemicalbag.json", O([
-        ("code", "alchemicalbag"),
-        ("variantgroups", [O([("code", "color"), ("states", BAGS)])]),
-        ("maxstacksize", 1),
-        ("shape", O([("base", "game:item/bag/linensack")])),
-        ("textures", O([("linen", O([("base", "item/bag/alchemicalbag-{color}")])), ("top", O([("base", "item/bag/alchemicalbag-top")]))])),
-        ("behaviors", [
-            O([("name", "GroundStorable"), ("properties", O([("layout", "SingleCenter"), ("collisionBox", O([("x1", 0.25), ("y1", 0), ("z1", 0.25), ("x2", 0.75), ("y2", 0.375), ("z2", 0.75)]))]))]),
-            O([("name", "HeldBag")]),
-            O([("name", "GroundStoredHeldBag"), ("properties", O([("dialogTitleLangCode", "vintagee:alchemicalbagcontents")]))]),
-        ]),
-        ("attributes", O([("backpack", O([("quantitySlots", 32)]))])),
-        ("storageFlags", 2),
-        ("creativeinventory", CREATIVE),
-        ("guiTransform", xf(rot=(-25, 23, 180), origin=(0.5299, 0.23, 0.5), scale=2.7, rotate=True)),
-        ("tpHandTransform", xf(trans=(-0.7, -0.5, -0.6), rot=(-4, 47, -17), scale=0.81)),
-        ("groundTransform", xf(rot=(180, 33, -180), origin=(0.5, 0, 0.5), scale=2.5)),
-    ]))
+    # The bag, and (1.9.0) its dark and red matter upgrades: same colours, more slots, a matter top.
+    for code, slots, top in BAG_TIERS:
+        write(f"itemtypes/{code}.json", O([
+            ("code", code),
+            ("variantgroups", [O([("code", "color"), ("states", BAGS)])]),
+            ("maxstacksize", 1),
+            ("shape", O([("base", "game:item/bag/linensack")])),
+            ("textures", O([("linen", O([("base", "item/bag/alchemicalbag-{color}")])), ("top", O([("base", top)]))])),
+            ("behaviors", [
+                O([("name", "GroundStorable"), ("properties", O([("layout", "SingleCenter"), ("collisionBox", O([("x1", 0.25), ("y1", 0), ("z1", 0.25), ("x2", 0.75), ("y2", 0.375), ("z2", 0.75)]))]))]),
+                O([("name", "HeldBag")]),
+                O([("name", "GroundStoredHeldBag"), ("properties", O([("dialogTitleLangCode", "vintagee:alchemicalbagcontents")]))]),
+            ]),
+            ("attributes", O([("backpack", O([("quantitySlots", slots)]))])),
+            ("storageFlags", 2),
+            ("creativeinventory", CREATIVE),
+            ("guiTransform", xf(rot=(-25, 23, 180), origin=(0.5299, 0.23, 0.5), scale=2.7, rotate=True)),
+            ("tpHandTransform", xf(trans=(-0.7, -0.5, -0.6), rot=(-4, 47, -17), scale=0.81)),
+            ("groundTransform", xf(rot=(180, 33, -180), origin=(0.5, 0, 0.5), scale=2.5)),
+        ]))
     armor()
 
 
@@ -636,6 +641,13 @@ def recipes():
     for c in BAGS:
         cloth = "white" if c == "white" else c
         rs.append(R(f"alchemicalbag-{c}", "HHH,CXC,CCC", O([("H", dust("high")), ("X", I("vintagee:alchemicalchest", "block")), ("C", I(f"game:cloth-{cloth}"))]), f"vintagee:alchemicalbag-{c}"))
+        # Upgrades keep what's in the bag (its attributes are copied over).
+        up = R(f"alchemicalbagdark-{c}", "_D_,DBD,_D_", O([("D", DM), ("B", I(f"vintagee:alchemicalbag-{c}"))]), f"vintagee:alchemicalbagdark-{c}")
+        up["copyAttributesFrom"] = "B"
+        rs.append(up)
+        up = R(f"alchemicalbagred-{c}", "_R_,RBR,_R_", O([("R", RM), ("B", I(f"vintagee:alchemicalbagdark-{c}"))]), f"vintagee:alchemicalbagred-{c}")
+        up["copyAttributesFrom"] = "B"
+        rs.append(up)
 
     a = lambda m, p: f"vintagee:matterarmor-{m}-{p}"
     rs.append(R("matterarmor-dark-head", "DDD,D_D", O([("D", DM)]), a("dark", "head")))
@@ -996,6 +1008,18 @@ LANG = O([
     ("cmdhelp-recipeset", "Add or remove a hand-written recipe by text"),
     ("firekey-line", "Fire-projectile key: {0}"), ("firekey-unbound", "Fire-projectile key: not set (Settings, Controls)"),
     ("condenser-incoming", "Receiving {0} EMC a second"),
+    ("food-saturation", "Saturation only"), ("food-nutrition", "Saturation and nutrition (1 EMC per point)"),
+    ("watchhud-speed", "Time {0}"), ("watchhud-on", "Watch on"),
+    ("clientcfg-title", "Vintage-E (this computer)"), ("clientcfg-watch", "Watch of Flowing Time"),
+    ("clientcfg-icon", "Show an icon while it's on"), ("clientcfg-size", "Icon size"), ("clientcfg-position", "Position"),
+    ("clientcfg-offset", "Move it by"), ("clientcfg-glow", "Make the watch glow while it's on"), ("clientcfg-color", "Glow colour"),
+    ("clientcfg-note", "Saved for this computer only (ModConfig/vintagee-client.json). Type .vintagee in chat to open this again."),
+    ("clientcfg-done", "Done"),
+    ("clientcfg-pos-topleft", "Top left"), ("clientcfg-pos-topcenter", "Top middle"), ("clientcfg-pos-topright", "Top right"),
+    ("clientcfg-pos-middleleft", "Middle left"), ("clientcfg-pos-middleright", "Middle right"),
+    ("clientcfg-pos-bottomleft", "Bottom left"), ("clientcfg-pos-bottomcenter", "Bottom middle"), ("clientcfg-pos-bottomright", "Bottom right"),
+    ("clientcfg-color-sky", "Sky blue"), ("clientcfg-color-gold", "Gold"), ("clientcfg-color-green", "Green"), ("clientcfg-color-purple", "Purple"),
+    ("clientcfg-color-red", "Red"), ("clientcfg-color-white", "White"), ("clientcfg-color-custom", "Your own (#RRGGBB)"),
 ])
 
 
@@ -1009,8 +1033,12 @@ def lang():
     for s in STARS[1:]:
         d["itemdesc-kleinstar-" + s] = DESCS["kleinstar-ein"]
     for c in BAGS:
-        d[f"item-alchemicalbag-{c}"] = f"Alchemical Bag ({c})" if c not in ("white", "plain") else ("Alchemical Bag" if c == "white" else "Alchemical Bag (plain)")
-        d[f"itemdesc-alchemicalbag-{c}"] = "A 32-slot bag. Wear it in a backpack slot."
+        for code, slots, _ in BAG_TIERS:
+            name = {"alchemicalbag": "Alchemical Bag", "alchemicalbagdark": "Dark Matter Alchemical Bag", "alchemicalbagred": "Red Matter Alchemical Bag"}[code]
+            d[f"item-{code}-{c}"] = f"{name} ({c})" if c not in ("white", "plain") else (name if c == "white" else f"{name} (plain)")
+            d[f"itemdesc-{code}-{c}"] = f"A {slots}-slot bag. Wear it in a backpack slot." + (
+                {"alchemicalbag": " Upgrade it with 4 dark matter for 48 slots.", "alchemicalbagdark": " Upgrade it with 4 red matter for 64 slots; upgrading keeps what's inside.",
+                 "alchemicalbagred": ""}[code])
     for m, mn in (("dark", "Dark Matter"), ("red", "Red Matter"), ("gem", "Gem")):
         for p, pn in (("head", "Helmet"), ("body", "Chestplate"), ("legs", "Leggings")):
             d[f"item-matterarmor-{m}-{p}"] = f"{mn} {pn}"

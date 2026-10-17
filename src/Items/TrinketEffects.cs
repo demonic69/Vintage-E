@@ -314,13 +314,13 @@ namespace VintageE
                             Freeze(entity.Pos.AsBlockPos, 3, player);
                             break;
                         case "bodystone":
-                            if (Every(uid, effect, 2)) Feed(player);
+                            if (Every(uid, effect, 2)) Feed(player, ItemEmcTrinket.FeedsNutrition(slot.Itemstack));
                             break;
                         case "soulstone":
                             if (Every(uid, effect, 1)) Heal(player);
                             break;
                         case "lifestone":
-                            if (Every(uid, "life-feed", 2)) Feed(player);
+                            if (Every(uid, "life-feed", 2)) Feed(player, ItemEmcTrinket.FeedsNutrition(slot.Itemstack));
                             if (Every(uid, "life-heal", 1)) Heal(player);
                             break;
                         case "repairtalisman":
@@ -639,17 +639,50 @@ namespace VintageE
             }
         }
 
-        void Feed(IServerPlayer player)
+        /// <summary>EMC per point of saturation: plain feeding, and the nutrition mode (which also fills the food groups).</summary>
+        public const double FeedCost = 0.5, NutritionFeedCost = 1;
+
+        void Feed(IServerPlayer player, bool nutrition)
         {
             ITreeAttribute hunger = player.Entity.WatchedAttributes.GetTreeAttribute("hunger");
             if (hunger == null) return;
             float cur = hunger.GetFloat("currentsaturation"), max = hunger.GetFloat("maxsaturation");
             if (max <= 0 || cur > max - 100) return;
             float add = Math.Min(200, max - cur);
-            if (!EmcWallet.TryPay(player, Cost(add * 0.5))) return;
-            hunger.SetFloat("currentsaturation", cur + add);
-            player.Entity.WatchedAttributes.MarkPathDirty("hunger");
+            if (!EmcWallet.TryPay(player, Cost(add * (nutrition ? NutritionFeedCost : FeedCost)))) return;
+            GiveSaturation(player.Entity, add, nutrition);
             PESounds.Play(sapi.World, PESounds.Heal, null, player.Entity, 8); // ProjectE's stones play it each time they feed or heal
+        }
+
+        static readonly (EnumFoodCategory cat, string level)[] FoodGroups =
+        {
+            (EnumFoodCategory.Fruit, "fruitLevel"), (EnumFoodCategory.Vegetable, "vegetableLevel"), (EnumFoodCategory.Grain, "grainLevel"),
+            (EnumFoodCategory.Protein, "proteinLevel"), (EnumFoodCategory.Dairy, "dairyLevel")
+        };
+
+        /// <summary>
+        /// Feeds <paramref name="amount"/> saturation. With <paramref name="nutrition"/> it's eaten as food through the
+        /// game (so its hunger behaviour adds nutrition too), in small portions each going to the emptiest food group.
+        /// </summary>
+        public static void GiveSaturation(EntityAgent entity, float amount, bool nutrition)
+        {
+            if (amount <= 0) return;
+            if (!nutrition)
+            {
+                ITreeAttribute hunger = entity.WatchedAttributes.GetTreeAttribute("hunger");
+                if (hunger == null) return;
+                float cur = hunger.GetFloat("currentsaturation"), max = hunger.GetFloat("maxsaturation");
+                hunger.SetFloat("currentsaturation", Math.Min(max, cur + amount));
+                entity.WatchedAttributes.MarkPathDirty("hunger");
+                return;
+            }
+            const float portion = 25;
+            for (float left = amount; left > 0.01f; left -= portion)
+            {
+                ITreeAttribute hunger = entity.WatchedAttributes.GetTreeAttribute("hunger");
+                var group = FoodGroups.OrderBy(g => hunger?.GetFloat(g.level) ?? 0).First();
+                entity.ReceiveSaturation(Math.Min(portion, left), group.cat);
+            }
         }
 
         void Heal(IServerPlayer player)

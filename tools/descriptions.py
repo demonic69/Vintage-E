@@ -43,10 +43,12 @@ ITEM = {
                             "The tool-mode key switches each of the four on or off (all on to start). Fire can't hurt you while you carry it.\n"
                             "Fire-projectile key: shoots a fireball while its Ignition effect is on.",
     "trinket-bodystone": "While on: when you are 100 saturation or more below full, it feeds you up to 200 saturation for 0.5 EMC each (every 2 seconds).\n"
-                         "On a pedestal: feeds players within 6 blocks 25 saturation a second, free.",
+                         "Tool-mode key: saturation only, or saturation and nutrition (1 EMC each), which also fills your food groups, the emptiest first.\n"
+                         "On a pedestal: feeds players within 6 blocks 25 saturation a second, free (with nutrition too in that mode).",
     "trinket-soulstone": "While on: heals you 1 health a second for 64 EMC each.\n"
                          "On a pedestal: heals players within 6 blocks 0.5 health a second, free.",
     "trinket-lifestone": "Body Stone and Soul Stone in one: feeds you (0.5 EMC per saturation) and heals you (64 EMC per health) while on.\n"
+                         "Tool-mode key: saturation only, or saturation and nutrition (1 EMC per saturation), which also fills your food groups.\n"
                          "On a pedestal: feeds and heals players within 6 blocks, free.",
     "trinket-repairtalisman": "Always works while you carry it: repairs 1 durability a second on every damaged tool, weapon and piece of armour you carry or wear, and restores clothing condition (1% a minute by default; the server can change or turn that off). Free.\n"
                               "On a pedestal: does the same for players within 6 blocks.",
@@ -63,7 +65,8 @@ ITEM = {
                                "Carry it and fire can't hurt you. On a pedestal: clears the sky until you take it off.",
     "trinket-watchofflowingtime": "While on: time runs 10x faster for the whole world (crops, cooking, curing, drying, day and night) for 8 EMC a second, and crops within 6 blocks get extra growth.\n"
                                   "Tool-mode key: slow time to a third instead (4 EMC a second), which also slows hostile creatures within 10 blocks.\n"
-                                  "On a pedestal: grows crops within 12 blocks and slows hostile creatures, free.",
+                                  "On a pedestal: grows crops within 12 blocks and slows hostile creatures, free.\n"
+                                  "While it's on, an icon on screen shows how fast time runs and the watch glows; type .vintagee in chat to move, resize, recolour or turn these off.",
     # ---------------------------------------------------------------- gadgets
     "gadget-destructioncatalyst": "Right-click a block to break a 3x3 tunnel into it: 1, 4, 8 or 16 blocks deep (charge 0-3, tool-mode key). 8 EMC per block broken; everything drops where you clicked.",
     "gadget-hyperkineticlens": "Right-click (or the fire-projectile key) to shoot an explosive charge. It flies straight at 36 blocks a second and explodes where it hits.\n"
@@ -170,15 +173,15 @@ SHORT_ITEM = {
     "trinket-ignitionring": "Fire can't hurt you; while on, hostile creatures nearby catch fire. Shoots fireballs.",
     "trinket-zeroring": "Freezes still water around you while on.",
     "trinket-ringofarcana": "The Zero Ring, Ignition Ring, Harvest Goddess Band and Swiftwolf's Rending Gale in one, all free.",
-    "trinket-bodystone": "Keeps you fed while on, for EMC.",
+    "trinket-bodystone": "Keeps you fed while on, for EMC; the tool-mode key adds nutrition.",
     "trinket-soulstone": "Heals you while on, for EMC.",
-    "trinket-lifestone": "The Body Stone and Soul Stone in one: feeds and heals you while on.",
+    "trinket-lifestone": "The Body Stone and Soul Stone in one: feeds and heals you while on; the tool-mode key adds nutrition.",
     "trinket-repairtalisman": "Repairs the tools, weapons, armour and clothes you carry, for free.",
     "trinket-gemofeternaldensity": "While on, turns cheap junk you carry into iron, gold, diamond or matter.",
     "trinket-voidring": "Black Hole Band and Gem of Eternal Density in one; sneak + right-click to teleport.",
     "trinket-evertideamulet": "Places water sources and shoots balls of water. On a pedestal it brings rain.",
     "trinket-volcaniteamulet": "Places lava sources and shoots balls of lava, for EMC. Fire can't hurt you.",
-    "trinket-watchofflowingtime": "While on, time runs faster (or slower) for the whole world, for EMC.",
+    "trinket-watchofflowingtime": "While on, time runs faster (or slower) for the whole world, for EMC. It glows and shows an icon while on (.vintagee to change).",
     "gadget-destructioncatalyst": "Breaks a 3x3 tunnel into a block, up to 16 deep, for EMC.",
     "gadget-hyperkineticlens": "Shoots an explosive charge, for EMC.",
     "gadget-catalyticlens": "Breaks 3x3 tunnels up to 64 deep and shoots explosive charges, for EMC.",
