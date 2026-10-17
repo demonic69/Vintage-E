@@ -92,7 +92,9 @@ namespace VintageE
                 .RegisterMessageType<EmcContentsPacket>()
                 .RegisterMessageType<EmcContentsSetPacket>()
                 .RegisterMessageType<EmcConfigPacket>()
-                .RegisterMessageType<EmcConfigSetPacket>();
+                .RegisterMessageType<EmcConfigSetPacket>()
+                .RegisterMessageType<EmcRecipeListPacket>()
+                .RegisterMessageType<EmcRecipeEditPacket>();
         }
 
         #region Server
@@ -134,6 +136,7 @@ namespace VintageE
             serverChannel.SetMessageHandler<FireProjectilePacket>(OnFireProjectile);
             serverChannel.SetMessageHandler<EmcContentsSetPacket>(OnContentsSetRequest);
             serverChannel.SetMessageHandler<EmcConfigSetPacket>(OnConfigSetRequest);
+            serverChannel.SetMessageHandler<EmcRecipeEditPacket>(OnRecipeEditRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
@@ -702,17 +705,126 @@ namespace VintageE
                 player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:error-noprivilege"), EnumChatType.CommandError);
                 return;
             }
-            if (double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0) return;
+            if (!packet.Clear && (double.IsNaN(packet.Value) || double.IsInfinity(packet.Value) || packet.Value < 0)) return;
             List<CollectibleObject> items = ResolveKeys(Sapi.World, packet.Key, packet.Keys);
             if (items.Count == 0) return;
-            foreach (CollectibleObject c in items) SetFixedValue(c, packet.Value, save: false);
+            if (packet.Clear && items.All(c => !Config.FixedValues.ContainsKey(ConfigKey(c))))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "vintagee:cmd-nopin", ConfigKey(items[0])), EnumChatType.CommandError);
+                return;
+            }
+            foreach (CollectibleObject c in items) SetFixedValue(c, packet.Clear ? (double?)null : packet.Value, save: false);
             SaveConfig();
-            EmcMappingReport report = RecalculateEmc("/emc missing window");
-            string msg = items.Count == 1
-                ? Lang.GetL(lang, "vintagee:cmd-itemvalue", NameOf(items[0]), items[0].Code, EmcFormat.Format(Emc.GetValue(items[0])))
-                : Lang.GetL(lang, "vintagee:cmd-setmany", items.Count, EmcFormat.Format(packet.Value));
+            EmcMappingReport report = RecalculateEmc(packet.Quiet ? "hovered-item value box" : "/emc missing window");
+            string msg;
+            if (items.Count == 1)
+            {
+                double now = Emc.GetValue(items[0]);
+                msg = now > 0
+                    ? Lang.GetL(lang, "vintagee:cmd-itemvalue", NameOf(items[0]), items[0].Code, EmcFormat.Format(now))
+                    : Lang.GetL(lang, "vintagee:cmd-novalue", NameOf(items[0]), items[0].Code);
+            }
+            else msg = Lang.GetL(lang, "vintagee:cmd-setmany", items.Count, EmcFormat.Format(packet.Value));
             player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.CommandSuccess);
-            if (report != null) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
+            if (report != null && !packet.Quiet) SendMissingList(player, report, null, FromKind(packet.FromKind, packet.FromBlacklist));
+        }
+
+        /// <summary>Opens (or refreshes) the /emc recipe window for a player.</summary>
+        public void SendRecipeList(IServerPlayer player, string message = null, bool error = false)
+        {
+            var problems = LastReport?.CustomRecipeProblems ?? new List<string>();
+            var lines = Config.CustomRecipes.ToList();
+            serverChannel.SendPacket(new EmcRecipeListPacket
+            {
+                Lines = lines.ToArray(),
+                Problems = lines.Select(l => ProblemOf(problems, l)).ToArray(),
+                Values = lines.Select(l =>
+                {
+                    CustomRecipe r = CustomRecipe.Parse(l, out _);
+                    CollectibleObject output = r == null ? null : ResolveCode(r.Output);
+                    double v = output == null ? 0 : Emc.GetValue(output);
+                    return v > 0 ? EmcFormat.Format(v) : "";
+                }).ToArray(),
+                Message = message ?? "",
+                Error = error,
+                FromFiles = Rules?.Recipes?.Count ?? 0
+            }, player);
+        }
+
+        /// <summary>The problem the mapper had with a recipe line ("" for none): its problems read "line  (why)".</summary>
+        static string ProblemOf(List<string> problems, string line)
+        {
+            string p = problems.FirstOrDefault(x => x.StartsWith(line + "  (", StringComparison.Ordinal));
+            return p == null ? "" : p.Substring(line.Length + 3).TrimEnd(')');
+        }
+
+        /// <summary>A block or item from a recipe's code: "item:domain:path", "block:…", or "domain:path" (item first).</summary>
+        public CollectibleObject ResolveCode(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            if (code.StartsWith("item:")) return Sapi.World.GetItem(new AssetLocation(code.Substring(5)));
+            if (code.StartsWith("block:")) return Sapi.World.GetBlock(new AssetLocation(code.Substring(6)));
+            var loc = new AssetLocation(code);
+            return (CollectibleObject)Sapi.World.GetItem(loc) ?? Sapi.World.GetBlock(loc);
+        }
+
+        /// <summary>
+        /// Adds a hand-written recipe to the server config (replacing <paramref name="replaces"/> when editing) and remaps.
+        /// Returns the message for the player; a recipe the mapper can't use is taken back off.
+        /// </summary>
+        public string AddCustomRecipe(string line, string replaces, string lang, out bool error)
+        {
+            error = true;
+            CustomRecipe r = CustomRecipe.Parse(line, out string why);
+            if (r == null) return Lang.GetL(lang, "vintagee:recipe-bad", why);
+            string clean = r.ToString();
+            CollectibleObject output = ResolveCode(r.Output);
+            if (output == null) return Lang.GetL(lang, "vintagee:recipe-bad", "no block or item " + r.Output);
+            int at = replaces == null ? -1 : Config.CustomRecipes.IndexOf(replaces);
+            if (at >= 0) Config.CustomRecipes.RemoveAt(at);
+            if (Config.CustomRecipes.Contains(clean)) { error = false; return Lang.GetL(lang, "vintagee:recipe-already"); }
+            if (at >= 0) Config.CustomRecipes.Insert(at, clean); else Config.CustomRecipes.Add(clean);
+            SaveConfig();
+            EmcMappingReport report = RecalculateEmc("/emc recipe");
+            string problem = report == null ? null : ProblemOf(report.CustomRecipeProblems, clean);
+            if (!string.IsNullOrEmpty(problem))
+            {
+                Config.CustomRecipes.Remove(clean);
+                if (at >= 0) Config.CustomRecipes.Insert(at, replaces);
+                SaveConfig();
+                RecalculateEmc("/emc recipe (undone)");
+                return Lang.GetL(lang, "vintagee:recipe-bad", problem);
+            }
+            error = false;
+            double v = Emc.GetValue(output);
+            return v > 0
+                ? Lang.GetL(lang, "vintagee:recipe-added", NameOf(output), EmcFormat.Format(v))
+                : Lang.GetL(lang, "vintagee:recipe-addednovalue", NameOf(output));
+        }
+
+        /// <summary>Takes a hand-written recipe off the server config and remaps.</summary>
+        public string RemoveCustomRecipe(string line, string lang, out bool error)
+        {
+            error = !Config.CustomRecipes.Remove(line);
+            if (error) return Lang.GetL(lang, "vintagee:recipe-notfound", line);
+            SaveConfig();
+            RecalculateEmc("/emc recipe remove");
+            return Lang.GetL(lang, "vintagee:recipe-removed", line);
+        }
+
+        void OnRecipeEditRequest(IServerPlayer player, EmcRecipeEditPacket packet)
+        {
+            if (packet?.Line == null) return;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(player.LanguageCode, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            bool error;
+            string message = packet.Remove
+                ? RemoveCustomRecipe(packet.Line, player.LanguageCode, out error)
+                : AddCustomRecipe(packet.Line, packet.Replaces, player.LanguageCode, out error);
+            SendRecipeList(player, message, error);
         }
 
         /// <summary>Opens the /emc contents window for a player.</summary>
@@ -881,6 +993,11 @@ namespace VintageE
                 return true;
             });
 
+            // Admins: set the EMC value of whatever is under the mouse (inventory, handbook, any window).
+            capi.Input.RegisterHotKey(SetValueHotkey, Lang.Get("vintagee:hotkey-setvalue"), GlKeys.K, HotkeyType.GUIOrOtherControls, ctrlPressed: true);
+            capi.Input.SetHotKeyHandler(SetValueHotkey, _ => OpenSetValueBox());
+            clientChannel.SetMessageHandler<EmcRecipeListPacket>(OnRecipeList);
+
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>
             {
@@ -956,6 +1073,48 @@ namespace VintageE
         }
 
         public void SendTransmuteRequest(TransmuteRequestPacket packet) => clientChannel?.SendPacket(packet);
+
+        public const string SetValueHotkey = "vintagee-setvalue";
+
+        GuiDialogEmcSetValue setValueDialog;
+
+        bool OpenSetValueBox()
+        {
+            IClientPlayer player = Capi?.World?.Player;
+            if (player == null) return false;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                Capi.TriggerIngameError(this, "noprivilege", Lang.Get("vintagee:error-noprivilege"));
+                return true;
+            }
+            ItemStack stack = HoveredStack.Find(Capi);
+            if (stack?.Collectible?.Code == null)
+            {
+                Capi.TriggerIngameError(this, "nothinghovered", Lang.Get("vintagee:setvalue-nothing"));
+                return true;
+            }
+            string key = PlayerEmc.KeyOf(stack.Collectible);
+            if (key == null) return true;
+            setValueDialog?.TryClose();
+            setValueDialog = new GuiDialogEmcSetValue(Capi, stack, Emc.GetValue(stack.Collectible),
+                value => clientChannel?.SendPacket(new EmcSetValuePacket { Keys = new[] { key }, Value = value ?? 0, Clear = value == null, Quiet = true }));
+            setValueDialog.TryOpen();
+            return true;
+        }
+
+        GuiDialogEmcRecipe recipeDialog;
+
+        void OnRecipeList(EmcRecipeListPacket packet)
+        {
+            if (recipeDialog != null && recipeDialog.IsOpened())
+            {
+                recipeDialog.Update(packet);
+                return;
+            }
+            recipeDialog = new GuiDialogEmcRecipe(Capi, packet, (line, replaces) => clientChannel?.SendPacket(new EmcRecipeEditPacket { Line = line, Replaces = replaces }),
+                line => clientChannel?.SendPacket(new EmcRecipeEditPacket { Line = line, Remove = true }));
+            recipeDialog.TryOpen();
+        }
 
         GuiDialogEmcMissing missingDialog;
 

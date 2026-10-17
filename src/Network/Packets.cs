@@ -97,6 +97,36 @@ namespace VintageE
         [ProtoMember(4)] public string[] Keys;
         /// <summary>The window it was sent from (<see cref="EmcListKind"/>), which is shown again afterwards.</summary>
         [ProtoMember(5)] public byte FromKind;
+        /// <summary>Sent from the hovered-item box: no window is opened afterwards, only the chat line.</summary>
+        [ProtoMember(6)] public bool Quiet;
+        /// <summary>Take the pinned value off instead (Value is unused).</summary>
+        [ProtoMember(7)] public bool Clear;
+    }
+
+    /// <summary>Server → client: opens (or refreshes) the /emc recipe window with the hand-written recipes in the server config.</summary>
+    [ProtoContract]
+    public class EmcRecipeListPacket
+    {
+        /// <summary>The CustomRecipes setting, one "output = ingredients" line each.</summary>
+        [ProtoMember(1)] public string[] Lines;
+        /// <summary>Why each line isn't used ("" when it is), same order.</summary>
+        [ProtoMember(2)] public string[] Problems;
+        /// <summary>The output's EMC value now, formatted ("" for none), same order.</summary>
+        [ProtoMember(3)] public string[] Values;
+        [ProtoMember(4)] public string Message;
+        [ProtoMember(5)] public bool Error;
+        /// <summary>How many recipes come from value files (read only, not listed).</summary>
+        [ProtoMember(6)] public int FromFiles;
+    }
+
+    /// <summary>Client → server: add a hand-written recipe (or with Remove, take one off) from the /emc recipe window (admins only).</summary>
+    [ProtoContract]
+    public class EmcRecipeEditPacket
+    {
+        [ProtoMember(1)] public string Line;
+        [ProtoMember(2)] public bool Remove;
+        /// <summary>When editing: the line this one replaces.</summary>
+        [ProtoMember(3)] public string Replaces;
     }
 
     /// <summary>Client → server: put a block/item on the blacklist (Add) or take it off, from the missing/blacklist windows (admins only).</summary>

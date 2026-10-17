@@ -88,6 +88,13 @@ namespace VintageE
                     .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
                     .HandleWith(args => GrayList(mod, args, args[0] as string))
                 .EndSubCommand()
+                .BeginSubCommand("recipe")
+                    .WithAlias("recipes")
+                    .WithDescription("Open the window of hand-written recipes (for things the mapper can't see being made); or add/remove one: output = 4 game:plank-oak + game:stick")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .WithArgs(parsers.OptionalWordRange("action", "add", "remove", "list"), parsers.OptionalAll("recipe"))
+                    .HandleWith(args => Recipe(mod, args, args[0] as string, args[1] as string))
+                .EndSubCommand()
                 .BeginSubCommand("contents")
                     .WithDescription("Open a window of everything that holds things or keeps its material, and how each is transmuted; or set the held item: item, full, itemprice or default")
                     .RequiresPrivilege(Privilege.controlserver)
@@ -153,6 +160,8 @@ namespace VintageE
             ("/emc notransmute add|remove", "cmdhelp-notransmuteset", true),
             ("/emc graylist", "cmdhelp-graylist", true),
             ("/emc graylist add|remove", "cmdhelp-graylistset", true),
+            ("/emc recipe", "cmdhelp-recipe", true),
+            ("/emc recipe add|remove <output = ingredients>", "cmdhelp-recipeset", true),
             ("/emc add <amount> [player]", "cmdhelp-add", true),
             ("/emc remove <amount> [player]", "cmdhelp-remove", true),
             ("/emc learn", "cmdhelp-learn", true),
@@ -304,6 +313,28 @@ namespace VintageE
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Success((report.Gray?.Count ?? 0) + " gray-listed: " + string.Join(", ", (report.Gray ?? new List<CollectibleObject>()).Take(40).Select(c => c.Code.ToString())));
+        }
+
+        static TextCommandResult Recipe(VintageEModSystem mod, TextCommandCallingArgs args, string action, string line)
+        {
+            string lang = args.LanguageCode;
+            if (action == "add" || action == "remove")
+            {
+                if (string.IsNullOrWhiteSpace(line)) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:recipe-needline"));
+                bool error;
+                string msg = action == "add"
+                    ? mod.AddCustomRecipe(line.Trim(), null, lang, out error)
+                    : mod.RemoveCustomRecipe(CustomRecipe.Parse(line, out _)?.ToString() ?? line.Trim(), lang, out error);
+                return error ? TextCommandResult.Error(msg) : TextCommandResult.Success(msg);
+            }
+            if (action != "list" && args.Caller.Player is IServerPlayer player)
+            {
+                mod.SendRecipeList(player);
+                return TextCommandResult.Success();
+            }
+            var lines = mod.Config.CustomRecipes;
+            if (lines.Count == 0) return TextCommandResult.Success(Lang.GetL(lang, "vintagee:recipe-none"));
+            return TextCommandResult.Success(string.Join("\n", lines.Select((l, i) => (i + 1) + ". " + l)));
         }
 
         static TextCommandResult Blacklist(VintageEModSystem mod, TextCommandCallingArgs args)
