@@ -877,7 +877,7 @@ namespace VintageE
                         logger.Notification("EMC: construction {0} has stages but no item it becomes was found; add a \"constructions\" rule or an /emc recipe for it.", etype.Code);
                         continue;
                     }
-                    guessed++;
+                    if (++guessed <= 8) logger.Notification("EMC: construction {0} becomes {1} (matched by name)", etype.Code, made.Code);
                 }
 
                 string material = null;
