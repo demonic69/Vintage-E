@@ -62,7 +62,7 @@ namespace VintageE
                 modes = Enumerable.Range(0, CatalystDepth.Length).Select(c => new SkillItem
                 {
                     Code = new AssetLocation("vintagee", "charge" + c),
-                    Name = Lang.Get("vintagee:gadget-charge-catalyst", c, CatalystDepth[c])
+                    Name = Lang.Get("vintagee:gadget-charge-catalyst", c, CatalystDepth[c], EmcFormat.Format(9 * CatalystDepth[c] * DestroyCostPerBlock))
                 }.WithLetterIcon(capi, c.ToString())).ToArray();
             }
             else if (Kind == "hyperkineticlens")
@@ -78,7 +78,9 @@ namespace VintageE
                 modes = Enumerable.Range(0, CatalyticCharges).Select(c => new SkillItem
                 {
                     Code = new AssetLocation("vintagee", "charge" + c),
-                    Name = Lang.Get("vintagee:gadget-charge-catalytic", c, CatalyticDepth(c), LensRadius[LensCharge(c)], EmcFormat.Format(LensCost[LensCharge(c)]))
+                    // The tunnel's cost grows with the charge; the shot stops growing at charge 3 (the Hyperkinetic Lens's biggest).
+                    Name = Lang.Get("vintagee:gadget-charge-catalytic", c, CatalyticDepth(c), EmcFormat.Format(9 * CatalyticDepth(c) * DestroyCostPerBlock),
+                        LensRadius[LensCharge(c)], EmcFormat.Format(LensCost[LensCharge(c)]))
                 }.WithLetterIcon(capi, c.ToString())).ToArray();
             }
             else if (Kind == "mercurialeye")
@@ -332,6 +334,7 @@ namespace VintageE
         public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
         {
             base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+            if (IsLens) VintageEModSystem.AppendFireKey(world, dsc);
             if (Kind == "mercurialeye")
             {
                 string code = inSlot?.Itemstack?.Attributes?.GetString(EyeTargetKey);

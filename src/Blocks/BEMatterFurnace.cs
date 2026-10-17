@@ -62,6 +62,9 @@ namespace VintageE
             else
             {
                 LowerSpitItem();
+                // The firepit sets its renderer up again whenever a slot changes (cooking done, a new item): lower it at
+                // once, in the same call (this handler runs after the firepit's own), so it never shows at spit height.
+                Inventory.SlotModified += _ => LowerSpitItem();
                 RegisterGameTickListener(_ => LowerSpitItem(), 250);
             }
         }

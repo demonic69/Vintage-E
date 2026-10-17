@@ -126,8 +126,11 @@ namespace VintageE
                 magnetSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, y + 34, 1, 1);
                 magnetHintBounds = ElementBounds.Fixed(slot + 12, y + 34, hintWidth, magnetHintHeight);
                 double fy = y + 34 + Math.Max(slot, magnetHintHeight) + 8;
-                filterLabelBounds = ElementBounds.Fixed(0, fy, width, 20);
-                filterBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, fy + 22, TabletMagnet.FilterSlots, 1);
+                // The line above the filter changes with the magnet and mode; leave room for the longest so it never runs into the slots.
+                double labelHeight = new[] { "vintagee:magnet-none", "vintagee:magnet-filter-only", "vintagee:magnet-filter-except", "vintagee:magnet-filter-empty" }
+                    .Max(k => GuiLayout.TextHeight(capi, detail, Lang.Get(k), width));
+                filterLabelBounds = ElementBounds.Fixed(0, fy, width, labelHeight);
+                filterBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, fy + labelHeight + 4, TabletMagnet.FilterSlots, 1);
                 children.AddRange(new[] { magnetTitleBounds, modeBounds, magnetSlotBounds, magnetHintBounds, filterLabelBounds, filterBounds });
             }
 

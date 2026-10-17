@@ -8,7 +8,8 @@ namespace VintageE
     /// Added to every player on the server. No fall damage with an active Swiftwolf's Rending Gale (or Ring of Arcana
     /// with its Swiftwolf effect on), while flying on one and for 15 seconds after the flight ends, or with a full set
     /// of gem armour. No fire damage while carrying an Ignition Ring, Volcanite Amulet or Ring of Arcana (ProjectE's
-    /// fire protection, on or off) or wearing full gem armour.
+    /// fire protection, on or off) or wearing full gem armour. It's put first among the player's behaviours, ahead of
+    /// the game's health behaviour (which takes the damage off when its turn comes).
     /// </summary>
     public class EntityBehaviorVintageE : EntityBehavior
     {

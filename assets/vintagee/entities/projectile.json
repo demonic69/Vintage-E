@@ -19,8 +19,13 @@
   },
   "client": {
     "renderer": "Shape",
-    "shape": {
-      "base": "vintagee:entity/projectile"
+    "shapeByType": {
+      "*-arrow": {
+        "base": "vintagee:entity/projectile-arrow"
+      },
+      "*": {
+        "base": "vintagee:entity/projectile"
+      }
     },
     "texturesByType": {
       "*-lens": {
@@ -44,8 +49,8 @@
         }
       },
       "*-arrow": {
-        "orb": {
-          "base": "vintagee:entity/projectile-arrow"
+        "arrow": {
+          "base": "vintagee:entity/smitearrow"
         }
       }
     },

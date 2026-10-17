@@ -148,7 +148,11 @@ namespace VintageE
             {
                 if (player.Entity != null && player.Entity.GetBehavior<EntityBehaviorVintageE>() == null)
                 {
-                    player.Entity.AddBehavior(new EntityBehaviorVintageE(player.Entity));
+                    // First in line: the game's health behaviour takes the damage off in its own turn, so fall and fire
+                    // protection has to zero the damage before it gets there.
+                    var bh = new EntityBehaviorVintageE(player.Entity);
+                    player.Entity.SidedProperties.Behaviors.Insert(0, bh);
+                    player.Entity.CacheServerBehaviors();
                 }
                 SendEmcTable(player);
                 if (Trinkets != null && Trinkets.WatchTimeModifier != 0) serverChannel.SendPacket(new WatchSpeedPacket { Modifier = Trinkets.WatchTimeModifier }, player);
@@ -1075,6 +1079,16 @@ namespace VintageE
         public void SendTransmuteRequest(TransmuteRequestPacket packet) => clientChannel?.SendPacket(packet);
 
         public const string SetValueHotkey = "vintagee-setvalue";
+
+        /// <summary>Tooltip line naming the key the fire-projectile control is bound to now (it can be changed in the game's controls).</summary>
+        public static void AppendFireKey(IWorldAccessor world, System.Text.StringBuilder dsc)
+        {
+            if (!(world?.Api is ICoreClientAPI capi)) return;
+            string key = null;
+            try { key = capi.Input.GetHotKeyByCode(FireHotkey)?.CurrentMapping?.ToString(); }
+            catch { /* controls not loaded yet */ }
+            dsc.AppendLine(string.IsNullOrEmpty(key) ? Lang.Get("vintagee:firekey-unbound") : Lang.Get("vintagee:firekey-line", key));
+        }
 
         GuiDialogEmcSetValue setValueDialog;
 

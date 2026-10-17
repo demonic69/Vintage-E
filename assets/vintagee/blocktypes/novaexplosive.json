@@ -45,12 +45,12 @@
     "*-catalyst": {
       "radius": 6,
       "fuseSeconds": 4,
-      "sneakInteractionHelp": "vintagee:blockhelp-nova"
+      "igniteInteractionHelp": "vintagee:blockhelp-nova"
     },
     "*-cataclysm": {
       "radius": 11,
       "fuseSeconds": 6,
-      "sneakInteractionHelp": "vintagee:blockhelp-nova"
+      "igniteInteractionHelp": "vintagee:blockhelp-nova"
     }
   },
   "resistance": 1,

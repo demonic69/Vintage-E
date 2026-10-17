@@ -7,7 +7,7 @@ using Vintagestory.API.Server;
 namespace VintageE
 {
     /// <summary>
-    /// ProjectE's projectiles, fired with the fire-projectile key (R) or right-click. Entity type
+    /// ProjectE's projectiles, fired with the fire-projectile key or right-click. Entity type
     /// <c>vintagee:projectile-{kind}</c>; all fly in a straight line without gravity (the smite's arrows steer
     /// towards hostile creatures) and act on the first block or creature they hit:
     /// <list type="bullet">
@@ -45,11 +45,25 @@ namespace VintageE
             shot.FiredById = player.Entity.EntityId;
             shot.FiredByUid = player.PlayerUID;
             setup?.Invoke(shot);
+            shot.FaceFlight();
             world.SpawnEntity(shot);
             return shot;
         }
 
         public string Kind => Code?.EndVariant() ?? "lens";
+
+        /// <summary>
+        /// Turns the model to point where it flies (as the game's arrows do): the shape renderer turns the model's +x
+        /// by yaw + 90° and tilts it up by roll.
+        /// </summary>
+        public void FaceFlight()
+        {
+            double speed = Pos.Motion.Length();
+            if (speed < 1e-6) return;
+            Pos.Pitch = 0;
+            Pos.Yaw = GameMath.PI + (float)Math.Atan2(Pos.Motion.X / speed, Pos.Motion.Z / speed);
+            Pos.Roll = -(float)Math.Asin(GameMath.Clamp(-Pos.Motion.Y / speed, -1, 1));
+        }
 
         /// <summary>Explosion radius in blocks (lens).</summary>
         public float Radius
@@ -110,7 +124,11 @@ namespace VintageE
                 return;
             }
 
-            if (Kind == "arrow") Steer(dt);
+            if (Kind == "arrow")
+            {
+                Steer(dt);
+                FaceFlight();
+            }
 
             Vec3d from = Pos.XYZ;
             Vec3d to = from.AddCopy(Pos.Motion.X * dt * 60, Pos.Motion.Y * dt * 60, Pos.Motion.Z * dt * 60);

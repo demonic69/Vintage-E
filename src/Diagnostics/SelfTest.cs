@@ -68,6 +68,7 @@ namespace VintageE
                 CheckConfigure();
                 CheckProjectELook();
                 Check180();
+                Check190();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -91,6 +92,11 @@ namespace VintageE
                     Check(took == 500, "red furnace accepts 500 EMC");
                     emcFurnace.MarkDirty(true);
                 }
+
+                // A collector feeding a condenser next to it (1.9.0: the condenser shows and keeps what it's given).
+                BEEnergyCollector collector = Place<BEEnergyCollector>(new BlockPos(x + 6, y, z), "vintagee:energycollector-mk1");
+                BEEnergyCondenser condenser = Place<BEEnergyCondenser>(new BlockPos(x + 7, y, z), "vintagee:energycondenser-mk1");
+                if (collector != null) collector.Stored = 500;
 
                 // Projectiles fired straight down at the ground a little way off. The lens aims at its own column's
                 // ground height (hilly sites made it land outside the area that was counted).
@@ -123,6 +129,8 @@ namespace VintageE
                 {
                     try
                     {
+                        Check(condenser != null && collector != null && condenser.Stored >= 400 && condenser.IncomingPerSecond > 0,
+                            $"condenser took the collector's EMC: {EmcFormat.Format(condenser?.Stored ?? 0)} stored, {EmcFormat.Format(condenser?.IncomingPerSecond ?? 0)} a second coming in");
                         Report("dark furnace on charcoal", fuelled);
                         Report("red furnace on EMC", onEmc);
                     }
@@ -171,9 +179,18 @@ namespace VintageE
                 ShapeElement e = seraph.GetElementByName(name);
                 Line($"  {name}: " + (e == null ? "missing" : $"{Describe(e)} (own box {string.Join(",", e.From)} to {string.Join(",", e.To)}, rotation {e.RotationX},{e.RotationY},{e.RotationZ})"));
             }
+            // Where the hands are (rings are worn in the hand slot): any element named like a hand or finger.
+            void Hands(ShapeElement e)
+            {
+                string n = e.Name ?? "";
+                if (n.IndexOf("hand", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("finger", StringComparison.OrdinalIgnoreCase) >= 0)
+                    Line($"  {n} (in {e.ParentElement?.Name ?? "-"}): {Describe(e)} (own box {string.Join(",", e.From)} to {string.Join(",", e.To)})");
+                if (e.Children != null) foreach (var c in e.Children) Hands(c);
+            }
+            foreach (ShapeElement e in seraph.Elements ?? Array.Empty<ShapeElement>()) Hands(e);
             foreach (var (code, dress, path, root) in new[] {
                 ("vintagee:kleinstar-omega", EnumCharacterDressType.Emblem, (string)null, "vintageekleinstar"),
-                ("vintagee:trinket-voidring", EnumCharacterDressType.Arm, null, "vintageering"),
+                ("vintagee:trinket-voidring", EnumCharacterDressType.Hand, null, "vintageering"),
                 (null, EnumCharacterDressType.Emblem, "game:entity/humanoid/seraph/clothing/emblem/silver-star", "origin"),
                 (null, EnumCharacterDressType.Arm, "game:entity/humanoid/seraph/clothing/arm/copper-bracelet", "hidelowerarm") })
             {
@@ -376,14 +393,15 @@ namespace VintageE
             CollectibleObject schematic = C("game:schematic-customtranslocator");
             Check(schematic != null && report.Free.Contains(schematic) && report.Blacklisted.Contains(schematic) && V("game:schematic-customtranslocator") <= 0,
                 "custom translocator schematic is a free ingredient (blacklisted, no value)");
+            // 1.9.0: the illuminal divergent manifold (translocator part) is a free ingredient too, so translocators get a value.
             CollectibleObject part = C("game:tobtlocatorpart");
             var tobt = sapi.World.Collectibles.Where(c => c.Code?.Domain == "game" && c.Code.Path.StartsWith("tobtlocator-")).ToList();
-            Check(part != null && !report.Blacklisted.Contains(part) && tobt.Count > 0 && tobt.All(c => !report.Blacklisted.Contains(c)),
-                $"translocator part and {tobt.Count} rickety translocators are off the blacklist (part: {EmcFormat.Format(V("game:tobtlocatorpart"))} EMC)");
+            Check(part != null && report.Free.Contains(part) && tobt.Count > 0 && tobt.All(c => !report.Blacklisted.Contains(c)),
+                $"translocator part is a free ingredient and {tobt.Count} rickety translocators are off the blacklist");
             foreach (CollectibleObject t in tobt.Take(1))
             {
                 string why = report.MissingWhy.TryGetValue(t, out string w) ? w : null;
-                Check(why == null || !why.Contains("schematic-customtranslocator"), $"{t.Code}: the schematic isn't what's missing ({(why == null ? EmcFormat.Format(mod.Emc.GetValue(t)) + " EMC" : why)})");
+                Check(mod.Emc.GetValue(t) > 0, $"{t.Code} has a value: {(why == null ? EmcFormat.Format(mod.Emc.GetValue(t)) + " EMC" : why)}");
             }
 
             CollectibleObject tome = C("vintagee:gadget-tomeofknowledge");
@@ -442,6 +460,35 @@ namespace VintageE
         /// ProjectETextures / ProjectESounds: every ProjectE file the swap list names is there, and - when the server
         /// test turns the settings on - blocks, items and projectiles really use ProjectE's textures.
         /// </summary>
+        /// <summary>1.9.0: handbook texts, nova ignition, pedestal weather, rings in the hand slot.</summary>
+        void Check190()
+        {
+            Check(Lang.GetMatchingIfExists("vintagee:item-handbooktext-vintagee:trinket-voidring") != null
+                  && Lang.GetMatchingIfExists("vintagee:block-handbooktext-vintagee:energycollector-mk1") != null,
+                "long descriptions are in the handbook");
+            string tip = Lang.Get("vintagee:itemdesc-trinket-swiftwolfsrendinggale");
+            Check(tip.Length < 160 && !tip.Contains("\n"), $"tooltips are short ({tip.Length} characters for Swiftwolf's)");
+
+            Block nova = sapi.World.GetBlock(new AssetLocation("vintagee:novaexplosive-catalyst"));
+            Check(nova?.EntityClass != null && typeof(Vintagestory.GameContent.IIgnitable).IsAssignableFrom(sapi.ClassRegistry.GetBlockEntity(nova.EntityClass)),
+                "nova explosives are lit by torches and firestarters (ignitable)");
+
+            TrinketEffects fx = mod.Trinkets;
+            ModSystem weather = sapi.ModLoader.Systems.FirstOrDefault(m => m.GetType().Name == "WeatherSystemServer");
+            var prop = weather?.GetType().GetProperty("OverridePrecipitation");
+            if (fx != null && prop != null)
+            {
+                object before = prop.GetValue(weather);
+                var at = new BlockPos(0, 1, 0);
+                fx.SetPedestalWeather(at, "evertideamulet");
+                object raining = prop.GetValue(weather);
+                fx.SetPedestalWeather(at, null);
+                object after = prop.GetValue(weather);
+                Check(raining is float f && f >= 1 && after == null, $"Evertide Amulet on a pedestal sets rain ({raining ?? "null"}) and taking it off gives the weather back ({after ?? "null"}, was {before ?? "null"})");
+            }
+            else Check(false, "found the game's weather system");
+        }
+
         void CheckProjectELook()
         {
             Line("ProjectE look: textures " + (mod.Config.ProjectETextures ? "on" : "off") + ", sounds " + (mod.Config.ProjectESounds ? "on" : "off"));
@@ -572,6 +619,17 @@ namespace VintageE
             float[] b = Mat4f.MulWithVec4(m, (float)((e.To[0] - e.From[0]) / 16), (float)((e.To[1] - e.From[1]) / 16), (float)((e.To[2] - e.From[2]) / 16), 1);
             string V(float[] v) => $"[{v[0] * 16:0.##}, {v[1] * 16:0.##}, {v[2] * 16:0.##}]";
             return $"{V(a)} to {V(b)}";
+        }
+
+        T Place<T>(BlockPos pos, string code) where T : BlockEntity
+        {
+            Block block = sapi.World.GetBlock(new AssetLocation(code));
+            Check(block != null && block.Id != 0, code + " exists");
+            if (block == null || block.Id == 0) return null;
+            sapi.World.BlockAccessor.SetBlock(block.Id, pos);
+            var be = sapi.World.BlockAccessor.GetBlockEntity(pos) as T;
+            Check(be != null, $"{code} has its block entity");
+            return be;
         }
 
         BlockEntityFirepit PlaceFurnace(BlockPos pos, string type)

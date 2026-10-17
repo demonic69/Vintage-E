@@ -287,6 +287,7 @@ namespace VintageE
             ItemStack stack = inSlot?.Itemstack;
             if (stack == null) return;
             if (IsToggleable) dsc.AppendLine(Lang.Get(IsActive(stack) ? "vintagee:trinket-on" : "vintagee:trinket-off"));
+            if (IsAmulet || Kind == "ignitionring" || Kind == "ringofarcana") VintageEModSystem.AppendFireKey(world, dsc);
             if (Kind == "ringofarcana")
             {
                 var on = new List<string>();

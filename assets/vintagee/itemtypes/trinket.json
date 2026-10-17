@@ -39,9 +39,9 @@
   },
   "attributesByType": {
     "*-blackholeband": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-blackholeband"
         },
@@ -49,9 +49,9 @@
       }
     },
     "*-swiftwolfsrendinggale": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-swiftwolfsrendinggale"
         },
@@ -59,9 +59,9 @@
       }
     },
     "*-harvestgoddessband": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-harvestgoddessband"
         },
@@ -69,9 +69,9 @@
       }
     },
     "*-ignitionring": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-ignitionring"
         },
@@ -79,9 +79,9 @@
       }
     },
     "*-zeroring": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-zeroring"
         },
@@ -89,9 +89,9 @@
       }
     },
     "*-ringofarcana": {
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-ringofarcana"
         },
@@ -100,9 +100,9 @@
     },
     "*-voidring": {
       "maxInputValue": 8,
-      "clothescategory": "arm",
+      "clothescategory": "hand",
       "attachableToEntity": {
-        "categoryCode": "arm",
+        "categoryCode": "hand",
         "attachedShape": {
           "base": "vintagee:entity/worn/ring-voidring"
         },

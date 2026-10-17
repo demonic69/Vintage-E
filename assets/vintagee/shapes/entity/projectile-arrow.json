@@ -1,0 +1,359 @@
+{
+  "textureWidth": 16,
+  "textureHeight": 16,
+  "textures": {
+    "arrow": "vintagee:entity/smitearrow"
+  },
+  "elements": [
+    {
+      "name": "shaft",
+      "from": [
+        1.5,
+        1.7,
+        7.7
+      ],
+      "to": [
+        11.5,
+        2.3,
+        8.3
+      ],
+      "faces": {
+        "north": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        },
+        "down": {
+          "texture": "#arrow",
+          "uv": [
+            1,
+            1,
+            3,
+            3
+          ]
+        }
+      },
+      "glow": 120
+    },
+    {
+      "name": "head",
+      "from": [
+        11.5,
+        1.4,
+        7.4
+      ],
+      "to": [
+        13.5,
+        2.6,
+        8.6
+      ],
+      "faces": {
+        "north": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "down": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        }
+      },
+      "glow": 200
+    },
+    {
+      "name": "tip",
+      "from": [
+        13.5,
+        1.75,
+        7.75
+      ],
+      "to": [
+        14.5,
+        2.25,
+        8.25
+      ],
+      "faces": {
+        "north": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        },
+        "down": {
+          "texture": "#arrow",
+          "uv": [
+            5,
+            1,
+            7,
+            3
+          ]
+        }
+      },
+      "glow": 200
+    },
+    {
+      "name": "fletchV",
+      "from": [
+        1.5,
+        0.9,
+        7.95
+      ],
+      "to": [
+        4.5,
+        3.1,
+        8.05
+      ],
+      "faces": {
+        "north": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "down": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        }
+      },
+      "glow": 160
+    },
+    {
+      "name": "fletchH",
+      "from": [
+        1.5,
+        1.95,
+        6.9
+      ],
+      "to": [
+        4.5,
+        2.05,
+        9.1
+      ],
+      "faces": {
+        "north": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        },
+        "down": {
+          "texture": "#arrow",
+          "uv": [
+            9,
+            1,
+            11,
+            3
+          ]
+        }
+      },
+      "glow": 160
+    }
+  ]
+}

@@ -65,6 +65,51 @@ namespace VintageE
 
         double Cost(double baseCost) => baseCost * mod.Config.TrinketCostMultiplier;
 
+        // ------------------------------------------------------------------ pedestal weather
+
+        /// <summary>Loaded pedestals holding an Evertide or Volcanite Amulet, and which.</summary>
+        readonly Dictionary<BlockPos, string> weatherPedestals = new Dictionary<BlockPos, string>();
+        /// <summary>Savegame key: the game's precipitation override was set by a pedestal (so only we reset it).</summary>
+        const string WeatherOwnedKey = "vintageePedestalWeather";
+
+        /// <summary>
+        /// A pedestal's amulet changed (null: none, or the pedestal was removed/unloaded). An Evertide Amulet on any
+        /// loaded pedestal brings rain; otherwise a Volcanite Amulet stops it; with neither, the weather is the game's again.
+        /// </summary>
+        public void SetPedestalWeather(BlockPos pos, string kind)
+        {
+            if (pos == null) return;
+            if (kind == "evertideamulet" || kind == "volcaniteamulet") weatherPedestals[pos.Copy()] = kind;
+            else if (!weatherPedestals.Remove(pos)) return;
+            float? want = weatherPedestals.ContainsValue("evertideamulet") ? 1f : weatherPedestals.ContainsValue("volcaniteamulet") ? 0f : (float?)null;
+            bool owned = sapi.WorldManager.SaveGame.GetData<bool>(WeatherOwnedKey, false);
+            if (want == null && !owned) return;
+            if (SetPrecipitationOverride(want)) sapi.WorldManager.SaveGame.StoreData(WeatherOwnedKey, want != null);
+        }
+
+        /// <summary>
+        /// Sets the game's precipitation override (what /weather setprecip does; null = automatic) and tells the clients.
+        /// The command itself can't be used: it needs a player to run it.
+        /// </summary>
+        bool SetPrecipitationOverride(float? level)
+        {
+            try
+            {
+                ModSystem weather = sapi.ModLoader.Systems.FirstOrDefault(s => s.GetType().Name == "WeatherSystemServer");
+                var prop = weather?.GetType().GetProperty("OverridePrecipitation");
+                if (prop == null) return false;
+                if (Equals(prop.GetValue(weather), level)) return true;
+                prop.SetValue(weather, level);
+                weather.GetType().GetMethod("broadCastConfigUpdate", Type.EmptyTypes)?.Invoke(weather, null);
+                return true;
+            }
+            catch (Exception e)
+            {
+                sapi.Logger.Warning("Vintage-E: could not change the weather for a pedestal: {0}", e.Message);
+                return false;
+            }
+        }
+
         /// <summary>Pays <paramref name="baseCost"/> × the cost multiplier, or tells the player they can't.</summary>
         public bool Pay(IServerPlayer player, double baseCost)
         {

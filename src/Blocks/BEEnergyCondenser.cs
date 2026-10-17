@@ -28,6 +28,12 @@ namespace VintageE
         double itemsPerSecond = 4;
         double outputsPerSecond = 1;
         double burnBudget, makeBudget;
+        // EMC pushed in by collectors and relays: counted over a few seconds to show the rate, and synced to clients
+        // at most once a second (the window and block info would otherwise show a stale amount).
+        double acceptedInWindow, syncedStored;
+        float windowSeconds;
+        long lastSyncMs;
+        public double IncomingPerSecond;
 
         public IInventory Inventory => inventory;
         public string InventoryClassName => "vintageecondenser";
@@ -148,7 +154,22 @@ namespace VintageE
                 makeBudget = 0;
             }
 
-            if (changed) MarkDirty(false);
+            windowSeconds += dt;
+            if (windowSeconds >= 3)
+            {
+                double rate = acceptedInWindow / windowSeconds;
+                if (Math.Abs(rate - IncomingPerSecond) > 1e-6) changed = true;
+                IncomingPerSecond = rate;
+                acceptedInWindow = 0;
+                windowSeconds = 0;
+            }
+            long now = Api.World.ElapsedMilliseconds;
+            if (changed || (Math.Abs(Stored - syncedStored) > 1e-6 && now - lastSyncMs >= 1000))
+            {
+                syncedStored = Stored;
+                lastSyncMs = now;
+                MarkDirty(false);
+            }
         }
 
         bool Insert(ItemStack stack)
@@ -185,6 +206,7 @@ namespace VintageE
             double take = Math.Min(amount, capacity - Stored);
             if (take <= 0) return 0;
             Stored += take;
+            acceptedInWindow += take;
             return take;
         }
 
@@ -290,6 +312,7 @@ namespace VintageE
             inventory.ToTreeAttributes(invTree);
             tree["inventory"] = invTree;
             tree.SetDouble("emc", Stored);
+            tree.SetDouble("incoming", IncomingPerSecond);
         }
 
         public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
@@ -302,6 +325,7 @@ namespace VintageE
                 if (Api != null) inventory.AfterBlocksLoaded(Api.World);
             }
             Stored = tree.GetDouble("emc");
+            IncomingPerSecond = tree.GetDouble("incoming");
             dialog?.UpdateInfo();
         }
 
@@ -326,6 +350,7 @@ namespace VintageE
         {
             base.GetBlockInfo(forPlayer, dsc);
             dsc.AppendLine(Lang.Get("vintagee:condenser-stored", EmcFormat.Format(Stored)));
+            if (IncomingPerSecond > 0) dsc.AppendLine(Lang.Get("vintagee:condenser-incoming", EmcFormat.Format(IncomingPerSecond)));
             ItemStack target = inventory[TargetSlot].Itemstack;
             if (target != null)
             {

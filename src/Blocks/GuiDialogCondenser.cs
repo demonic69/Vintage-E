@@ -31,7 +31,7 @@ namespace VintageE
 
             ElementBounds targetBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, top, 1, 1);
             ElementBounds targetLabel = ElementBounds.Fixed(slot + 8, top, width - slot - 8, 20);
-            ElementBounds infoBounds = ElementBounds.Fixed(slot + 8, top + 22, width - slot - 8, 26);
+            ElementBounds infoBounds = ElementBounds.Fixed(slot + 8, top + 20, width - slot - 8, 42);
             ElementBounds storageBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, top + slot + 14, Cols, rows);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
@@ -50,7 +50,7 @@ namespace VintageE
                 .BeginChildElements(bgBounds)
                     .AddItemSlotGrid(Inventory, DoSendPacket, 1, new[] { BEEnergyCondenser.TargetSlot }, targetBounds, "target")
                     .AddStaticText(Lang.Get("vintagee:condenser-targetlabel"), CairoFont.WhiteDetailText(), targetLabel)
-                    .AddDynamicText("", CairoFont.WhiteSmallText(), infoBounds, "info")
+                    .AddDynamicText("", CairoFont.WhiteDetailText(), infoBounds, "info")
                     .AddItemSlotGrid(Inventory, DoSendPacket, Cols, Enumerable.Range(1, storage).ToArray(), storageBounds, "storage")
                 .EndChildElements()
                 .Compose();
@@ -77,6 +77,7 @@ namespace VintageE
             string text = target > 0
                 ? Lang.Get("vintagee:condenser-progress", EmcFormat.Format(be.Stored), EmcFormat.Format(target), (int)Math.Min(100, be.Stored / target * 100))
                 : Lang.Get("vintagee:condenser-notarget", EmcFormat.Format(be.Stored));
+            if (be.IncomingPerSecond > 0) text += "\n" + Lang.Get("vintagee:condenser-incoming", EmcFormat.Format(be.IncomingPerSecond));
             SingleComposer.GetDynamicText("info")?.SetNewText(text);
         }
     }

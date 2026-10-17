@@ -29,18 +29,29 @@ namespace VintageE
 
         public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
         {
+            var help = new System.Collections.Generic.List<WorldInteraction>(base.GetPlacedBlockInteractionHelp(world, selection, forPlayer) ?? System.Array.Empty<WorldInteraction>());
             string code = Attributes?["interactionHelp"].AsString(null);
-            if (code == null) return base.GetPlacedBlockInteractionHelp(world, selection, forPlayer);
-            var help = new System.Collections.Generic.List<WorldInteraction>
-            {
-                new WorldInteraction { ActionLangCode = code, MouseButton = EnumMouseButton.Right }
-            };
+            if (code != null) help.Add(new WorldInteraction { ActionLangCode = code, MouseButton = EnumMouseButton.Right });
             string sneakCode = Attributes?["sneakInteractionHelp"].AsString(null);
             if (sneakCode != null)
             {
                 help.Add(new WorldInteraction { ActionLangCode = sneakCode, HotKeyCode = "sneak", MouseButton = EnumMouseButton.Right });
             }
+            // Lit like the game's bombs: hold right-click with a torch or firestarter.
+            string igniteCode = Attributes?["igniteInteractionHelp"].AsString(null);
+            if (igniteCode != null && !(world.BlockAccessor.GetBlockEntity(selection.Position) is BENovaExplosive nova && nova.IsLit))
+            {
+                help.Add(new WorldInteraction { ActionLangCode = igniteCode, MouseButton = EnumMouseButton.Right, Itemstacks = IgniteStacks(world) });
+            }
             return help.ToArray();
         }
+
+        /// <summary>Everything that lights things: blocks with the game's CanIgnite behaviour (torches) and its firestarters.</summary>
+        ItemStack[] IgniteStacks(IWorldAccessor world) => Vintagestory.API.Util.ObjectCacheUtil.GetOrCreate(api, "vintageeIgniteStacks", () =>
+            System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(
+                System.Linq.Enumerable.Where(world.Collectibles, c => c?.Code != null &&
+                    ((c is Block b && b.BlockBehaviors != null && System.Array.Exists(b.BlockBehaviors, bh => bh.GetType().Name == "BlockBehaviorCanIgnite"))
+                     || c.GetType().Name == "ItemFirestarter")),
+                c => new ItemStack(c))));
     }
 }

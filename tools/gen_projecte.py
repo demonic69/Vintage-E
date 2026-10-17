@@ -97,8 +97,8 @@ def items():
         ("maxstacksize", 1),
         ("creativeinventory", CREATIVE),
         ("textureByType", O([("*", O([("base", "item/trinket/{type}")]))])),
-        # Rings can be worn in the arm slot, where they keep working.
-        ("attributesByType", O([(f"*-{r}", (O([("maxInputValue", 8)]) if r == "voidring" else O()) | worn("arm", f"ring-{r}")) for r in RINGS]
+        # Rings can be worn in the hand slot (with gloves and other mods' rings), where they keep working.
+        ("attributesByType", O([(f"*-{r}", (O([("maxInputValue", 8)]) if r == "voidring" else O()) | worn("hand", f"ring-{r}")) for r in RINGS]
                                + [("*-gemofeternaldensity", O([("maxInputValue", 8)]))])),
         # The Black Hole Band and Void Ring can target water/lava sources (right-click removes them).
         ("liquidSelectableByType", O([("*-blackholeband", True), ("*-voidring", True), ("*", False)])),
@@ -340,8 +340,8 @@ def blocks():
         ("drawtype", "cube"),
         ("textures", cube("block/novaexplosive-{type}-top", "block/novaexplosive-{type}-side")),
         ("attributesByType", O([
-            ("*-catalyst", O([("radius", 6), ("fuseSeconds", 4), ("sneakInteractionHelp", "vintagee:blockhelp-nova")])),
-            ("*-cataclysm", O([("radius", 11), ("fuseSeconds", 6), ("sneakInteractionHelp", "vintagee:blockhelp-nova")])),
+            ("*-catalyst", O([("radius", 6), ("fuseSeconds", 4), ("igniteInteractionHelp", "vintagee:blockhelp-nova")])),
+            ("*-cataclysm", O([("radius", 11), ("fuseSeconds", 6), ("igniteInteractionHelp", "vintagee:blockhelp-nova")])),
         ])),
         ("resistance", 1),
         ("sounds", O([("place", "game:block/sand"), ("break", "game:block/sand"), ("hit", "game:block/sand")])),
@@ -469,7 +469,7 @@ EMBLEM_FRONT_X = 0.0  # the chest surface: the player model faces -x (its eyes a
 EMBLEM_CENTER = (2.9, 3.1)  # (y, z) of the badge centre: upper chest, middle (the torso is 6.2 wide)
 EMBLEM_SIZE = 2.6
 ARM_BOX = (0.0, 2.5, 0.0, 2.0)  # lower arm cross-section: x from/to, z from/to
-RING_Y = (1.3, 2.1)
+RING_Y = (0.8, 1.5)  # on the hand, just below the wrist
 RING_GEM_SIDE = "south"  # +z: the outside of the left arm (the left arm is on the +z side of the body)
 
 
@@ -774,7 +774,7 @@ LANG = O([
     ("nova-lit", "Exploding in {0}s!"),
     ("pedestal-empty", "Empty"), ("pedestal-holding", "Holding: {0}"),
     ("blockhelp-openchest", "Open"), ("blockhelp-furnace", "Open"), ("blockhelp-relay-withdraw", "Take stored EMC (empty hand or Klein star)"),
-    ("blockhelp-nova", "Light the fuse (empty hand)"), ("blockhelp-pedestal", "Place or take a ring/stone/amulet"),
+    ("blockhelp-nova", "Light the fuse (hold)"), ("blockhelp-pedestal", "Place or take a ring/stone/amulet"),
     ("alchemicalbagcontents", "Alchemical Bag"),
     # 1.5.0
     ("arcana-toggle-on", "{0}: on (pick to switch off)"), ("arcana-toggle-off", "{0}: off (pick to switch on)"),
@@ -785,8 +785,8 @@ LANG = O([
     ("heldhelp-trinket-voidliquid", "Remove a water/lava source"), ("heldhelp-trinket-plant", "Plant your seeds (on farmland)"),
     ("heldhelp-trinket-teleport", "Teleport"), ("heldhelp-trinket-shoot-evertideamulet", "Shoot water"),
     ("heldhelp-trinket-shoot-volcaniteamulet", "Shoot lava"), ("heldhelp-trinket-shoot-ignitionring", "Shoot a fireball"),
-    ("gadget-charge-catalyst", "Charge {0}: 3x3 tunnel, {1} deep"), ("gadget-charge-lens", "Charge {0}: radius {1}, {2} EMC"),
-    ("gadget-charge-catalytic", "Charge {0}: tunnel {1} deep; shots radius {2} ({3} EMC)"),
+    ("gadget-charge-catalyst", "Charge {0}: 3x3 tunnel {1} deep, up to {2} EMC"), ("gadget-charge-lens", "Charge {0}: radius {1}, {2} EMC"),
+    ("gadget-charge-catalytic", "Charge {0}: 3x3 tunnel {1} deep, up to {2} EMC; shots radius {3}, {4} EMC each"),
     ("heldhelp-gadget-fire", "Shoot an explosive charge"), ("heldhelp-gadget-charge", "Choose charge"),
     ("heldhelp-gadget-volley", "Fire a volley of 10 arrows"),
     ("hotkey-fire", "Vintage-E: fire projectile (lenses, amulets, Ignition Ring)"),
@@ -994,6 +994,8 @@ LANG = O([
     ("recipe-needline", "Give the recipe: output = ingredients, e.g. item:mymod:boat = 40 game:plank-oak + 8 game:rope"),
     ("cmdhelp-recipe", "Open the window of hand-written recipes, for things the mapper can't see being made"),
     ("cmdhelp-recipeset", "Add or remove a hand-written recipe by text"),
+    ("firekey-line", "Fire-projectile key: {0}"), ("firekey-unbound", "Fire-projectile key: not set (Settings, Controls)"),
+    ("condenser-incoming", "Receiving {0} EMC a second"),
 ])
 
 
@@ -1022,12 +1024,17 @@ def lang():
         d["blockdesc-" + k] = v
     for k, v in LANG.items():
         d[k] = v
-    # Descriptions with the real numbers win over anything older.
+    # Descriptions with the real numbers win over anything older. Long ones get a short tooltip line, and the full
+    # text goes into the handbook page (the game reads "<domain>:<item|block>-handbooktext-<domain:code>").
     import descriptions
-    for k, v in descriptions.ITEM.items():
-        d["itemdesc-" + k] = v
-    for k, v in descriptions.BLOCK.items():
-        d["blockdesc-" + k] = v
+    for k in [k for k in d if k.startswith("vintagee:item-handbook") or k.startswith("vintagee:block-handbook")]:
+        del d[k]
+    for kind, texts, short in (("item", descriptions.ITEM, descriptions.SHORT_ITEM), ("block", descriptions.BLOCK, descriptions.SHORT_BLOCK)):
+        for k, v in texts.items():
+            d[kind + "desc-" + k] = short.get(k, v)
+            if k in short:
+                d[f"vintagee:{kind}-handbooktitle-vintagee:{k}"] = "How it works"
+                d[f"vintagee:{kind}-handbooktext-vintagee:{k}"] = v
     with open(path, "w", encoding="utf-8") as f:
         json.dump(d, f, indent=2, ensure_ascii=False)
         f.write("\n")
@@ -1045,8 +1052,10 @@ def entities():
         ("hitboxSize", O([("x", 0.25), ("y", 0.25)])),
         ("client", O([
             ("renderer", "Shape"),
-            ("shape", O([("base", "vintagee:entity/projectile")])),
-            ("texturesByType", O([("*-" + k, O([("orb", O([("base", "vintagee:entity/projectile-" + k)]))])) for k in PROJECTILE_KINDS])),
+            # The smite's arrows are arrows (turned to face where they fly, see EntityVintageEProjectile); the rest are orbs.
+            ("shapeByType", O([("*-arrow", O([("base", "vintagee:entity/projectile-arrow")])), ("*", O([("base", "vintagee:entity/projectile")]))])),
+            ("texturesByType", O([("*-" + k, O([("orb", O([("base", "vintagee:entity/projectile-" + k)]))])) for k in PROJECTILE_KINDS if k != "arrow"]
+                                 + [("*-arrow", O([("arrow", O([("base", "vintagee:entity/smitearrow")]))]))])),
             ("size", 1),
             ("behaviors", [O([("code", "interpolateposition")])]),
         ])),
@@ -1055,10 +1064,31 @@ def entities():
     ]))
     orb = box("orb", [6, 0, 6], [10, 4, 10], "#orb")
     orb["glow"] = 255
+    for f in orb["faces"].values():
+        f["uv"] = [0, 0, 16, 16]  # the whole orb picture on every side (not just its corner)
     write("shapes/entity/projectile.json", O([
         ("textureWidth", 16), ("textureHeight", 16),
         ("textures", O([("orb", "vintagee:entity/projectile-lens")])),
         ("elements", [orb]),
+    ]))
+    # Archangel's Smite arrow: points along +x (the renderer turns +x towards the flight), centred on the hitbox
+    # middle (y = 2 voxels). Flat colours from the 16x16 smitearrow texture: shaft, head, fletching.
+    shaft_uv, head_uv, fletch_uv = [1, 1, 3, 3], [5, 1, 7, 3], [9, 1, 11, 3]
+
+    def solid(name, frm, to, uv, glow):
+        e = O([("name", name), ("from", frm), ("to", to), ("faces", O((f, O([("texture", "#arrow"), ("uv", uv)])) for f in ("north", "east", "south", "west", "up", "down")))])
+        e["glow"] = glow
+        return e
+    write("shapes/entity/projectile-arrow.json", O([
+        ("textureWidth", 16), ("textureHeight", 16),
+        ("textures", O([("arrow", "vintagee:entity/smitearrow")])),
+        ("elements", [
+            solid("shaft", [1.5, 1.7, 7.7], [11.5, 2.3, 8.3], shaft_uv, 120),
+            solid("head", [11.5, 1.4, 7.4], [13.5, 2.6, 8.6], head_uv, 200),
+            solid("tip", [13.5, 1.75, 7.75], [14.5, 2.25, 8.25], head_uv, 200),
+            solid("fletchV", [1.5, 0.9, 7.95], [4.5, 3.1, 8.05], fletch_uv, 160),
+            solid("fletchH", [1.5, 1.95, 6.9], [4.5, 2.05, 9.1], fletch_uv, 160),
+        ]),
     ]))
     # With ProjectETextures on, projectiles use ProjectE's 16×16 sprites, drawn whole on every face.
     sprite = box("orb", [6, 0, 6], [10, 4, 10], "#orb")

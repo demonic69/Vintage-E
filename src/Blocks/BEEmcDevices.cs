@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Text;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -126,10 +128,10 @@ namespace VintageE
     }
 
     /// <summary>
-    /// Nova Catalyst / Nova Cataclysm: sneak + right-click with an empty hand to light the fuse; a few seconds later
-    /// it explodes, dropping what it breaks. Attributes: <c>radius</c>, <c>fuseSeconds</c>.
+    /// Nova Catalyst / Nova Cataclysm: lit like the game's bombs, by holding right-click on it with a torch or a
+    /// firestarter; a few seconds later it explodes, dropping what it breaks. Attributes: <c>radius</c>, <c>fuseSeconds</c>.
     /// </summary>
-    public class BENovaExplosive : BlockEntity, IEmcInteractable
+    public class BENovaExplosive : BlockEntity, Vintagestory.GameContent.IIgnitable
     {
         bool lit;
         double fuseLeft;
@@ -147,18 +149,37 @@ namespace VintageE
             if (listener == 0) listener = RegisterGameTickListener(OnTick, 100);
         }
 
-        public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
+        public bool IsLit => lit;
+
+        // The game's torches and firestarters call these while you hold right-click on the block (as with its bombs).
+        public Vintagestory.GameContent.EnumIgniteState OnTryIgniteBlock(EntityAgent byEntity, BlockPos pos, float secondsIgniting)
         {
-            if (!byPlayer.Entity.Controls.Sneak || byPlayer.InventoryManager.ActiveHotbarSlot?.Empty == false) return false;
-            if (Api.Side == EnumAppSide.Client || lit) return true;
-            if (!Api.World.Claims.TryAccess(byPlayer, Pos, EnumBlockAccessFlags.BuildOrBreak)) return true;
+            if (lit) return Vintagestory.GameContent.EnumIgniteState.NotIgnitablePreventDefault;
+            return secondsIgniting > 0.75f ? Vintagestory.GameContent.EnumIgniteState.IgniteNow : Vintagestory.GameContent.EnumIgniteState.Ignitable;
+        }
+
+        public void OnTryIgniteBlockOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling)
+        {
+            if (secondsIgniting < 0.7f) return;
+            handling = EnumHandling.PreventDefault;
+            if (Api.Side != EnumAppSide.Server) return;
+            IPlayer byPlayer = (byEntity as EntityPlayer)?.Player;
+            if (byPlayer != null) Light(byPlayer);
+        }
+
+        public Vintagestory.GameContent.EnumIgniteState OnTryIgniteStack(EntityAgent byEntity, BlockPos pos, ItemSlot slot, float secondsIgniting)
+            => Vintagestory.GameContent.EnumIgniteState.NotIgnitable;
+
+        void Light(IPlayer byPlayer)
+        {
+            if (lit) return;
+            if (!Api.World.Claims.TryAccess(byPlayer, Pos, EnumBlockAccessFlags.BuildOrBreak)) return;
             lit = true;
             litBy = byPlayer.PlayerUID;
             fuseLeft = Block?.Attributes?["fuseSeconds"].AsDouble(4) ?? 4;
             Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/fuse"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, null, false, 24, 1f);
             StartTicking();
             MarkDirty(false);
-            return true;
         }
 
         void OnTick(float dt)
@@ -221,23 +242,25 @@ namespace VintageE
             if (api.Side == EnumAppSide.Server)
             {
                 RegisterGameTickListener(OnServerTick, 500);
-                if (WeatherCommand(true) != null) RegisterDelayedCallback(_ => ApplyWeather(true), 3000);
+                if ((held?.Collectible as ItemEmcTrinket)?.Kind is string k && (k == "evertideamulet" || k == "volcaniteamulet"))
+                    RegisterDelayedCallback(_ => ApplyWeather(true), 3000);
+            }
+            else
+            {
+                renderer = new PedestalItemRenderer((ICoreClientAPI)api, Pos, (float)(Block?.SelectionBoxes?.FirstOrDefault()?.Y2 ?? 0.75) + 0.3f);
+                ((ICoreClientAPI)api).Event.RegisterRenderer(renderer, EnumRenderStage.Opaque, "vintagee-pedestal");
+                renderer.Stack = held;
             }
         }
 
-        /// <summary>The weather command an amulet on the pedestal stands for (rain / clear skies), or null.</summary>
-        string WeatherCommand(bool placed)
-        {
-            string kind = (held?.Collectible as ItemEmcTrinket)?.Kind;
-            if (kind != "evertideamulet" && kind != "volcaniteamulet") return null;
-            if (!placed) return "/weather setprecipa";
-            return kind == "evertideamulet" ? "/weather setprecip 1" : "/weather setprecip 0";
-        }
+        PedestalItemRenderer renderer;
 
+        /// <summary>The Evertide Amulet on a pedestal brings rain, the Volcanite Amulet stops it; taken off (or gone), the weather is the game's again.</summary>
         void ApplyWeather(bool placed)
         {
-            string cmd = WeatherCommand(placed);
-            if (cmd != null && Api is ICoreServerAPI sapi) sapi.InjectConsole(cmd);
+            if (!(Api is ICoreServerAPI)) return;
+            TrinketEffects fx = Api.ModLoader.GetModSystem<VintageEModSystem>()?.Trinkets;
+            fx?.SetPedestalWeather(Pos, placed ? (held?.Collectible as ItemEmcTrinket)?.Kind : null);
         }
 
         public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
@@ -417,6 +440,28 @@ namespace VintageE
             base.OnBlockBroken(byPlayer);
         }
 
+        public override void OnBlockRemoved()
+        {
+            base.OnBlockRemoved();
+            ApplyWeather(false);
+            DisposeRenderer();
+        }
+
+        public override void OnBlockUnloaded()
+        {
+            base.OnBlockUnloaded();
+            ApplyWeather(false);
+            DisposeRenderer();
+        }
+
+        void DisposeRenderer()
+        {
+            if (renderer == null) return;
+            (Api as ICoreClientAPI)?.Event.UnregisterRenderer(renderer, EnumRenderStage.Opaque);
+            renderer.Dispose();
+            renderer = null;
+        }
+
         public override void ToTreeAttributes(ITreeAttribute tree)
         {
             base.ToTreeAttributes(tree);
@@ -429,6 +474,7 @@ namespace VintageE
             base.FromTreeAttributes(tree, worldAccessForResolve);
             held = tree.GetItemstack("held");
             held?.ResolveBlockOrItem(worldAccessForResolve);
+            if (renderer != null) renderer.Stack = held;
         }
 
         public override void OnStoreCollectibleMappings(System.Collections.Generic.Dictionary<int, AssetLocation> blockIdMapping, System.Collections.Generic.Dictionary<int, AssetLocation> itemIdMapping)
