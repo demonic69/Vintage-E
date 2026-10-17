@@ -10,6 +10,12 @@ on:
       gameVersion:
         description: Vintage Story version
         default: "1.22.7"
+      extraMods:
+        description: Other mods to run alongside, as Mod DB mod ids (comma-separated, e.g. smex,exlib,ppex)
+        default: ""
+      resultsBranch:
+        description: Branch the results are pushed to
+        default: ci-analysis
 
 permissions:
   contents: write
@@ -60,6 +66,24 @@ jobs:
           data="$PWD/data"
           mkdir -p "$data/Mods" "$data/ModConfig"
           cp -r bin/Release/Mods/vintagee "$data/Mods/"
+          # Other mods to test alongside (latest release of each that fits this game version).
+          if [ -n "${{ inputs.extraMods }}" ]; then
+            ids=$(echo "${{ inputs.extraMods }}" | tr -d ' ')
+            curl -fsSL "https://mods.vintagestory.at/api/v2/mods/install-information?ids=${ids}&gv=${VS_VERSION}" -o extra.json || echo '{}' > extra.json
+            cat extra.json; echo
+            python3 - "$data/Mods" <<'PY'
+          import json, sys, urllib.request
+          info = json.load(open("extra.json")).get("data", {})
+          for mod, r in info.items():
+              if "fileUrl" not in r:
+                  print("no file for", mod, r); continue
+              url = r["fileUrl"] if r["fileUrl"].startswith("http") else "https://mods.vintagestory.at" + r["fileUrl"]
+              dest = sys.argv[1] + "/" + r["fileName"]
+              urllib.request.urlretrieve(url, dest)
+              print("added", mod, r.get("recommendedUpgrade", ""), "->", dest)
+          PY
+            ls -la "$data/Mods"
+          fi
           # ProjectE textures and sounds on, so the self-test can check the swap (the default look needs no checking).
           echo '{ "DumpValuesOnStart": true, "CacheEmcValues": false, "SelfTestOnStart": true, "ProjectETextures": true, "ProjectESounds": true }' > "$data/ModConfig/vintagee.json"
           cd "$VSDIR"
@@ -97,16 +121,18 @@ jobs:
           cp data/Logs/*crash* analysis/ 2>/dev/null || true
           for f in data/Logs/server-main.log data/Logs/server-debug.log; do [ -f "$f" ] && grep -iE "vintagee|vintage-e|EMC|error|exception" "$f" | head -3000 > "analysis/$(basename "$f" .log)-filtered.log"; done
           [ -n "$VSDIR" ] && python3 tools/ci_extract.py "$VSDIR/assets" analysis || echo "no game assets" > analysis/extract-errors.txt
-          echo "game=${VS_VERSION} commit=${GITHUB_SHA} run=${GITHUB_RUN_ID}" > analysis/README.txt
+          echo "game=${VS_VERSION} commit=${GITHUB_SHA} run=${GITHUB_RUN_ID} extraMods=${{ inputs.extraMods }}" > analysis/README.txt
+          ls data/Mods > analysis/mods.txt 2>/dev/null || true
           ls -la analysis
 
       - name: Push results to the ci-analysis branch
         if: always()
         run: |
           cd analysis
-          git init -q -b ci-analysis
+          branch="${{ inputs.resultsBranch }}"; branch="${branch:-ci-analysis}"
+          git init -q -b "$branch"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -qm "Server test results for ${GITHUB_SHA} on Vintage Story ${VS_VERSION}"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-analysis
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
