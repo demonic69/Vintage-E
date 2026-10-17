@@ -853,7 +853,7 @@ namespace VintageE
         /// </summary>
         void CollectConstructions()
         {
-            int count = 0, guessed = 0;
+            int count = 0, guessed = 0, unreadable = 0;
             foreach (Vintagestory.API.Common.Entities.EntityProperties etype in sapi.World.EntityTypes ?? new List<Vintagestory.API.Common.Entities.EntityProperties>())
             {
                 JsonObject stages = etype?.Attributes?["stages"];
@@ -884,6 +884,7 @@ namespace VintageE
                 if (etype.Variant != null && etype.Variant.TryGetValue("material", out string m)) material = m;
                 var conv = new Conversion { Output = made, OutputQuantity = 1, Kind = ConversionKind.Crafting, Source = "built in stages (" + etype.Code.ToShortString() + ")" };
                 bool ok = true;
+                string unresolved = null;
                 foreach (var stage in stageList)
                 {
                     if (!(stage["requireStacks"] is Newtonsoft.Json.Linq.JArray needs)) continue;
@@ -897,17 +898,30 @@ namespace VintageE
                             if (etype.Variant != null && etype.Variant.TryGetValue(mm.Groups[1].Value, out string v)) return v;
                             return material ?? "*";
                         });
+                        // A wildcard the construction remembers ("storeWildCard": "wood") is this construction's variant of it.
+                        string stored = (string)need["storeWildCard"];
+                        if (stored != null && code.Contains('*') && etype.Variant != null && etype.Variant.TryGetValue(stored, out string sv))
+                        {
+                            int star = code.IndexOf('*');
+                            code = code.Substring(0, star) + sv + code.Substring(star + 1);
+                        }
                         string type = string.Equals((string)need["type"], "block", StringComparison.OrdinalIgnoreCase) ? "block:" : "item:";
-                        CollectibleObject[] choices = index.Match(type + AssetLocation.Create(code, etype.Code.Domain)).ToArray();
+                        // Like the game: a code without a domain is a base-game one; the construction's own domain as a second try.
+                        CollectibleObject[] choices = index.Match(type + new AssetLocation(code)).ToArray();
+                        if (choices.Length == 0 && !code.Contains(':')) choices = index.Match(type + etype.Code.Domain + ":" + code).ToArray();
+                        if (choices.Length == 0 && stored != null && etype.Variant != null && etype.Variant.ContainsKey(stored))
+                            choices = index.Match(type + new AssetLocation((string)need["code"])).ToArray(); // the variant isn't one this ingredient comes in: any
                         double qty = need["quantity"]?.Type == Newtonsoft.Json.Linq.JTokenType.Integer ? (int)need["quantity"] : 1;
-                        if (choices.Length == 0 || qty <= 0) { ok = false; break; }
+                        if (choices.Length == 0 || qty <= 0) { ok = false; unresolved = type + code; break; }
                         conv.Inputs.Add(new ConversionInput { Choices = choices, Quantity = qty });
                     }
                     if (!ok) break;
                 }
                 if (ok && AddIfSane(conv)) count++;
+                else if (!ok && ++unreadable <= 5) logger.Notification("EMC: construction {0} (makes {1}) needs {2}, which matches no block or item; it isn't counted.", etype.Code, made.Code, unresolved);
             }
             Count("built in stages", count);
+            if (unreadable > 5) logger.Notification("EMC: {0} more constructions need things that match no block or item.", unreadable - 5);
             if (guessed > 0) logger.Notification("EMC: {0} constructions without a rule were matched to the item they become by name.", guessed);
         }
 
