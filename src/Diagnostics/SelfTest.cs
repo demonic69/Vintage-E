@@ -498,7 +498,7 @@ namespace VintageE
                 Item item = sapi.World.GetItem(new AssetLocation("vintagee:gadget-" + rod));
                 double rv = item == null ? 0 : mod.Emc.GetValue(item);
                 Check(item != null && rv > 0 && item.Durability == (int)Math.Max(1, Math.Round(rv * 10)),
-                    $"{rod}: {item?.Durability} uses for {EmcFormat.Format(rv)} EMC, {ItemEmcGadget.DiviningDepth("gadget-" + rod)} deep");
+                    $"{rod}: {item?.Durability} uses for {EmcFormat.Format(rv)} EMC, {ItemEmcGadget.DiviningDepth(rod)} deep");
             }
             Check(ItemEmcGadget.DiviningDepth("diviningrodlow") == 16 && ItemEmcGadget.DiviningDepth("diviningrodmedium") == 32 && ItemEmcGadget.DiviningDepth("diviningrodhigh") == 128,
                 "divining rods look 16, 32 and 128 blocks deep");
