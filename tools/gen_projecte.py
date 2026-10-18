@@ -82,8 +82,9 @@ def items():
         ("maxstacksize", 1),
         ("creativeinventory", CREATIVE),
         ("texture", O([("base", "item/kleinstar-{tier}")])),
-        # Worn in the emblem slot (and still counted as carried EMC there).
+        # Worn in the emblem slot (and still counted as carried EMC there): that needs the Outfit storage flag (128) as well as General (1).
         ("attributesByType", O((f"*-{s}", O([("capacity", STAR_CAP[s])]) | worn("emblem", f"kleinstar-{s}")) for s in STARS)),
+        ("storageFlags", 129),
         ("materialDensity", 3000),
     ]))
     write("itemtypes/ironband.json", O([
@@ -105,6 +106,8 @@ def items():
                                + [("*-gemofeternaldensity", O([("maxInputValue", 8)]))])),
         # The Black Hole Band and Void Ring can target water/lava sources (right-click removes them).
         ("liquidSelectableByType", O([("*-blackholeband", True), ("*-voidring", True), ("*", False)])),
+        # Clothing slots only take items with the Outfit storage flag (128); rings also keep General (1) for every other slot.
+        ("storageFlagsByType", O([(f"*-{r}", 129) for r in RINGS] + [("*", 1)])),
         ("materialDensity", 5000),
     ]))
     write("itemtypes/gadget.json", O([

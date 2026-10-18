@@ -85,7 +85,7 @@ namespace VintageE
             }
             else if (Kind == "mercurialeye")
             {
-                modes = AreaToolModes.Create(capi, 1);
+                modes = AreaToolModes.Create(capi, EyeMaxRadius); // 1x1, 3x3, 5x5, 7x7, 9x9
             }
         }
 
@@ -147,7 +147,11 @@ namespace VintageE
                 case "diviningrodlow":
                 case "diviningrodmedium":
                 case "diviningrodhigh":
-                    if (blockSel != null) Divine(mod, player, blockSel, Kind == "diviningrodlow" ? 3 : Kind == "diviningrodmedium" ? 16 : 64);
+                    if (blockSel != null)
+                    {
+                        Divine(mod, player, blockSel, DiviningDepth(Kind));
+                        DamageItem(byEntity.World, byEntity, slot); // wears out: as many uses as 10x its EMC value (see SetDiviningDurability)
+                    }
                     break;
             }
         }
@@ -245,11 +249,12 @@ namespace VintageE
             if (mod.Emc.IsNoTransmute(target)) { Tell(player, Lang.GetL(player.LanguageCode, "vintagee:error-notransmute", target.GetHeldItemName(new ItemStack(target)))); return; }
             double targetValue = mod.Emc.GetValue(target);
 
-            foreach (BlockPos pos in AreaToolModes.Plane(sel.Position, sel.Face, GameMath.Clamp(mode, 0, 1)))
+            int radius = GameMath.Clamp(mode, 0, EyeMaxRadius);
+            foreach (BlockPos pos in AreaToolModes.Plane(sel.Position, sel.Face, radius))
             {
                 Block old = ba.GetBlock(pos);
                 if (old.Id == target.Id || old.EntityClass != null || mod.Emc.IsNoTransmute(old) || !Breakable(world, player, pos, old)) continue;
-                if (mode == 1 && old.Id != clicked.Id) continue; // 3x3 only swaps blocks like the one clicked
+                if (radius > 0 && old.Id != clicked.Id) continue; // the bigger squares only swap blocks like the one clicked
                 double diff = targetValue - mod.Emc.GetValue(old);
                 if (diff > 0 && !EmcWallet.TryPay(player, diff)) break;
                 if (diff < 0) PlayerEmc.AddEmc(player, -diff);
@@ -257,6 +262,28 @@ namespace VintageE
                 ba.TriggerNeighbourBlockUpdate(pos);
             }
             PESounds.Play(world, PESounds.Power, "game:sounds/effect/swoosh", sel.Position, 12, 0.5f);
+        }
+
+        /// <summary>The Mercurial Eye's biggest square: radius 4, 9x9.</summary>
+        public const int EyeMaxRadius = 4;
+
+        /// <summary>How deep each divining rod looks (3x3 columns): 16, 32 and 128 blocks.</summary>
+        public static int DiviningDepth(string kind) => kind == "diviningrodlow" ? 16 : kind == "diviningrodmedium" ? 32 : 128;
+
+        public static bool IsDiviningRod(CollectibleObject c) => c is ItemEmcGadget g && g.Kind.StartsWith("diviningrod");
+
+        /// <summary>
+        /// Divining rods last as many uses as 10x their EMC value (a 9 EMC rod: 90 uses). Set on both sides whenever the
+        /// values are worked out or arrive, since the values come from the recipes in the game.
+        /// </summary>
+        public static void SetDiviningDurability(IWorldAccessor world, EmcRegistry emc)
+        {
+            foreach (Item item in world.Items)
+            {
+                if (!IsDiviningRod(item)) continue;
+                double v = emc?.GetValue(item) ?? 0;
+                item.Durability = v > 0 ? (int)Math.Max(1, Math.Round(v * 10)) : 100;
+            }
         }
 
         /// <summary>Archangel's Smite arrow damage and how many a left-click volley fires (ProjectE: 10).</summary>

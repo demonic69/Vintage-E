@@ -2,6 +2,19 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.9.2 — 2026-10-18
+
+### Fixed
+- **Rings really go in the hand slot now** (and Klein Stars in the emblem slot). Clothing slots only take items marked as wearable, which they weren't, so the slot turned them away even though they were meant for it.
+- **Swiftwolf's Rending Gale in shield-only mode no longer speeds you up.** The speed you pick is for flying (and running) with flight on.
+- **The shield keeps creatures further away**: 8 blocks instead of 5, and it pushes ten times a second instead of twice, cancelling any step towards you, so melee creatures can't reach you between pushes. The Interdiction Torch pushes the same way.
+- **The Ignition Ring's fireball sets things alight.** Creatures it hits burn their full time, things that can be lit (firepits, torches, bombs, nova explosives) are lit as if you held a torch to them, and wood and anything else that burns catches fire, as with the game's own fire. Land claims are respected.
+- **Rings and other items on a pedestal stand upright and face you**, swaying a little, instead of spinning at an odd angle.
+
+### Changed
+- **Divining Rods look deeper**: 16, 32 and 128 blocks (were 3, 16 and 64). **They wear out**, after as many uses as 10x their EMC value (about 90, 230 and 4,350 uses with the default values).
+- **The Mercurial Eye has 5x5, 7x7 and 9x9 modes** as well as 1x1 and 3x3 (tool-mode key). The bigger squares only change blocks like the one you clicked.
+
 ## 1.9.1 — 2026-10-18
 
 ### Added

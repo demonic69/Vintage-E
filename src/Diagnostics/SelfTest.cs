@@ -110,6 +110,13 @@ namespace VintageE
                 // Well away from the furnaces: the water flows, and firepits go out in water.
                 var water = Fire("water", new Vec3d(x + 30.5, y + 8, z + 0.5), null);
                 var fire = Fire("fire", new Vec3d(x + 36.5, y + 8, z + 0.5), null);
+                // 1.9.2: a fireball sets what burns alight. A plank block in the open, with a fireball dropped on it.
+                int woodY = ba.GetTerrainMapheightAt(new BlockPos(x + 42, 0, z)) + 1;
+                BlockPos woodPos = new BlockPos(x + 42, woodY, z);
+                Block planks = sapi.World.GetBlock(new AssetLocation("game:planks-oak-ud"));
+                for (int dy = 0; dy < 10; dy++) ba.SetBlock(0, woodPos.UpCopy(dy));
+                if (planks != null) ba.SetBlock(planks.BlockId, woodPos);
+                var fireOnWood = Fire("fire", new Vec3d(x + 42.5, woodY + 8, z + 0.5), null);
                 BlockPos lensTarget = new BlockPos(x, lensY - 1, z + 12);
                 int solidBefore = CountSolid(lensTarget, 2);
                 bool lensInWater = ba.GetBlock(lensTarget.UpCopy(), BlockLayersAccess.Fluid)?.IsLiquid() == true;
@@ -126,6 +133,8 @@ namespace VintageE
                         Block placed = sapi.World.BlockAccessor.GetBlock(new BlockPos(x + 30, ba.GetTerrainMapheightAt(new BlockPos(x + 30, 0, z)) + 1, z), BlockLayersAccess.Fluid);
                         Line("  fluid where the water shot landed: " + (placed?.Code?.ToString() ?? "none"));
                         Check(fire == null || !fire.Alive, "fireball landed");
+                        Block onTop = sapi.World.BlockAccessor.GetBlock(woodPos.UpCopy());
+                        Check(onTop?.Code?.Path == "fire", $"fireball set the planks alight ({onTop?.Code?.ToString() ?? "nothing"} on top)");
                     }
                     catch (Exception e) { Check(false, "projectile check threw " + e); }
                 }, 4000);
@@ -208,6 +217,9 @@ namespace VintageE
                     Check(item != null, code + " exists");
                     if (item == null) continue;
                     Check(ItemSlotCharacter.IsDressType(new ItemStack(item), dress), $"{code} fits the {dress} slot");
+                    // The real slot also checks the item's storage flags (1.9.2: rings and stars lacked Outfit, so the slot refused them).
+                    var charSlot = new ItemSlotCharacter(dress, new DummyInventory(sapi, 1));
+                    Check(charSlot.CanHold(new DummySlot(new ItemStack(item))), $"{code} can be put in a {dress} slot");
                     shapeBase = item.Attributes?["attachableToEntity"]["attachedShape"]["base"].AsString();
                 }
                 Shape worn = shapeBase == null ? null : Shape.TryGet(sapi, new AssetLocation(shapeBase).WithPathPrefixOnce("shapes/").WithPathAppendixOnce(".json"));
@@ -479,6 +491,17 @@ namespace VintageE
             Block nova = sapi.World.GetBlock(new AssetLocation("vintagee:novaexplosive-catalyst"));
             Check(nova?.EntityClass != null && typeof(Vintagestory.GameContent.IIgnitable).IsAssignableFrom(sapi.ClassRegistry.GetBlockEntity(nova.EntityClass)),
                 "nova explosives are lit by torches and firestarters (ignitable)");
+
+            // 1.9.2: divining rods wear out after 10x their EMC value in uses, and look 16/32/128 deep.
+            foreach (string rod in new[] { "diviningrodlow", "diviningrodmedium", "diviningrodhigh" })
+            {
+                Item item = sapi.World.GetItem(new AssetLocation("vintagee:gadget-" + rod));
+                double rv = item == null ? 0 : mod.Emc.GetValue(item);
+                Check(item != null && rv > 0 && item.Durability == (int)Math.Max(1, Math.Round(rv * 10)),
+                    $"{rod}: {item?.Durability} uses for {EmcFormat.Format(rv)} EMC, {ItemEmcGadget.DiviningDepth("gadget-" + rod)} deep");
+            }
+            Check(ItemEmcGadget.DiviningDepth("diviningrodlow") == 16 && ItemEmcGadget.DiviningDepth("diviningrodmedium") == 32 && ItemEmcGadget.DiviningDepth("diviningrodhigh") == 128,
+                "divining rods look 16, 32 and 128 blocks deep");
 
             // 1.9.1: what the hovered-item box (Ctrl+K) is told about an item's lists.
             CollectibleObject manifold = sapi.World.GetItem(new AssetLocation("game:tobtlocatorpart"));

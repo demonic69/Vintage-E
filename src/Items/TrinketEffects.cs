@@ -29,7 +29,11 @@ namespace VintageE
 
         // ProjectE: 0.32 EMC a tick each for flying and for the shield.
         public const double FlightCostPerSecond = 6.4, ShieldCostPerSecond = 6.4;
-        public const float ShieldRadius = 5;
+        /// <summary>Swiftwolf's shield: how far it keeps hostile creatures (1.9.2: 8 blocks, was 5) and how often it pushes (every 0.1 s).</summary>
+        public const float ShieldRadius = 8;
+        const int ShieldTickMs = 100;
+        /// <summary>Players whose shield is up and paid for, with their entity: pushed for by <see cref="ShieldTick"/>.</summary>
+        readonly Dictionary<string, Entity> shielded = new Dictionary<string, Entity>();
         /// <summary>Seconds after ring flight ends during which falling doesn't hurt.</summary>
         public const double FlightGraceSeconds = 15;
 
@@ -56,9 +60,11 @@ namespace VintageE
             this.mod = mod;
             this.sapi = sapi;
             sapi.Event.RegisterGameTickListener(OnTick, (int)(Interval * 1000));
+            sapi.Event.RegisterGameTickListener(ShieldTick, ShieldTickMs);
             sapi.Event.PlayerDisconnect += p =>
             {
                 timers.Remove(p.PlayerUID);
+                shielded.Remove(p.PlayerUID);
                 statsCleaned.Remove(p.PlayerUID);
             };
         }
@@ -274,7 +280,8 @@ namespace VintageE
                         else
                         {
                             paidGaleSlots.Add(slot);
-                            speed = Math.Max(speed, ItemEmcTrinket.GaleSpeeds[ItemEmcTrinket.GetSpeedLevel(slot.Itemstack)]);
+                            // The speed is for flying (and running) with it: shield-only mode leaves your speed alone.
+                            if (flight) speed = Math.Max(speed, ItemEmcTrinket.GaleSpeeds[ItemEmcTrinket.GetSpeedLevel(slot.Itemstack)]);
                         }
                         continue;
                     }
@@ -341,15 +348,14 @@ namespace VintageE
 
             // Swiftwolf's Rending Gale: shield and flight, paid for per second (the ring switches off when you can't pay).
             bool outOfEmc = false;
+            bool shieldUp = false;
             if (wantShield)
             {
-                if (shieldFree || EmcWallet.TryPay(player, Cost(ShieldCostPerSecond * Interval)))
-                {
-                    Repel(entity.Pos.XYZ, ShieldRadius);
-                    RepelProjectiles(entity, ShieldRadius);
-                }
+                if (shieldFree || EmcWallet.TryPay(player, Cost(ShieldCostPerSecond * Interval))) shieldUp = true;
                 else outOfEmc = true;
             }
+            if (shieldUp) shielded[uid] = entity; // pushed every 0.1 s by ShieldTick
+            else shielded.Remove(uid);
             // Moving costs more the faster you go: flying 6.4 EMC/s × speed, running 6.4 EMC/s × (speed - 1).
             bool airborne = !entity.OnGround && !entity.Swimming;
             bool flying = wantFlight && airborne && player.WorldData.FreeMove;
@@ -610,7 +616,23 @@ namespace VintageE
             }
         }
 
-        /// <summary>Pushes hostile creatures away from <paramref name="center"/> (interdiction torch, Swiftwolf's shield).</summary>
+        /// <summary>Swiftwolf's shield, ten times a second, so creatures can't walk in between pushes.</summary>
+        void ShieldTick(float dt)
+        {
+            if (shielded.Count == 0) return;
+            foreach (var kv in shielded.ToList())
+            {
+                Entity owner = kv.Value;
+                if (owner == null || !owner.Alive) { shielded.Remove(kv.Key); continue; }
+                Repel(owner.Pos.XYZ, ShieldRadius);
+                RepelProjectiles(owner, ShieldRadius);
+            }
+        }
+
+        /// <summary>
+        /// Pushes hostile creatures away from <paramref name="center"/> (interdiction torch, Swiftwolf's shield): the nearer
+        /// they are, the harder, and anything heading inwards has that cancelled, so they can't walk up to you between pushes.
+        /// </summary>
         public void Repel(Vec3d center, float radius)
         {
             foreach (Entity e in sapi.World.GetEntitiesAround(center, radius, radius, IsHostile))
@@ -618,8 +640,11 @@ namespace VintageE
                 Vec3d dir = e.Pos.XYZ.SubCopy(center);
                 dir.Y = 0;
                 double dist = Math.Max(0.2, dir.Length());
-                dir.Mul(0.25 / dist);
-                e.Pos.Motion.Add(dir.X, 0.05, dir.Z);
+                dir.Mul(1 / dist);
+                double push = 0.15 + 0.45 * (1 - Math.Min(1, dist / radius));
+                double inward = e.Pos.Motion.X * dir.X + e.Pos.Motion.Z * dir.Z; // < 0: coming closer
+                double keep = inward < 0 ? -inward : 0;
+                e.Pos.Motion.Add(dir.X * (push + keep), e.OnGround ? 0.05 : 0, dir.Z * (push + keep));
             }
         }
 

@@ -118,5 +118,15 @@
     "*-voidring": true,
     "*": false
   },
+  "storageFlagsByType": {
+    "*-blackholeband": 129,
+    "*-swiftwolfsrendinggale": 129,
+    "*-harvestgoddessband": 129,
+    "*-ignitionring": 129,
+    "*-zeroring": 129,
+    "*-ringofarcana": 129,
+    "*-voidring": 129,
+    "*": 1
+  },
   "materialDensity": 5000
 }

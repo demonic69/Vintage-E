@@ -165,6 +165,7 @@ namespace VintageE
             };
 
             EmcCommands.Register(this, sapi);
+            OnEmcTableUpdated += () => ItemEmcGadget.SetDiviningDurability(sapi.World, Emc);
         }
 
         readonly Dictionary<string, long> lastShot = new Dictionary<string, long>();
@@ -1090,6 +1091,7 @@ namespace VintageE
             capi.Event.LevelFinalize += () => watchHud = new HudWatchIndicator(capi, this);
 
             capi.Event.RegisterGameTickListener(WindTick, 250);
+            OnEmcTableUpdated += () => ItemEmcGadget.SetDiviningDurability(capi.World, Emc);
 
             capi.Input.RegisterHotKey(FireHotkey, Lang.Get("vintagee:hotkey-fire"), GlKeys.R, HotkeyType.CharacterControls);
             capi.Input.SetHotKeyHandler(FireHotkey, _ =>

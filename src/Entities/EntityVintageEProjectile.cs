@@ -218,7 +218,11 @@ namespace VintageE
                     break;
                 case "fire":
                     target.ReceiveDamage(new DamageSource { Source = shooter is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity, SourceEntity = this, CauseEntity = shooter, Type = EnumDamageType.Fire }, Damage);
-                    target.Ignite();
+                    if (target.Alive)
+                    {
+                        target.Ignite();
+                        target.OnFireBeginTotalMs = World.ElapsedMilliseconds; // burns its full 12 seconds from now
+                    }
                     break;
                 case "arrow":
                     target.ReceiveDamage(new DamageSource { Source = shooter is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity, SourceEntity = this, CauseEntity = shooter, Type = EnumDamageType.PiercingAttack }, Damage);
@@ -241,8 +245,61 @@ namespace VintageE
                 case "fire":
                     World.SpawnParticles(10, ColorUtil.ToRgba(255, 60, 160, 255), at.AddCopy(-0.2, 0, -0.2), at.AddCopy(0.2, 0.4, 0.2),
                         new Vec3f(-0.3f, 0.3f, -0.3f), new Vec3f(0.3f, 0.9f, 0.3f), 0.6f, -0.05f, 0.5f);
+                    LightFire(sel);
                     break;
             }
+        }
+
+        /// <summary>
+        /// A fireball sets what it hits alight, as fire does in the game: things that can be lit (firepits, torches, bombs)
+        /// are lit, and anything that burns gets the game's fire on the face that was hit. Land claims are respected.
+        /// </summary>
+        void LightFire(BlockSelection sel)
+        {
+            if (sel?.Position == null || sel.Face == null || !MayEdit(sel.Position)) return;
+            IBlockAccessor ba = World.BlockAccessor;
+            Block hit = ba.GetBlock(sel.Position);
+            if (hit == null || hit.Id == 0) return;
+
+            // Things with their own lighting: what a torch held to them does.
+            var lighter = World.GetEntityById(FiredById) as EntityAgent;
+            var ign = hit.GetInterface<Vintagestory.GameContent.IIgnitable>(World, sel.Position);
+            if (ign != null && lighter != null)
+            {
+                try
+                {
+                    var state = ign.OnTryIgniteBlock(lighter, sel.Position, 10f);
+                    if (state == Vintagestory.GameContent.EnumIgniteState.IgniteNow || state == Vintagestory.GameContent.EnumIgniteState.Ignitable)
+                    {
+                        EnumHandling handling = EnumHandling.PassThrough;
+                        ign.OnTryIgniteBlockOver(lighter, sel.Position, 10f, ref handling);
+                        return;
+                    }
+                    if (state == Vintagestory.GameContent.EnumIgniteState.NotIgnitablePreventDefault) return;
+                }
+                catch (Exception e) { Api.Logger.VerboseDebug("Vintage-E fireball lighting {0}: {1}", hit.Code, e.Message); }
+            }
+
+            // Anything that burns: the game's fire in the air next to the face that was hit.
+            if (!(hit.CombustibleProps?.BurnDuration > 0)) return;
+            BlockPos firePos = sel.Position.AddCopy(sel.Face);
+            Block there = ba.GetBlock(firePos);
+            if (there == null || (there.Id != 0 && there.Replaceable < 6000) || !MayEdit(firePos)) return;
+            Block fire = World.GetBlock(new AssetLocation("game:fire"));
+            if (fire == null || fire.Id == 0) return;
+            ba.SetBlock(fire.BlockId, firePos);
+            BlockEntity be = ba.GetBlockEntity(firePos);
+            object burning = null;
+            if (be?.Behaviors != null) foreach (var b in be.Behaviors) if (b.GetType().Name == "BEBehaviorBurning") { burning = b; break; }
+            var place = burning?.GetType().GetMethod("OnFirePlaced", new[] { typeof(BlockFacing), typeof(string) });
+            bool lit = false;
+            try
+            {
+                place?.Invoke(burning, new object[] { sel.Face, FiredByUid });
+                lit = burning?.GetType().GetField("IsBurning")?.GetValue(burning) is bool on && on;
+            }
+            catch (Exception e) { Api.Logger.VerboseDebug("Vintage-E fireball fire: {0}", e.Message); }
+            if (!lit) ba.SetBlock(0, firePos); // it didn't catch: no fire block left hanging there
         }
 
         void Explode(Vec3d at)

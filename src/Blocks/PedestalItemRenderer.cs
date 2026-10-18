@@ -6,8 +6,8 @@ using Vintagestory.API.MathTools;
 namespace VintageE
 {
     /// <summary>
-    /// Client: draws what sits on a pedestal floating above it, slowly turning and bobbing (like ProjectE's pedestals).
-    /// Uses the item's own inventory look (its shape, the ProjectE look when that's on) at a fixed size.
+    /// Client: draws what sits on a pedestal floating above it, upright, facing the viewer and bobbing (like ProjectE's
+    /// pedestals). Uses the item's own inventory model (its shape, the ProjectE look when that's on) at a fixed size.
     /// </summary>
     public sealed class PedestalItemRenderer : IRenderer
     {
@@ -73,15 +73,16 @@ namespace VintageE
             Vec4f light = capi.World.BlockAccessor.GetLightRGBs(pos.X, pos.Y + 1, pos.Z);
             prog.RgbaLightIn = light;
 
+            // Upright and turned to face whoever looks at it, swaying a little: the inventory look's own tilt isn't
+            // used (it's made for the inventory view), and a spinning flat ring kept showing its edge.
+            double dx = cam.X - (pos.X + 0.5), dz = cam.Z - (pos.Z + 0.5);
+            float facing = (float)Math.Atan2(dx, dz) + 0.25f * (float)Math.Sin(t * 0.8);
             prog.ModelMatrix = model
                 .Identity()
                 .Translate(pos.X - cam.X + 0.5, pos.Y - cam.Y + height + 0.04 * Math.Sin(t * 2), pos.Z - cam.Z + 0.5)
-                .RotateY(t * 0.9f)
+                .RotateY(facing)
                 .Scale(scale, scale, scale)
-                .RotateX(tf.Rotation.X * GameMath.DEG2RAD)
-                .RotateY(tf.Rotation.Y * GameMath.DEG2RAD)
-                .RotateZ(tf.Rotation.Z * GameMath.DEG2RAD)
-                .Translate(-tf.Origin.X, -tf.Origin.Y, -tf.Origin.Z)
+                .Translate(-0.5f, -0.5f, -0.5f)
                 .Values;
             prog.ViewMatrix = rpi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rpi.CurrentProjectionMatrix;

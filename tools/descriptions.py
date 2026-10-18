@@ -26,8 +26,8 @@ ITEM = {
                              "Right-click a water or lava source to remove it.\n"
                              "On a pedestal: pulls in items within 10 blocks and puts them into containers next to the pedestal.\n"
                              "Works from your hotbar or backpack; right-click to switch on/off.",
-    "trinket-swiftwolfsrendinggale": "While on: you can fly (jump to rise, sneak to sink) and/or a shield pushes hostile creatures and arrows away within 5 blocks; pick flight + shield, flight or shield with the tool-mode key.\n"
-                                     "The tool-mode key also picks your speed, running and flying: 1x, 1.5x, 2x or 3x.\n"
+    "trinket-swiftwolfsrendinggale": "While on: you can fly (jump to rise, sneak to sink) and/or a shield pushes hostile creatures and arrows away within 8 blocks; pick flight + shield, flight or shield with the tool-mode key.\n"
+                                     "The tool-mode key also picks your speed, running and flying: 1x, 1.5x, 2x or 3x (only with flight on; shield only leaves your speed alone).\n"
                                      "Flying costs 6.4 EMC a second x your speed while you are in the air; running faster than normal costs 6.4 EMC a second x (speed - 1) while you move; the shield costs 6.4 EMC a second. No fall damage while it's on and for 15 seconds after you stop flying. It switches off when you run out of EMC.\n"
                                      "On a pedestal: strikes hostile creatures within 10 blocks for 4 damage a second.",
     "trinket-harvestgoddessband": "While on: crops within 5 blocks grow (6 tries a second, 4 EMC per stage) and ripe ones are harvested. Switched off it still grows nearby crops slowly, for free.\n"
@@ -35,7 +35,7 @@ ITEM = {
                                   "On a pedestal: grows and harvests crops within 8 blocks.",
     "trinket-ignitionring": "Carry it (on or off) and fire can't hurt you.\n"
                             "While on: hostile creatures within 5 blocks catch fire and take 3 damage, 4 EMC each, once a second.\n"
-                            "Fire-projectile key: shoots a fireball (3 damage and sets the creature alight). Free.\n"
+                            "Fire-projectile key: shoots a fireball (3 damage and sets the creature alight; it also lights what it hits, as a torch would, and sets wood and other things that burn on fire). Free.\n"
                             "On a pedestal: burns hostile creatures within 8 blocks.",
     "trinket-zeroring": "While on: still water within 3 blocks of you freezes into ice. Free.\n"
                         "On a pedestal: freezes water within 6 blocks and puts out burning creatures.",
@@ -73,14 +73,14 @@ ITEM = {
                                "Charge (tool-mode key): radius 4, 6, 8 or 10 for 384, 768, 1,536 or 2,304 EMC.",
     "gadget-catalyticlens": "Right-click a block to break a 3x3 tunnel 1, 16, 24, 32, 40, 48, 56 or 64 blocks deep (charge 0-7, tool-mode key), 8 EMC per block.\n"
                             "Fire-projectile key: shoots the Hyperkinetic Lens's explosive charge (charge 3 and up: radius 10, 2,304 EMC).",
-    "gadget-mercurialeye": "Sneak + right-click a block to remember it, then right-click blocks to turn them into it (1x1, or 3x3 of the same block with the tool-mode key).\n"
+    "gadget-mercurialeye": "Sneak + right-click a block to remember it, then right-click blocks to turn them into it: 1x1, or 3x3, 5x5, 7x7 or 9x9 of the same block as the one clicked (tool-mode key).\n"
                            "You pay the difference in EMC, and get it back when the old block was worth more.",
     "gadget-archangelssmite": "Right-click: fires a homing arrow that steers towards hostile creatures (3 damage). Left-click: a volley of 10.\n"
                               "Each arrow costs what an arrow is worth in EMC.",
     "gadget-tomeofknowledge": "Creative mode only. Right-click to learn every block and item in the creative inventory that can be transmuted. Not used up, and it can't be crafted or made from EMC.",
-    "gadget-diviningrodlow": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 3 blocks deep, and the most valuable block found.",
-    "gadget-diviningrodmedium": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 16 blocks deep, and the most valuable block found.",
-    "gadget-diviningrodhigh": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 64 blocks deep, and the most valuable block found.",
+    "gadget-diviningrodlow": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 16 blocks deep, and the most valuable block found. Lasts as many uses as 10x its EMC value.",
+    "gadget-diviningrodmedium": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 32 blocks deep, and the most valuable block found. Lasts as many uses as 10x its EMC value.",
+    "gadget-diviningrodhigh": "Right-click a block: reports the total and average EMC of the 3x3 column below it, 128 blocks deep, and the most valuable block found. Lasts as many uses as 10x its EMC value.",
     # ---------------------------------------------------------------- tools
     "redmattertool-katar": "Sword, axe and shears in one: 14 attack (a steel falx does 5.25), reach 3 blocks; chops wood at speed 16 and fells whole trees; cuts plants and leaves at 14, 3x3 or 5x5 with the tool-mode key. Tier 6; never wears out.",
     "redmattertool-morningstar": "Pickaxe, shovel and sledgehammer in one: digs stone, ore, metal, soil, sand and gravel at speed 14, 3x3 at a time (5x5 or one block with the tool-mode key; sneak for one block). 10 attack, tier 6; never wears out.",
@@ -188,9 +188,9 @@ SHORT_ITEM = {
     "gadget-mercurialeye": "Turns blocks into a block you picked; you pay or get back the EMC difference.",
     "gadget-archangelssmite": "Fires homing arrows at hostile creatures; left-click for a volley.",
     "gadget-tomeofknowledge": "Creative mode only: learn everything that can be transmuted.",
-    "gadget-diviningrodlow": "Right-click a block to see how much EMC lies below it, 3 blocks deep.",
-    "gadget-diviningrodmedium": "Right-click a block to see how much EMC lies below it, 16 blocks deep.",
-    "gadget-diviningrodhigh": "Right-click a block to see how much EMC lies below it, 64 blocks deep.",
+    "gadget-diviningrodlow": "Right-click a block to see how much EMC lies below it, 16 blocks deep.",
+    "gadget-diviningrodmedium": "Right-click a block to see how much EMC lies below it, 32 blocks deep.",
+    "gadget-diviningrodhigh": "Right-click a block to see how much EMC lies below it, 128 blocks deep.",
     "redmattertool-katar": "Sword, axe and shears in one. Tier 6; never wears out.",
     "redmattertool-morningstar": "Pickaxe, shovel and sledgehammer in one, 3x3 at a time. Tier 6; never wears out.",
 }
