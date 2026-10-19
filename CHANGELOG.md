@@ -2,6 +2,11 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.9.3 — 2026-10-20
+
+### Fixed
+- **`/emc loop` showed nothing in chat.** Chat reads messages as the game's text markup, where the `->` between items (and the `<value>`-style placeholders in `/emc help` and `/emc configure`) look like broken tags, so the whole answer was dropped. Every `/emc` answer is now escaped for chat. `/emc loop` and `/emc dump hand` also send their answer a line at a time (a long loop is shortened to its first items, `... (12 more)`), and the full text is still written to the file named at the end.
+
 ## 1.9.2 — 2026-10-18
 
 ### Fixed

@@ -463,6 +463,11 @@ namespace VintageE
             string dir = VintageEModSystem.DataFolder(sapi);
             string dumpAnswer = RunCommand("/emc dump");
             Check(File.Exists(Path.Combine(dir, "emc-values.csv")) && dumpAnswer.Contains(dir), "/emc dump writes ModData/vintagee/emc-values.csv and says where: " + dumpAnswer);
+            // 1.9.3: chat reads command answers as VTML; "A -> B" and "<value>" broke it, so the answer showed nothing.
+            string raw = Lang.Get("vintagee:loop-header", 1) + "\n1. game:a -> game:b -> game:a  /emc set <value>";
+            bool rawBroken = VtmlParser.Tokenize(sapi.Logger, raw).Any(t => !(t is VtmlTextToken));
+            bool safeClean = VtmlParser.Tokenize(sapi.Logger, EmcCommands.ChatSafe(raw)).All(t => t is VtmlTextToken);
+            Check(rawBroken && safeClean, $"/emc answers are escaped for the chat's markup (unescaped breaks: {rawBroken}, escaped is plain text: {safeClean})");
             string loopAnswer = RunCommand("/emc loop");
             Check(File.Exists(Path.Combine(dir, "emc-loops.txt")) && loopAnswer.Contains("emc-loops.txt"), "/emc loop writes emc-loops.txt: " + loopAnswer.Split('\n')[0]);
             Check(dir.Replace('\\', '/').Contains("ModData/vintagee"), "data folder is ModData/vintagee: " + dir);

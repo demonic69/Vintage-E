@@ -30,113 +30,113 @@ namespace VintageE
             sapi.ChatCommands.Create("emc")
                 .WithDescription("Vintage-E: show and manage EMC values")
                 .RequiresPrivilege(Privilege.chat)
-                .HandleWith(args => Info(mod, args))
+                .HandleWith(Safe(args => Info(mod, args)))
                 .BeginSubCommand("help")
                     .WithDescription("List every Vintage-E command")
-                    .HandleWith(args => Help(args))
+                    .HandleWith(Safe(args => Help(args)))
                 .EndSubCommand()
                 .BeginSubCommand("set")
                     .RequiresPlayer()
                     .WithDescription("Pin the held item's EMC value (0 removes it). Saved to ModConfig/vintagee.json.")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.Double("value"))
-                    .HandleWith(args => Set(mod, args, (double)args[0]))
+                    .HandleWith(Safe(args => Set(mod, args, (double)args[0])))
                 .EndSubCommand()
                 .BeginSubCommand("clear")
                     .RequiresPlayer()
                     .WithDescription("Remove the pinned value for the held item")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Set(mod, args, null))
+                    .HandleWith(Safe(args => Set(mod, args, null)))
                 .EndSubCommand()
                 .BeginSubCommand("recalc")
                     .WithDescription("Recalculate all EMC values from recipes")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Recalc(mod))
+                    .HandleWith(Safe(args => Recalc(mod)))
                 .EndSubCommand()
                 .BeginSubCommand("dump")
                     .WithDescription("Write all EMC values to a CSV file, or with 'hand' show how the held item's value was worked out")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWordRange("what", "hand"))
-                    .HandleWith(args => (args[0] as string) == "hand" ? DumpHeld(mod, sapi, args) : Dump(mod, sapi))
+                    .HandleWith(Safe(args => (args[0] as string) == "hand" ? DumpHeld(mod, sapi, args) : Dump(mod, sapi)))
                 .EndSubCommand()
                 .BeginSubCommand("loop")
                     .WithAlias("loops")
                     .WithDescription("List the value loops the mapper found: unvalued items that are each only made from the next")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Loops(mod, sapi, args.LanguageCode))
+                    .HandleWith(Safe(args => Loops(mod, sapi, args)))
                 .EndSubCommand()
                 .BeginSubCommand("missing")
                     .WithDescription("List blocks/items that ended up without an EMC value")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Missing(mod, args))
+                    .HandleWith(Safe(args => Missing(mod, args)))
                 .EndSubCommand()
                 .BeginSubCommand("blacklist")
                     .WithDescription("Open a window listing everything on the EMC blacklist")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args => Blacklist(mod, args))
+                    .HandleWith(Safe(args => Blacklist(mod, args)))
                 .EndSubCommand()
                 .BeginSubCommand("notransmute")
                     .WithDescription("Open a window of everything that keeps its EMC value but can't be burned, learned or created; or add/remove the held item")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
-                    .HandleWith(args => NoTransmute(mod, args, args[0] as string))
+                    .HandleWith(Safe(args => NoTransmute(mod, args, args[0] as string)))
                 .EndSubCommand()
                 .BeginSubCommand("graylist")
                     .WithAlias("greylist")
                     .WithDescription("Open the gray list (left out of /emc missing, valued only by recipes); or add/remove the held item")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWordRange("action", "add", "remove"))
-                    .HandleWith(args => GrayList(mod, args, args[0] as string))
+                    .HandleWith(Safe(args => GrayList(mod, args, args[0] as string)))
                 .EndSubCommand()
                 .BeginSubCommand("recipe")
                     .WithAlias("recipes")
                     .WithDescription("Open the window of hand-written recipes (for things the mapper can't see being made); or add/remove one: output = 4 game:plank-oak + game:stick")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWordRange("action", "add", "remove", "list"), parsers.OptionalAll("recipe"))
-                    .HandleWith(args => Recipe(mod, args, args[0] as string, args[1] as string))
+                    .HandleWith(Safe(args => Recipe(mod, args, args[0] as string, args[1] as string)))
                 .EndSubCommand()
                 .BeginSubCommand("contents")
                     .WithDescription("Open a window of everything that holds things or keeps its material, and how each is transmuted; or set the held item: item, full, itemprice or default")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWordRange("mode", "item", "full", "itemprice", "default"))
-                    .HandleWith(args => Contents(mod, args, args[0] as string))
+                    .HandleWith(Safe(args => Contents(mod, args, args[0] as string)))
                 .EndSubCommand()
                 .BeginSubCommand("configure")
                     .WithAlias("config")
                     .WithDescription("Show or change the server settings (ModConfig/vintagee.json) in game")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.OptionalWord("setting"), parsers.OptionalAll("value"))
-                    .HandleWith(args => ConfigureCommand.Handle(mod, args))
+                    .HandleWith(Safe(args => ConfigureCommand.Handle(mod, args)))
                 .EndSubCommand()
                 .BeginSubCommand("add")
                     .WithDescription("Add EMC to a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
-                    .HandleWith(args => ChangeBalance(args, +1))
+                    .HandleWith(Safe(args => ChangeBalance(args, +1)))
                 .EndSubCommand()
                 .BeginSubCommand("remove")
                     .WithDescription("Take EMC from a player's personal EMC (yours if no player is named)")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
-                    .HandleWith(args => ChangeBalance(args, -1))
+                    .HandleWith(Safe(args => ChangeBalance(args, -1)))
                 .EndSubCommand()
                 .BeginSubCommand("give")
                     .WithDescription("Same as /emc add")
                     .RequiresPrivilege(Privilege.controlserver)
                     .WithArgs(parsers.Double("amount"), new OnlinePlayerArgParser("player", sapi, false))
-                    .HandleWith(args => ChangeBalance(args, +1))
+                    .HandleWith(Safe(args => ChangeBalance(args, +1)))
                 .EndSubCommand()
                 .BeginSubCommand("learn")
                     .RequiresPlayer()
                     .WithDescription("Learn the held item without burning it")
                     .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(args =>
+                    .HandleWith(Safe(args =>
                     {
                         ItemStack held = args.Caller.Player.InventoryManager.ActiveHotbarSlot?.Itemstack;
                         if (held == null) return TextCommandResult.Error(Lang.Get("vintagee:cmd-holdsomething"));
                         PlayerEmc.Learn(args.Caller.Player, KnowledgeKey(mod, held));
                         return TextCommandResult.Success(Lang.Get("vintagee:learned", held.GetName()));
-                    })
+                    }))
                 .EndSubCommand();
         }
 
@@ -447,11 +447,8 @@ namespace VintageE
                 sapi.Logger.Warning("Vintage-E: could not write the dump file: {0}", e.Message);
                 file = null;
             }
-            // Chat shows the start; the file has all of it.
-            string[] lines = text.Split('\n');
-            string chat = lines.Length > 40 ? string.Join("\n", lines.Take(40)) + "\n" + Lang.GetL(lang, "vintagee:dump-more", lines.Length - 40) : text;
-            chat += "\n" + (file != null ? Lang.GetL(lang, "vintagee:dump-file", file) : Lang.GetL(lang, "vintagee:dump-nofile"));
-            return TextCommandResult.Success(chat);
+            // Chat shows the start, a line at a time; the file has all of it.
+            return Reply(args, text.Split('\n').ToList(), file != null ? Lang.GetL(lang, "vintagee:dump-file", file) : Lang.GetL(lang, "vintagee:dump-nofile"), lang, 40);
         }
 
         /// <summary>Why <paramref name="c"/> has no value: blacklisted, nothing makes it, a value loop, or which ingredients are missing.</summary>
@@ -523,30 +520,105 @@ namespace VintageE
         }
 
         /// <summary>/emc loop: every value loop (and settled loop) the mapper found, also written to ModData/vintagee/emc-loops.txt.</summary>
-        static TextCommandResult Loops(VintageEModSystem mod, ICoreServerAPI sapi, string lang)
+        static TextCommandResult Loops(VintageEModSystem mod, ICoreServerAPI sapi, TextCommandCallingArgs args)
         {
+            string lang = args.LanguageCode;
             EmcMappingReport report = mod.LastReport;
             if (report == null) return TextCommandResult.Error("EMC has not been mapped yet.");
-            var sb = new StringBuilder();
-            sb.AppendLine(Lang.GetL(lang, report.Loops.Count == 0 ? "vintagee:loop-none" : "vintagee:loop-header", report.Loops.Count));
-            for (int i = 0; i < report.Loops.Count; i++) sb.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.Loops[i]));
-            if (report.SettledLoops.Count > 0)
-            {
-                sb.AppendLine(Lang.GetL(lang, "vintagee:loop-settled", report.SettledLoops.Count));
-                for (int i = 0; i < report.SettledLoops.Count; i++) sb.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.SettledLoops[i]));
-            }
-            string text = sb.ToString().TrimEnd();
-            string file = null;
             try
             {
-                file = System.IO.Path.Combine(VintageEModSystem.DataFolder(sapi), "emc-loops.txt");
-                System.IO.File.WriteAllText(file, text + "\n");
+                // The file gets every loop in full; chat gets each one shortened, a line at a time (one huge message
+                // with long loops in it never showed up in chat).
+                var full = new StringBuilder();
+                var chat = new List<string>();
+                string header = Lang.GetL(lang, report.Loops.Count == 0 ? "vintagee:loop-none" : "vintagee:loop-header", report.Loops.Count);
+                full.AppendLine(header);
+                chat.Add(header);
+                for (int i = 0; i < report.Loops.Count; i++)
+                {
+                    full.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.Loops[i]));
+                    chat.Add((i + 1) + ". " + ShortLoop(report.Loops[i], lang));
+                }
+                if (report.SettledLoops.Count > 0)
+                {
+                    string settled = Lang.GetL(lang, "vintagee:loop-settled", report.SettledLoops.Count);
+                    full.AppendLine(settled);
+                    chat.Add(settled);
+                    for (int i = 0; i < report.SettledLoops.Count; i++)
+                    {
+                        full.AppendLine((i + 1) + ". " + MissingAnalysis.LoopText(report.SettledLoops[i]));
+                        chat.Add((i + 1) + ". " + ShortLoop(report.SettledLoops[i], lang));
+                    }
+                }
+                string file = null;
+                try
+                {
+                    file = System.IO.Path.Combine(VintageEModSystem.DataFolder(sapi), "emc-loops.txt");
+                    System.IO.File.WriteAllText(file, full.ToString().TrimEnd() + "\n");
+                }
+                catch (Exception e) { sapi.Logger.Warning("Vintage-E: could not write the loop list: {0}", e.Message); file = null; }
+                string tail = file != null ? Lang.GetL(lang, "vintagee:dump-file", file) : Lang.GetL(lang, "vintagee:dump-nofile");
+                return Reply(args, chat, tail, lang);
             }
-            catch (Exception e) { sapi.Logger.Warning("Vintage-E: could not write the loop list: {0}", e.Message); file = null; }
-            string[] lines = text.Split('\n');
-            string chat = lines.Length > 40 ? string.Join("\n", lines.Take(40)) + "\n" + Lang.GetL(lang, "vintagee:dump-more", lines.Length - 40) : text;
-            if (file != null) chat += "\n" + Lang.GetL(lang, "vintagee:dump-file", file);
-            return TextCommandResult.Success(chat);
+            catch (Exception e)
+            {
+                sapi.Logger.Error("Vintage-E: /emc loop failed: {0}", e);
+                return TextCommandResult.Error("/emc loop failed: " + e.Message + " (the server log has the details)");
+            }
         }
+
+        /// <summary>A loop for chat: its first few items and how many more ("a -> b -> c -> ... (12 more) -> a").</summary>
+        static string ShortLoop(IList<CollectibleObject> loop, string lang, int show = 6)
+        {
+            if (loop == null || loop.Count == 0) return "";
+            if (loop.Count <= show) return MissingAnalysis.LoopText(loop);
+            return string.Join(" -> ", loop.Take(show).Select(c => c.Code.ToString())) + " -> " + Lang.GetL(lang, "vintagee:loop-more", loop.Count - show) + " -> " + loop[0].Code;
+        }
+
+        /// <summary>
+        /// Long command output: to a player, a chat message per line (each kept short, at most <paramref name="maxLines"/>
+        /// of them, then <paramref name="tail"/>); to the console, all of it at once.
+        /// </summary>
+        static TextCommandResult Reply(TextCommandCallingArgs args, List<string> lines, string tail, string lang, int maxLines = 20)
+        {
+            if (!(args.Caller.Player is IServerPlayer player))
+            {
+                return TextCommandResult.Success(string.Join("\n", lines) + (tail == null ? "" : "\n" + tail));
+            }
+            int group = args.Caller.FromChatGroupId;
+            int n = 0;
+            foreach (string line in lines)
+            {
+                if (n++ >= maxLines)
+                {
+                    player.SendMessage(group, Lang.GetL(lang, "vintagee:dump-more", lines.Count - maxLines), EnumChatType.CommandSuccess);
+                    break;
+                }
+                string text = line.Length > 400 ? line.Substring(0, 400) + "..." : line;
+                player.SendMessage(group, ChatSafe(text), EnumChatType.CommandSuccess);
+            }
+            if (tail != null) player.SendMessage(group, ChatSafe(tail), EnumChatType.CommandSuccess);
+            return TextCommandResult.Success();
+        }
+
+        /// <summary>
+        /// Chat reads messages as VTML, where a stray &lt; or &gt; ("A -> B", "&lt;value&gt;") breaks the markup and the
+        /// whole message shows nothing. Escapes them, keeping the bold tags these messages use on purpose.
+        /// </summary>
+        public static string ChatSafe(string text)
+        {
+            if (string.IsNullOrEmpty(text) || (text.IndexOf('<') < 0 && text.IndexOf('>') < 0)) return text;
+            return text.Replace("<strong>", "\u0001").Replace("</strong>", "\u0002")
+                       .Replace("<", "&lt;").Replace(">", "&gt;")
+                       .Replace("\u0001", "<strong>").Replace("\u0002", "</strong>");
+        }
+
+        /// <summary>Every /emc command's answer goes through <see cref="ChatSafe"/> when a player asked (the console shows text as it is).</summary>
+        static OnCommandDelegate Safe(OnCommandDelegate handler) => args =>
+        {
+            TextCommandResult r = handler(args);
+            if (r?.StatusMessage != null && args.Caller.Player != null) r.StatusMessage = ChatSafe(r.StatusMessage);
+            return r;
+        };
     }
 }

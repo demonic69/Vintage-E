@@ -1009,6 +1009,7 @@ LANG = O([
     ("recipe-needline", "Give the recipe: output = ingredients, e.g. item:mymod:boat = 40 game:plank-oak + 8 game:rope"),
     ("cmdhelp-recipe", "Open the window of hand-written recipes, for things the mapper can't see being made"),
     ("cmdhelp-recipeset", "Add or remove a hand-written recipe by text"),
+    ("loop-more", "... ({0} more)"),
     # 1.9.1
     ("setvalue-save", "Save"),
     ("setvalue-nowpinned", "Now: {0} EMC (set by hand)"), ("setvalue-nowblacklisted", "Blacklisted: no EMC value"),

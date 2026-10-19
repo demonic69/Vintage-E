@@ -717,6 +717,7 @@
   "cfg-lines-found": "Found {2}: {0}-{1}",
   "cfg-lines-nomatch": "No line has that",
   "cfg-lines-empty": "(empty)",
+  "loop-more": "... ({0} more)",
   "vintagee:item-handbooktitle-vintagee:philosophersstone": "How it works",
   "vintagee:item-handbooktext-vintagee:philosophersstone": "Right-click a block to transmute it into its neighbour in a chain (stone types, wood types, sand ↔ gravel, ...); sneak + right-click goes the other way.\nTool-mode key: 1x1, 3x3 or 5x5 at once. Free, and never used up when crafting with it.",
   "vintagee:item-handbooktitle-vintagee:transmutationtablet": "How it works",
