@@ -235,6 +235,8 @@ namespace VintageE
                 return r;
             }
             Status(x, c, stack, player);
+            // Nothing to step through for something without a value (the next part says why it has none).
+            if (each > 0 || mod.Emc.GetValue(c) > 0 || c is IEmcStorageItem)
             try { StackFactors(x, stack, held); }
             catch (Exception e) { r.Add("(" + e.Message + ")", EmcLineStyle.Warn, 1); sapi.Logger.Warning("Vintage-E: /emc dump, the stack part: {0}", e); }
             try { Origin(x, c); }
