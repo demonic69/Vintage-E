@@ -126,6 +126,38 @@ namespace VintageE
         [ProtoMember(7)] public string[] FromFiles;
     }
 
+    /// <summary>Server → client: opens the /emc dump or /emc loop window (see <see cref="EmcReport"/>).</summary>
+    [ProtoContract]
+    public class EmcReportPacket
+    {
+        /// <summary>"dump" or "loops".</summary>
+        [ProtoMember(1)] public string Kind;
+        [ProtoMember(2)] public string Title;
+        /// <summary>The block/item a dump explains (PlayerEmc key).</summary>
+        [ProtoMember(3)] public string Key;
+        /// <summary>Where the server saved the same text.</summary>
+        [ProtoMember(4)] public string File;
+        /// <summary>One entry per line; blocks and items written as [[key]].</summary>
+        [ProtoMember(5)] public string[] Texts;
+        [ProtoMember(6)] public byte[] Indents;
+        /// <summary><see cref="EmcLineStyle"/> per line.</summary>
+        [ProtoMember(7)] public byte[] Styles;
+        /// <summary>Which block each line is in (the search shows whole blocks; 0 is always shown).</summary>
+        [ProtoMember(8)] public int[] Blocks;
+        /// <summary>For a dump of an exact stack (held or hovered): that stack, so Refresh explains the same one.</summary>
+        [ProtoMember(9)] public byte[] Stack;
+    }
+
+    /// <summary>Client → server: explain one block/item (an item clicked in the dump or loop window), or list the loops again (admins only).</summary>
+    [ProtoContract]
+    public class EmcDumpRequestPacket
+    {
+        [ProtoMember(1)] public string Key;
+        [ProtoMember(2)] public bool Loops;
+        /// <summary>The exact stack to explain (ItemStack.ToBytes: its wear, contents and size count); null for a new one.</summary>
+        [ProtoMember(3)] public byte[] Stack;
+    }
+
     /// <summary>Client → server: the hovered-item box's changes: a value (or unpin), and the blacklist, gray list and free ingredient boxes.</summary>
     [ProtoContract]
     public class EmcItemEditPacket

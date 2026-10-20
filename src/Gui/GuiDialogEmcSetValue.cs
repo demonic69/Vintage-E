@@ -20,6 +20,7 @@ namespace VintageE
         readonly ItemStack stack;
         readonly EmcItemStatePacket state;
         readonly Action<EmcItemEditPacket> onSave;
+        readonly Action onExplain;
         readonly DisplayInventory iconInventory;
         string initialText = "";
 
@@ -29,8 +30,9 @@ namespace VintageE
         public override double InputOrder => 0.3;
         public override bool UnregisterOnClose => true;
 
-        public GuiDialogEmcSetValue(ICoreClientAPI capi, ItemStack stack, EmcItemStatePacket state, Action<EmcItemEditPacket> onSave) : base(capi)
+        public GuiDialogEmcSetValue(ICoreClientAPI capi, ItemStack stack, EmcItemStatePacket state, Action<EmcItemEditPacket> onSave, Action onExplain = null) : base(capi)
         {
+            this.onExplain = onExplain;
             this.stack = stack.Clone();
             this.stack.StackSize = 1;
             this.state = state;
@@ -87,10 +89,12 @@ namespace VintageE
             ElementBounds setBounds = ElementBounds.Fixed(0, y, buttonWidth, 30);
             ElementBounds unpinBounds = ElementBounds.Fixed(buttonWidth + 10, y, buttonWidth, 30);
             ElementBounds cancelBounds = ElementBounds.Fixed(2 * (buttonWidth + 10), y, buttonWidth, 30);
+            ElementBounds explainBounds = ElementBounds.Fixed(0, y + 40, Width, 30);
 
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
             bgBounds.WithChildren(slotBounds, infoBounds, labelBounds, valueBounds, hintBounds, setBounds, unpinBounds, cancelBounds);
+            if (onExplain != null) bgBounds.WithChildren(explainBounds);
             foreach (var (sw, lab) in rowBounds) bgBounds.WithChildren(sw, lab);
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
@@ -108,13 +112,12 @@ namespace VintageE
                 c.AddSwitch(_ => { }, rowBounds[i].sw, rows[i].key)
                  .AddStaticText(rows[i].text + (rows[i].note == null ? "" : "\n" + rows[i].note), label, rowBounds[i].lab);
             }
-            SingleComposer = c
-                    .AddStaticText(hint, grey, hintBounds)
-                    .AddSmallButton(Lang.Get("vintagee:setvalue-save"), OnSave, setBounds)
-                    .AddSmallButton(Lang.Get("vintagee:setvalue-unpin"), OnUnpin, unpinBounds)
-                    .AddSmallButton(Lang.Get("vintagee:setvalue-cancel"), () => TryClose(), cancelBounds)
-                .EndChildElements()
-                .Compose();
+            c.AddStaticText(hint, grey, hintBounds)
+             .AddSmallButton(Lang.Get("vintagee:setvalue-save"), OnSave, setBounds)
+             .AddSmallButton(Lang.Get("vintagee:setvalue-unpin"), OnUnpin, unpinBounds)
+             .AddSmallButton(Lang.Get("vintagee:setvalue-cancel"), () => TryClose(), cancelBounds);
+            if (onExplain != null) c.AddSmallButton(Lang.Get("vintagee:setvalue-explain"), () => { onExplain(); TryClose(); return true; }, explainBounds);
+            SingleComposer = c.EndChildElements().Compose();
 
             initialText = !state.Blacklisted && !state.Free && state.Value > 0 ? state.Value.ToString("0.####", CultureInfo.InvariantCulture) : "";
             SingleComposer.GetTextInput("value").SetValue(initialText);

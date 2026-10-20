@@ -256,7 +256,22 @@ namespace VintageE
         /// <summary>Chiseled blocks: so many voxels (of 16x16x16) of each material block.</summary>
         public static double ChiseledValue(IWorldAccessor world, ItemStack stack, System.Func<CollectibleObject, double> valueOf)
         {
-            if (world == null || stack?.Attributes == null) return 0;
+            List<KeyValuePair<Block, long>> parts = ChiseledParts(world, stack);
+            if (parts == null) return 0;
+            double total = 0;
+            foreach (var part in parts)
+            {
+                double v = part.Key == null ? 0 : valueOf(part.Key);
+                if (v <= 0) return 0; // a material without a value: the whole block has none
+                total += v * part.Value / 4096.0;
+            }
+            return total;
+        }
+
+        /// <summary>A chiseled block's materials and how many voxels (of 4096) of each it has; null if it has no voxel data.</summary>
+        public static List<KeyValuePair<Block, long>> ChiseledParts(IWorldAccessor world, ItemStack stack)
+        {
+            if (world == null || stack?.Attributes == null) return null;
             int[] ids = null;
             if (stack.Attributes["materials"] is IntArrayAttribute intIds) ids = intIds.value;
             else if (stack.Attributes["materials"] is StringArrayAttribute codes && codes.value != null)
@@ -264,7 +279,7 @@ namespace VintageE
                 ids = codes.value.Select(code => world.GetBlock(new AssetLocation(code))?.Id ?? 0).ToArray();
             }
             uint[] cuboids = (stack.Attributes["cuboids"] as IntArrayAttribute)?.AsUint;
-            if (ids == null || ids.Length == 0 || cuboids == null) return 0;
+            if (ids == null || ids.Length == 0 || cuboids == null) return null;
 
             var voxels = new long[ids.Length];
             foreach (uint val in cuboids)
@@ -275,16 +290,13 @@ namespace VintageE
                 if (mat >= ids.Length || x2 <= x1 || y2 <= y1 || z2 <= z1) continue;
                 voxels[mat] += (long)(x2 - x1) * (y2 - y1) * (z2 - z1);
             }
-            double total = 0;
+            var parts = new List<KeyValuePair<Block, long>>();
             for (int i = 0; i < ids.Length; i++)
             {
                 if (voxels[i] == 0) continue;
-                Block block = world.GetBlock(ids[i]);
-                double v = block == null ? 0 : valueOf(block);
-                if (v <= 0) return 0; // a material without a value: the whole block has none
-                total += v * voxels[i] / 4096.0;
+                parts.Add(new KeyValuePair<Block, long>(world.GetBlock(ids[i]), voxels[i]));
             }
-            return total;
+            return parts;
         }
     }
 }

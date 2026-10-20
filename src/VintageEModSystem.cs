@@ -97,7 +97,9 @@ namespace VintageE
                 .RegisterMessageType<EmcRecipeEditPacket>()
                 .RegisterMessageType<EmcItemStateRequestPacket>()
                 .RegisterMessageType<EmcItemStatePacket>()
-                .RegisterMessageType<EmcItemEditPacket>();
+                .RegisterMessageType<EmcItemEditPacket>()
+                .RegisterMessageType<EmcReportPacket>()
+                .RegisterMessageType<EmcDumpRequestPacket>();
         }
 
         #region Server
@@ -142,6 +144,7 @@ namespace VintageE
             serverChannel.SetMessageHandler<EmcRecipeEditPacket>(OnRecipeEditRequest);
             serverChannel.SetMessageHandler<EmcItemStateRequestPacket>(OnItemStateRequest);
             serverChannel.SetMessageHandler<EmcItemEditPacket>(OnItemEditRequest);
+            serverChannel.SetMessageHandler<EmcDumpRequestPacket>(OnDumpRequest);
 
             // Every mod has registered its recipes by the time the game starts running, so map then.
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
@@ -751,6 +754,76 @@ namespace VintageE
             serverChannel.SendPacket(ItemState(c, packet.Key), player);
         }
 
+        /// <summary>Saves a report's text to ModData/vintagee/<paramref name="fileName"/> (the report remembers where).</summary>
+        public string SaveReport(EmcReport report, string fileName)
+        {
+            try
+            {
+                string file = System.IO.Path.Combine(DataFolder(Sapi), fileName);
+                System.IO.File.WriteAllText(file, report.PlainText(Sapi.World) + "\n");
+                report.File = file;
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Vintage-E: could not write {0}: {1}", fileName, e.Message);
+                report.File = null;
+            }
+            return report.File;
+        }
+
+        /// <summary>Opens the report window (/emc dump, /emc loop) for a player.</summary>
+        public void SendReport(IServerPlayer player, EmcReport report) => serverChannel.SendPacket(report.ToPacket(), player);
+
+        public static string DumpFileName(CollectibleObject c) => "emc-dump-" + c.Code.ToString().Replace(':', '_').Replace('/', '_').Replace('*', '_') + ".txt";
+
+        /// <summary>An item clicked in the report window (or its Refresh): explain that one, as a new one; or list the loops again.</summary>
+        void OnDumpRequest(IServerPlayer player, EmcDumpRequestPacket packet)
+        {
+            if (packet == null) return;
+            if (!player.HasPrivilege(Privilege.controlserver))
+            {
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(player.LanguageCode, "vintagee:error-noprivilege"), EnumChatType.CommandError);
+                return;
+            }
+            try
+            {
+                EmcReport report;
+                if (packet.Loops)
+                {
+                    report = EmcExplain.Loops(this, Sapi, player.LanguageCode);
+                    SaveReport(report, "emc-loops.txt");
+                }
+                else
+                {
+                    ItemStack stack = null;
+                    if (packet.Stack != null && packet.Stack.Length > 0)
+                    {
+                        try
+                        {
+                            stack = new ItemStack(packet.Stack);
+                            if (!stack.ResolveBlockOrItem(Sapi.World)) stack = null;
+                        }
+                        catch { stack = null; }
+                    }
+                    bool exact = stack?.Collectible?.Code != null;
+                    if (!exact)
+                    {
+                        CollectibleObject c = PlayerEmc.Resolve(Sapi.World, packet.Key);
+                        if (c?.Code == null) return;
+                        stack = new ItemStack(c);
+                    }
+                    report = EmcExplain.Dump(this, Sapi, stack, player, exact, player.LanguageCode);
+                    SaveReport(report, DumpFileName(stack.Collectible));
+                }
+                SendReport(player, report);
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Error("Vintage-E: explaining {0} failed: {1}", packet.Loops ? "the loops" : packet.Key, e);
+                player.SendMessage(GlobalConstants.GeneralChatGroup, "Vintage-E: that failed (" + e.Message + "), see the server log.", EnumChatType.CommandError);
+            }
+        }
+
         internal EmcItemStatePacket ItemState(CollectibleObject c, string key)
         {
             EmcMappingReport report = LastReport;
@@ -1107,6 +1180,7 @@ namespace VintageE
             capi.Input.SetHotKeyHandler(SetValueHotkey, _ => OpenSetValueBox());
             clientChannel.SetMessageHandler<EmcRecipeListPacket>(OnRecipeList);
             clientChannel.SetMessageHandler<EmcItemStatePacket>(OnItemState);
+            clientChannel.SetMessageHandler<EmcReportPacket>(OnReport);
 
             // Tooltips: give every collectible a tiny client-only behaviour that prints its EMC.
             capi.Event.BlockTexturesLoaded += () =>
@@ -1270,8 +1344,39 @@ namespace VintageE
             {
                 edit.Key = key;
                 clientChannel?.SendPacket(edit);
+            }, () =>
+            {
+                byte[] bytes = null;
+                try { bytes = stack.ToBytes(); }
+                catch { /* explain a new one instead */ }
+                clientChannel?.SendPacket(new EmcDumpRequestPacket { Key = key, Stack = bytes });
             });
             setValueDialog.TryOpen();
+        }
+
+        /// <summary>The report window's Set value button: the hovered-item value box, for the item it explains.</summary>
+        void OpenSetValueFor(string key)
+        {
+            CollectibleObject c = PlayerEmc.Resolve(Capi.World, key);
+            if (c?.Code == null) return;
+            pendingSetValueStack = new ItemStack(c);
+            clientChannel?.SendPacket(new EmcItemStateRequestPacket { Key = key });
+        }
+
+        GuiDialogEmcReport reportDialog;
+
+        void OnReport(EmcReportPacket packet)
+        {
+            if (reportDialog != null && reportDialog.IsOpened())
+            {
+                reportDialog.Show(packet);
+                return;
+            }
+            reportDialog = new GuiDialogEmcReport(Capi, packet,
+                (key, stack) => clientChannel?.SendPacket(new EmcDumpRequestPacket { Key = key, Stack = stack }),
+                () => clientChannel?.SendPacket(new EmcDumpRequestPacket { Loops = true }),
+                OpenSetValueFor);
+            reportDialog.TryOpen();
         }
 
         GuiDialogEmcRecipe recipeDialog;

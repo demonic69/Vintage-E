@@ -62,6 +62,17 @@ namespace VintageE
             return Candidates(loc).Where(c => (type == null || c.ItemClass == type) && WildcardUtil.Match(loc, c.Code));
         }
 
+        /// <summary>Whether one collectible matches <paramref name="pattern"/> (same rules as <see cref="Match"/>).</summary>
+        public static bool Matches(string pattern, CollectibleObject c)
+        {
+            if (c?.Code == null || string.IsNullOrWhiteSpace(pattern)) return false;
+            pattern = pattern.Trim();
+            if (pattern.StartsWith("item:", StringComparison.OrdinalIgnoreCase)) { if (c.ItemClass != EnumItemClass.Item) return false; pattern = pattern.Substring(5); }
+            else if (pattern.StartsWith("block:", StringComparison.OrdinalIgnoreCase)) { if (c.ItemClass != EnumItemClass.Block) return false; pattern = pattern.Substring(6); }
+            try { return WildcardUtil.Match(new AssetLocation(pattern), c.Code); }
+            catch { return false; }
+        }
+
         /// <summary>A superset of the collectibles that could match <paramref name="loc"/>, narrowed by its literal prefix.</summary>
         public IEnumerable<CollectibleObject> Candidates(AssetLocation loc)
         {

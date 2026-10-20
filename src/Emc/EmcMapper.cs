@@ -64,6 +64,38 @@ namespace VintageE
         public string CachedAt;
         /// <summary>Why each item has its value ("base value", "grid: 1 game:log-... -> 12", ...). Empty when loaded from cache.</summary>
         public Dictionary<CollectibleObject, string> Origins = new Dictionary<CollectibleObject, string>();
+        /// <summary>The recipe or process each recipe-derived value came from (forwards, worked backwards or shared out). Empty from the cache.</summary>
+        public Dictionary<CollectibleObject, Conversion> Via = new Dictionary<CollectibleObject, Conversion>();
+        /// <summary>Values worked out backwards from what an item is used for (rather than how it's made).</summary>
+        public HashSet<CollectibleObject> Inferred = new HashSet<CollectibleObject>();
+        /// <summary>Items that kept their first value because their recipes kept making each other cheaper.</summary>
+        public HashSet<CollectibleObject> Frozen = new HashSet<CollectibleObject>();
+        /// <summary>Every recipe and process the mapper read (for /emc dump's "other ways to make it"). Empty from the cache.</summary>
+        public List<Conversion> Conversions = new List<Conversion>();
+
+        Dictionary<CollectibleObject, List<Conversion>> byOutput;
+
+        /// <summary>Every way of making <paramref name="c"/> the mapper knows of (recipes, processes, shared-out processes).</summary>
+        public List<Conversion> WaysToMake(CollectibleObject c)
+        {
+            if (byOutput == null)
+            {
+                var map = new Dictionary<CollectibleObject, List<Conversion>>();
+                void Add(CollectibleObject o, Conversion conv)
+                {
+                    if (o == null) return;
+                    if (!map.TryGetValue(o, out var list)) map[o] = list = new List<Conversion>();
+                    if (!list.Contains(conv)) list.Add(conv);
+                }
+                foreach (Conversion conv in Conversions ?? new List<Conversion>())
+                {
+                    if (conv.JointOutputs != null) foreach (var o in conv.JointOutputs) Add(o.Key, conv);
+                    else Add(conv.Output, conv);
+                }
+                byOutput = map;
+            }
+            return c != null && byOutput.TryGetValue(c, out var found) ? found : new List<Conversion>();
+        }
     }
 
     /// <summary>
@@ -319,6 +351,7 @@ namespace VintageE
                 - report.FuelCount - report.FoodCount - report.OtherModCount - report.GuessCount;
             report.Variants = VariantValues(collector.Conversions, report.Values, excluded);
             report.ConversionCount = solver.Edges.Count + solver.JointEdges.Count;
+            report.Conversions = collector.Conversions;
             FillCoverage(index, report, excluded);
             MissingAnalysis.Run(report, collector.Conversions, solver.Frozen);
             report.Sources = collector.SourceCounts;
@@ -336,6 +369,9 @@ namespace VintageE
                     object tag = via is EmcSolver<CollectibleObject>.Edge ed ? ed.Tag : via is EmcSolver<CollectibleObject>.JointEdge je ? je.Tag : via;
                     origin = (solver.Inferred.ContainsKey(c) ? "worked backwards from " : "") + Describe(tag as Conversion);
                     if (solver.Frozen.Contains(c)) origin += " (recipe loop: kept its first value)";
+                    if (tag is Conversion used) report.Via[c] = used;
+                    if (solver.Inferred.ContainsKey(c)) report.Inferred.Add(c);
+                    if (solver.Frozen.Contains(c)) report.Frozen.Add(c);
                 }
                 else origin = "?";
                 report.Origins[c] = origin;

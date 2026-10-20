@@ -69,6 +69,7 @@ namespace VintageE
                 CheckProjectELook();
                 Check180();
                 Check190();
+                Check1100();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -524,6 +525,119 @@ namespace VintageE
                     $"{code}: {slots} slots, upgraded from the smaller bag keeping its contents");
             }
 
+        }
+
+        /// <summary>
+        /// 1.10.0: the /emc dump and /emc loop windows. Each recipe value's explanation adds up to the value; wear,
+        /// Klein star EMC and contents show with their numbers; base values name their file or setting; the loop
+        /// report and its packet hold together; /emc dump takes a code.
+        /// </summary>
+        void Check1100()
+        {
+            EmcMappingReport report = mod.LastReport;
+            if (report == null || report.FromCache) report = mod.RecalculateEmc("self-test 1.10.0");
+            if (report == null) { Check(false, "the report windows need a mapping"); return; }
+            string Text(EmcReport r) => string.Join("\n", r.Lines.Select(l => l.Text));
+            string Differs = Lang.Get("vintagee:dumpgui-differs", "").Split('{')[0].Substring(0, 10);
+
+            // Recipes, forwards: the numbers shown add up to the value (only items valued exactly this way, not frozen).
+            var forward = report.Via.Where(kv => kv.Value.JointOutputs == null && kv.Value.Output == kv.Key && !report.Frozen.Contains(kv.Key))
+                .Select(kv => kv.Key).OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).Take(300).ToList();
+            int off = 0;
+            string firstOff = null;
+            foreach (CollectibleObject c in forward)
+            {
+                EmcReport r = EmcExplain.Dump(mod, sapi, new ItemStack(c), null, false, "en");
+                if (Text(r).Contains(Differs)) { off++; firstOff ??= c.Code.ToString(); }
+            }
+            Line($"  recipe explanations checked: {forward.Count}, not adding up: {off}" + (firstOff == null ? "" : " (first: " + firstOff + ")"));
+            Check(forward.Count > 50 && off <= forward.Count / 20, "/emc dump's recipe numbers add up to the value");
+
+            // Worked backwards and shared out: explained the same way.
+            CollectibleObject back = report.Via.Where(kv => kv.Value.JointOutputs == null && kv.Value.Output != kv.Key && report.Inferred.Contains(kv.Key)).Select(kv => kv.Key).FirstOrDefault();
+            if (back != null)
+            {
+                string t = Text(EmcExplain.Dump(mod, sapi, new ItemStack(back), null, false, "en"));
+                Check(t.Contains("Worked backwards"), "a worked-backwards value says so: " + back.Code);
+            }
+            CollectibleObject shared = report.Via.Where(kv => kv.Value.JointOutputs != null && kv.Value.Inputs[0].Choices[0] != kv.Key).Select(kv => kv.Key).FirstOrDefault();
+            if (shared != null)
+            {
+                string t = Text(EmcExplain.Dump(mod, sapi, new ItemStack(shared), null, false, "en"));
+                Check(t.Contains("Shared out"), "a shared-out value says so: " + shared.Code);
+            }
+
+            // Base values name where they come from.
+            var bases = report.Origins.Where(kv => kv.Value == "base value").Select(kv => kv.Key).OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).Take(60).ToList();
+            string unknown = Lang.Get("vintagee:dump-noorigin");
+            int named = bases.Count(c => !Text(EmcExplain.Dump(mod, sapi, new ItemStack(c), null, false, "en")).Contains(unknown));
+            Check(bases.Count > 10 && named >= bases.Count * 9 / 10, $"base values name their value file or setting ({named} of {bases.Count})");
+
+            // A worn tool: the durability and what it takes off.
+            CollectibleObject tool = report.Values.Keys.Where(c => c is Item && c.Durability > 10 && c.Code.Domain == "game").OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).FirstOrDefault();
+            if (tool != null)
+            {
+                var st = new ItemStack(tool);
+                int max = tool.GetMaxDurability(st);
+                st.Attributes.SetInt("durability", max / 2);
+                EmcReport r = EmcExplain.Dump(mod, sapi, st, null, true, "en");
+                string t = Text(r);
+                bool scales = mod.Emc.DurabilityScales;
+                Check(t.Contains($"Durability {max / 2}/{max}") && (!scales || t.Contains(EmcFormat.Format(mod.Emc.GetValue(st)) + " EMC each")),
+                    $"a half-worn {tool.Code} explains its durability ({max / 2}/{max}) and comes to {EmcFormat.Format(mod.Emc.GetValue(st))}");
+            }
+
+            // A Klein star with EMC in it, and a bucket of water counted with its contents.
+            Item star = sapi.World.GetItem(new AssetLocation("vintagee:kleinstar-ein"));
+            if (star != null)
+            {
+                var st = new ItemStack(star);
+                StoredEmc.Set(st, 1000);
+                string t = Text(EmcExplain.Dump(mod, sapi, st, null, true, "en"));
+                Check(t.Contains(EmcFormat.Format(1000) + " EMC stored in it"), "a Klein star's stored EMC is listed");
+            }
+            Block bucket = sapi.World.GetBlock(new AssetLocation("game:woodbucket"));
+            Item water = sapi.World.GetItem(new AssetLocation("game:waterportion"));
+            if (bucket != null && water != null)
+            {
+                var st = new ItemStack(bucket);
+                var contents = new TreeAttribute();
+                contents["0"] = new ItemstackAttribute(new ItemStack(water, 1000));
+                st.Attributes["contents"] = contents;
+                StackDataTable data = mod.Emc.StackData;
+                StackDataMode before = data.ModeOf(bucket);
+                data.Modes[bucket] = StackDataMode.Full;
+                string t;
+                try { t = Text(EmcExplain.Dump(mod, sapi, st, null, true, "en")); }
+                finally { data.Modes[bucket] = before; }
+                Check(t.Contains("[[" + PlayerEmc.KeyOf(water) + "]] x1000"), "a filled bucket in item + contents mode lists its water");
+            }
+
+            // Something without a value says why; references resolve; the plain text has no [[markers]].
+            CollectibleObject missing = report.Missing.FirstOrDefault(c => report.MissingRecipes.ContainsKey(c));
+            if (missing != null)
+            {
+                EmcReport r = EmcExplain.Dump(mod, sapi, new ItemStack(missing), null, false, "en");
+                Check(Text(r).Contains("way(s) to make it"), "an item with no value lists its ways and what each lacks: " + missing.Code);
+            }
+            EmcReport any = EmcExplain.Dump(mod, sapi, new ItemStack(forward.FirstOrDefault() ?? (CollectibleObject)sapi.World.GetItem(new AssetLocation("game:stick"))), null, false, "en");
+            var keys = any.Lines.SelectMany(l => EmcReport.RefToken.Matches(l.Text).Cast<System.Text.RegularExpressions.Match>().Select(m => m.Groups[1].Value)).ToList();
+            string plainText = any.PlainText(sapi.World);
+            Check(keys.Count > 0 && keys.All(k => PlayerEmc.Resolve(sapi.World, k) != null) && !plainText.Contains("[["), $"the dump's {keys.Count} item references resolve, and the file text spells them out");
+
+            // The loops window, and its packet.
+            EmcReport loops = EmcExplain.Loops(mod, sapi, "en");
+            EmcReportPacket p = loops.ToPacket();
+            int headings = loops.Lines.Count(l => l.Style == EmcLineStyle.Heading);
+            int expectHeadings = report.Loops.Count + report.SettledLoops.Count + (report.SettledLoops.Count > 0 ? 1 : 0);
+            Check(headings == expectHeadings && p.Texts.Length == loops.Lines.Count && p.Blocks.Length == p.Texts.Length && p.Styles.Length == p.Texts.Length,
+                $"the loop window has a section per loop ({headings}) and its packet holds every line ({p.Texts.Length})");
+
+            // /emc dump <code> from the console.
+            string byCode = RunCommand("/emc dump game:stick");
+            Check(byCode.Contains("emc-dump-game_stick.txt") && byCode.Contains("Where the plain item's value comes from"), "/emc dump game:stick explains the stick and writes its file");
+            string bad = RunCommand("/emc dump game:no-such-thing-at-all");
+            Check(bad.Contains("No block or item is called"), "/emc dump with an unknown code says so");
         }
 
         /// <summary>

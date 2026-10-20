@@ -2,6 +2,20 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.10.0 — 2026-10-20
+
+### Added
+- **`/emc dump hand` opens a window** that explains everything that makes up the held item's value, step by step with the numbers:
+  - what the one you hold is worth: a Klein Star's stored EMC, what a container holds or what an item is made of (and its contents mode), its **durability** (e.g. `Durability 120/240: worth 50% of new: 64 x 50% = 32`, or that `DurabilityScalesEmc` is off), how many are in the stack, and whether it's a liquid;
+  - where the plain item's value comes from: the value file and line, the server config's `BaseValues`/`FixedValues` (set by hand), the item's own mod, a trader price, a guess, or the recipe, with each ingredient's value and the sum (the cheapest of several that fit, free ingredients, the drying-time bonus from `TransitionEmcPerDay`, what's given back, how many it makes). Values worked out backwards or shared out between several products say so, with their sums;
+  - the other ways of making it and what each would cost;
+  - for something with no value, every way of making it and which ingredients have none (two levels down), and the value loop it's stuck in;
+  - whether it's on the blacklist, the gray list or the no-transmute list, and whether you know it.
+- Click any block or item in the window to see its own value explained (**Back** returns). **Find** keeps the sections that mention what you type. **Copy** puts the text on the clipboard, **Set value** opens the Ctrl + K box for it, **Handbook** opens its page and **Refresh** asks again after you change something. The same text is still written to `ModData/vintagee/emc-dump-<item>.txt`.
+- **`/emc dump <code>`** explains any block or item without holding it (`/emc dump game:ingot-copper`).
+- **The Ctrl + K box has a "Why this value?" button**, which opens the window for exactly what's under the mouse (its wear and contents count).
+- **`/emc loop` opens a window too**: each value loop with its items as icons you can click, which recipe makes each from the next for short loops, and the settled loops with the values they kept. Find shows only the loops with the item you type. If the values came from the cache, they're worked out again first (the cache doesn't keep the recipes the loops are found from).
+
 ## 1.9.3 — 2026-10-20
 
 ### Fixed
