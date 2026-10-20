@@ -633,6 +633,20 @@ namespace VintageE
             Check(headings == expectHeadings && p.Texts.Length == loops.Lines.Count && p.Blocks.Length == p.Texts.Length && p.Styles.Length == p.Texts.Length,
                 $"the loop window has a section per loop ({headings}) and its packet holds every line ({p.Texts.Length})");
 
+            // What the window says, for a few kinds of value (to read in the log).
+            foreach (CollectibleObject show in new[] { forward.FirstOrDefault(c => report.Via[c].Inputs.Count > 1), back, shared, bases.FirstOrDefault(), missing })
+            {
+                if (show == null) continue;
+                foreach (string l in EmcExplain.Dump(mod, sapi, new ItemStack(show), null, false, "en").PlainText(sapi.World).Split('\n').Take(40)) Line("  | " + l);
+            }
+            if (tool != null)
+            {
+                var worn = new ItemStack(tool);
+                worn.Attributes.SetInt("durability", tool.GetMaxDurability(worn) / 2);
+                foreach (string l in EmcExplain.Dump(mod, sapi, worn, null, true, "en").PlainText(sapi.World).Split('\n').Take(25)) Line("  | " + l);
+            }
+            foreach (string l in loops.PlainText(sapi.World).Split('\n').Take(25)) Line("  | " + l);
+
             // /emc dump <code> from the console.
             string byCode = RunCommand("/emc dump game:stick");
             Check(byCode.Contains("emc-dump-game_stick.txt") && byCode.Contains("Where the plain item's value comes from"), "/emc dump game:stick explains the stick and writes its file");
