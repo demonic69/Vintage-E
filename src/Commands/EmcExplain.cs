@@ -123,6 +123,8 @@ namespace VintageE
             public string LangCode;
             public EmcReport R;
             public HashSet<CollectibleObject> Free = new HashSet<CollectibleObject>();
+            /// <summary>Value loops already described in this report (each is said once).</summary>
+            public HashSet<int> LoopsShown = new HashSet<int>();
 
             public string L(string key, params object[] args) => Vintagestory.API.Config.Lang.GetL(LangCode, "vintagee:" + key, args);
 
@@ -141,6 +143,45 @@ namespace VintageE
                 CollectibleObject c = (CollectibleObject)x.Sapi.World.GetItem(loc) ?? x.Sapi.World.GetBlock(loc);
                 return c?.Code == null ? m.Value : EmcReport.Ref(c);
             });
+        }
+
+        /// <summary>A recipe source the way a player would say it ("smithing" for RecipeRegistrySystem.SmithingRecipes); unknown ones as they are.</summary>
+        static string Friendly(Ctx x, string source)
+        {
+            if (string.IsNullOrEmpty(source)) return "?";
+            string slug = Regex.Replace(source.ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+            string key = "vintagee:dumpgui-src-" + slug;
+            return Vintagestory.API.Config.Lang.HasTranslation(key, false, false) ? Vintagestory.API.Config.Lang.GetL(x.LangCode, key) : source;
+        }
+
+        /// <summary>A recipe in words, with its items as references: "smithing: 2 [[ingot]] -> 1 [[plate]]".</summary>
+        static string Describe(Ctx x, Conversion conv)
+        {
+            string text = EmcMapper.Describe(conv);
+            string src = conv?.Source ?? "";
+            if (src.Length > 0 && text.StartsWith(src, StringComparison.Ordinal)) text = Friendly(x, src) + text.Substring(src.Length);
+            return Linkify(x, text);
+        }
+
+        /// <summary>One line on where an item's value comes from (for ingredients and contents).</summary>
+        static string ShortOrigin(Ctx x, CollectibleObject c)
+        {
+            if (!x.Report.Origins.TryGetValue(c, out string origin) || string.IsNullOrEmpty(origin)) return null;
+            if (origin == "base value")
+            {
+                var b = BaseInfo(x, c);
+                switch (b.kind)
+                {
+                    case "fixed": return x.L("dumpgui-short-fixed");
+                    case "basevalues": return x.L("dumpgui-short-config");
+                    case "attribute": return x.L("dumpgui-short-attribute");
+                    case "file": case "litre": return x.L("dumpgui-short-file", b.source ?? "?");
+                    default: return x.L("dump-noorigin");
+                }
+            }
+            if (x.Report.Via.TryGetValue(c, out Conversion via) && via != null)
+                return (x.Report.Inferred.Contains(c) ? x.L("dumpgui-short-back") + " " : "") + Describe(x, via);
+            return Linkify(x, origin);
         }
 
         static Ctx NewCtx(VintageEModSystem mod, ICoreServerAPI sapi, string lang, EmcReport r, EmcMappingReport report)
@@ -184,8 +225,9 @@ namespace VintageE
 
             double each = mod.Emc.GetValue(stack);
             int size = Math.Max(1, stack.StackSize);
-            r.Add(each > 0 ? x.L("dumpgui-worth", EmcReport.Ref(c), c.Code, F(each)) : x.L("dumpgui-worthnone", EmcReport.Ref(c), c.Code), EmcLineStyle.Total);
+            r.Add(each > 0 ? x.L("dumpgui-worth", EmcReport.Ref(c), F(each)) : x.L("dumpgui-worthnone", EmcReport.Ref(c)), EmcLineStyle.Total);
             if (held && size > 1 && each > 0) r.Add(x.L("dumpgui-stacktotal", size, F(each * size)), EmcLineStyle.Total);
+            r.Add(x.L("dumpgui-code", VintageEModSystem.ConfigKey(c)), EmcLineStyle.Note);
             if (remapped) r.Add(x.L("dump-remapping"), EmcLineStyle.Note);
             if (report == null || report.FromCache)
             {
@@ -223,10 +265,15 @@ namespace VintageE
             EmcReport r = x.R;
             CollectibleObject c = stack.Collectible;
             r.Section(x.L(held ? "dumpgui-sec-held" : "dumpgui-sec-new"));
-            if (!held) r.Add(x.L("dumpgui-newnote"), EmcLineStyle.Note);
+            int maxDurability = 0;
+            try { maxDurability = c.GetMaxDurability(stack); } catch { /* none */ }
+            bool varies = maxDurability > 1 || c is IEmcStorageItem || emc.StackData.CarriesData(c);
+            if (!held && varies) r.Add(x.L("dumpgui-newnote"), EmcLineStyle.Note);
+            int linesBefore = r.Lines.Count;
 
             double plain = emc.GetValue(c);
             r.Add(x.L("dumpgui-base", F(plain)));
+            linesBefore = r.Lines.Count;
             double own = plain;
             if (c is IEmcStorageItem)
             {
@@ -274,6 +321,7 @@ namespace VintageE
 
             Wear(x, stack, own, countsContents && contents > 0);
 
+            if (r.Lines.Count == linesBefore) r.Add(x.L("dumpgui-nofactors"), EmcLineStyle.Note);
             double ipl = EmcRegistry.ItemsPerLitre(c);
             double each = emc.GetValue(stack);
             if (ipl > 0) r.Add(x.L("dumpgui-liquid", N(ipl), F(each * ipl)), EmcLineStyle.Note);
@@ -471,9 +519,8 @@ namespace VintageE
         }
 
         /// <summary>Which value file or setting gives a base value, in the same order the mapper applies them (later ones win).</summary>
-        static void BaseSource(Ctx x, CollectibleObject c)
+        static (string kind, string pattern, string source, double value) BaseInfo(Ctx x, CollectibleObject c)
         {
-            EmcReport r = x.R;
             VintageEConfig cfg = x.Mod.Config;
             string kind = null, pattern = null, source = null;
             double value = 0;
@@ -496,6 +543,13 @@ namespace VintageE
                 if (!CollectibleIndex.Matches(kv.Key, c)) continue;
                 if (kv.Value > 0) { kind = "fixed"; pattern = kv.Key; value = kv.Value; } else kind = null;
             }
+            return (kind, pattern, source, value);
+        }
+
+        static void BaseSource(Ctx x, CollectibleObject c)
+        {
+            EmcReport r = x.R;
+            var (kind, pattern, source, value) = BaseInfo(x, c);
             switch (kind)
             {
                 case "fixed":
@@ -555,7 +609,7 @@ namespace VintageE
                 double inQ = conv.Inputs[0].Quantity;
                 if (input == c)
                 {
-                    r.Add(x.L("dumpgui-joint-back", conv.Source));
+                    r.Add(x.L("dumpgui-joint-back", Friendly(x, conv.Source)));
                     double sum = 0;
                     foreach (var o in conv.JointOutputs)
                     {
@@ -568,7 +622,7 @@ namespace VintageE
                 }
                 else
                 {
-                    r.Add(x.L("dumpgui-joint", conv.Source));
+                    r.Add(x.L("dumpgui-joint", Friendly(x, conv.Source)));
                     double inV = x.V(input);
                     double rest = inV * inQ;
                     r.Add(Term(x, "", input, inQ, inV), EmcLineStyle.Text, 1);
@@ -584,8 +638,9 @@ namespace VintageE
                     }
                     double myQ = conv.JointOutputs.FirstOrDefault(o => o.Key == c).Value;
                     if (myQ <= 0) myQ = 1;
-                    computed = rest / sharers.Count / myQ;
-                    r.Add(x.L("dumpgui-share", F(rest), sharers.Count, N(myQ), F(computed)), EmcLineStyle.Total, 1);
+                    double share = rest / sharers.Count;
+                    computed = share / myQ;
+                    r.Add(x.L("dumpgui-share", F(rest), sharers.Count, F(share), N(myQ), F(computed)), EmcLineStyle.Total, 1);
                 }
             }
             else
@@ -600,7 +655,7 @@ namespace VintageE
                 }
                 if (slot < 0)
                 {
-                    r.Add(x.L("dumpgui-made", conv.Source));
+                    r.Add(x.L("dumpgui-made", Friendly(x, conv.Source)));
                     double sum = 0;
                     foreach (ConversionInput input in conv.Inputs)
                     {
@@ -619,7 +674,8 @@ namespace VintageE
                         string line = Term(x, "+ ", pick, input.Quantity, v);
                         if (input.Choices.Length > 1) line += " " + x.L("dumpgui-cheapestof", input.Choices.Length);
                         r.Add(line, EmcLineStyle.Text, 1);
-                        if (x.Report.Origins.TryGetValue(pick, out string po) && !string.IsNullOrEmpty(po)) r.Add(x.L("dump-from", Linkify(x, po)), EmcLineStyle.Note, 2);
+                        string po = ShortOrigin(x, pick);
+                        if (po != null) r.Add(x.L("dump-from", po), EmcLineStyle.Note, 2);
                     }
                     if (conv.ExtraCost > 0)
                     {
@@ -643,7 +699,7 @@ namespace VintageE
                 else
                 {
                     string setting = conv.Kind == ConversionKind.Processing ? "InferValuesFromProcessing" : "InferValuesFromCrafting";
-                    r.Add(x.L("dumpgui-back", conv.Source, setting));
+                    r.Add(x.L("dumpgui-back", Friendly(x, conv.Source), setting));
                     double outV = x.V(conv.Output);
                     double total = outV * conv.OutputQuantity;
                     r.Add(Term(x, "", conv.Output, conv.OutputQuantity, outV) + " " + x.L("dumpgui-whatitmakes"), EmcLineStyle.Text, 1);
@@ -672,7 +728,7 @@ namespace VintageE
                     }
                     double q = conv.Inputs[slot].Quantity > 0 ? conv.Inputs[slot].Quantity : 1;
                     computed = total / q;
-                    r.Add(x.L("dumpgui-per", F(total), N(q), F(computed)), EmcLineStyle.Total, 1);
+                    r.Add(x.L("dumpgui-perback", F(total), N(q), F(computed)), EmcLineStyle.Total, 1);
                 }
             }
             if (x.Report.Frozen.Contains(c)) r.Add(x.L("dumpgui-frozen"), EmcLineStyle.Note, 1);
@@ -717,8 +773,9 @@ namespace VintageE
             var rows = others.Select(w =>
             {
                 var lacking = new List<CollectibleObject>();
-                return (way: w, cost: PerItem(x, w, c, lacking), lacking);
-            }).OrderBy(t => t.cost.HasValue ? 0 : 1).ThenBy(t => t.cost ?? 0).ToList();
+                return (way: w, cost: PerItem(x, w, c, lacking), lacking, how: Describe(x, w));
+            }).GroupBy(t => t.how).Select(g => (g.First().way, g.First().cost, g.First().lacking, how: g.Key, count: g.Count()))
+              .OrderBy(t => t.cost.HasValue ? 0 : 1).ThenBy(t => t.cost ?? 0).ToList();
             int n = 0;
             foreach (var row in rows)
             {
@@ -727,7 +784,7 @@ namespace VintageE
                     r.Add(x.L("dump-moreways", rows.Count - 12), EmcLineStyle.Note, 1);
                     break;
                 }
-                string how = Linkify(x, EmcMapper.Describe(row.way));
+                string how = row.how + (row.count > 1 ? " " + x.L("dumpgui-times", row.count) : "");
                 if (row.cost.HasValue) r.Add(x.L("dumpgui-way", how, F(row.cost.Value)), EmcLineStyle.Text, 1);
                 else if (row.lacking.Count > 0) r.Add(x.L("dumpgui-way-lacks", how, string.Join(", ", row.lacking.Distinct().Take(4).Select(EmcReport.Ref))), EmcLineStyle.Note, 1);
                 else r.Add(x.L("dumpgui-way-shared", how), EmcLineStyle.Note, 1);
@@ -741,7 +798,7 @@ namespace VintageE
             EmcMappingReport report = x.Report;
             if (x.Free.Contains(c)) { r.Add(x.L("dump-free"), EmcLineStyle.Note, indent); return; }
             if (report.Blacklisted.Contains(c)) { r.Add(x.L("dump-blacklisted"), EmcLineStyle.Warn, indent); return; }
-            if (report.LoopOf.TryGetValue(c, out int loop) && loop >= 0 && loop < report.Loops.Count)
+            if (report.LoopOf.TryGetValue(c, out int loop) && loop >= 0 && loop < report.Loops.Count && x.LoopsShown.Add(loop))
             {
                 r.Add(x.L("dumpgui-loop", Chain(report.Loops[loop])), EmcLineStyle.Warn, indent);
             }
@@ -752,16 +809,18 @@ namespace VintageE
                 return;
             }
             bool Valued(CollectibleObject o) => o != null && (report.Values.ContainsKey(o) || x.Free.Contains(o));
-            r.Add(x.L("dump-ways", recipes.Count), EmcLineStyle.Text, indent);
+            // The same recipe often comes several times (one per variant of a tool, say): once each, with how many.
+            var ways = recipes.GroupBy(w => Describe(x, w)).Select(g => (conv: g.First(), how: g.Key, count: g.Count())).ToList();
+            r.Add(x.L("dump-ways", ways.Count), EmcLineStyle.Text, indent);
             int n = 0;
-            foreach (Conversion conv in recipes)
+            foreach (var (conv, how, count) in ways)
             {
                 if (++n > (depth == 0 ? 12 : 4))
                 {
-                    r.Add(x.L("dump-moreways", recipes.Count - n + 1), EmcLineStyle.Note, indent + 1);
+                    r.Add(x.L("dump-moreways", ways.Count - n + 1), EmcLineStyle.Note, indent + 1);
                     break;
                 }
-                r.Add(n + ". " + Linkify(x, EmcMapper.Describe(conv)), EmcLineStyle.Text, indent + 1);
+                r.Add(n + ". " + how + (count > 1 ? " " + x.L("dumpgui-times", count) : ""), EmcLineStyle.Text, indent + 1);
                 foreach (CollectibleObject part in MissingAnalysis.Lacking(conv, Valued).Distinct())
                 {
                     r.Add(x.L("dumpgui-lacks", EmcReport.Ref(part)), EmcLineStyle.Warn, indent + 2);
@@ -829,7 +888,7 @@ namespace VintageE
                 List<Conversion> ways = x.Report.MissingRecipes.TryGetValue(a, out List<Conversion> missing) && missing.Count > 0 ? missing : x.Report.WaysToMake(a);
                 Conversion step = ways.FirstOrDefault(w => w.Inputs.Any(i => Array.IndexOf(i.Choices, b) >= 0));
                 if (step == null) continue;
-                x.R.Add(x.L("loopgui-step", EmcReport.Ref(a), EmcReport.Ref(b), step.Source), EmcLineStyle.Note, 1);
+                x.R.Add(x.L("loopgui-step", EmcReport.Ref(a), EmcReport.Ref(b), Friendly(x, step.Source)), EmcLineStyle.Note, 1);
             }
         }
     }
