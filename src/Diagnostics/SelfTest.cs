@@ -690,8 +690,10 @@ namespace VintageE
             }
             else Check(false, "found clothing with warmth and a value");
 
-            var stoneUses = sapi.World.GridRecipes.SelectMany(r => (r.Ingredients ?? new Dictionary<string, CraftingRecipeIngredient>()).Values.Select(i => (r, i)))
-                .Where(t => t.i?.Code?.ToString() == "vintagee:philosophersstone").ToList();
+            // Once loaded, a grid recipe keeps its ingredients in ResolvedIngredients (Ingredients is emptied).
+            var stoneUses = sapi.World.GridRecipes.SelectMany(r => (r.ResolvedIngredients ?? new CraftingRecipeIngredient[0]).Concat(r.Ingredients?.Values ?? Enumerable.Empty<CraftingRecipeIngredient>())
+                    .Where(i => i != null).Select(i => (r, i)))
+                .Where(t => t.i.Code?.ToString() == "vintagee:philosophersstone" || t.i.ResolvedItemStack?.Collectible?.Code?.ToString() == "vintagee:philosophersstone").ToList();
             Check(stoneUses.Count > 5 && stoneUses.All(t => !t.i.Consume) && stoneUses.Any(t => t.r.Output?.Code?.ToString() == "vintagee:transmutationtable"),
                 $"the philosopher's stone stays in all {stoneUses.Count} recipes that use it, the table's included");
 
