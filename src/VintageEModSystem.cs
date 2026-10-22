@@ -1202,13 +1202,13 @@ namespace VintageE
 
         /// <summary>
         /// ProjectE plays a looping wind while you fly with Swiftwolf's Rending Gale. With ProjectE's sounds on, that plays
-        /// while you're flying in survival (only Vintage-E's rings let you do that).
+        /// while you're in the air on flight the ring switched on - not flight from another mod (an angel belt, say).
         /// </summary>
         void WindTick(float dt)
         {
             IClientPlayer player = Capi?.World?.Player;
-            bool flying = Emc.ProjectESounds && player?.WorldData != null && player.WorldData.FreeMove
-                && player.WorldData.CurrentGameMode == EnumGameMode.Survival && player.Entity != null && !player.Entity.OnGround;
+            bool flying = player?.WorldData != null && player.Entity != null && PlaysRingWind(Emc.ProjectESounds, player.WorldData.FreeMove,
+                player.WorldData.CurrentGameMode, player.Entity.OnGround, player.Entity.WatchedAttributes.GetBool(TrinketEffects.FlightKey));
             if (flying && windSound == null)
             {
                 windSound = Capi.World.LoadSound(new SoundParams
@@ -1230,6 +1230,13 @@ namespace VintageE
                 windSound = null;
             }
         }
+
+        /// <summary>
+        /// Whether the ring's wind plays: ProjectE's sounds on, flying in survival, off the ground, and the flight is the
+        /// ring's (<see cref="TrinketEffects.FlightKey"/>, which the server sets only when the ring switched flight on).
+        /// </summary>
+        public static bool PlaysRingWind(bool projectESounds, bool freeMove, EnumGameMode mode, bool onGround, bool ringFlight) =>
+            projectESounds && freeMove && ringFlight && mode == EnumGameMode.Survival && !onGround;
 
         /// <summary>Goes up by one every time the client gets a new EMC table (windows use it to know their values are stale).</summary>
         public int TableVersion { get; private set; }

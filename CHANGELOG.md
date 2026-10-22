@@ -2,6 +2,11 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.10.1 — 2026-10-22
+
+### Fixed
+- **The flying wind no longer plays when another mod makes you fly** (an angel belt, say). With `ProjectESounds` on, ProjectE's wind loop now only plays while Swiftwolf's Rending Gale is what's keeping you in the air.
+
 ## 1.10.0 — 2026-10-20
 
 ### Added

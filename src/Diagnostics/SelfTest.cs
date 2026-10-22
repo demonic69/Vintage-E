@@ -70,6 +70,7 @@ namespace VintageE
                 Check180();
                 Check190();
                 Check1100();
+                Check1101();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -652,6 +653,16 @@ namespace VintageE
             Check(byCode.Contains("emc-dump-game_stick.txt") && byCode.Contains("Where the plain item's value comes from"), "/emc dump game:stick explains the stick and writes its file");
             string bad = RunCommand("/emc dump game:no-such-thing-at-all");
             Check(bad.Contains("No block or item is called"), "/emc dump with an unknown code says so");
+        }
+
+        /// <summary>1.10.1: the ring's wind only plays on the ring's own flight, not another mod's (an angel belt).</summary>
+        void Check1101()
+        {
+            bool ring = VintageEModSystem.PlaysRingWind(true, true, EnumGameMode.Survival, false, true);
+            bool belt = VintageEModSystem.PlaysRingWind(true, true, EnumGameMode.Survival, false, false);
+            bool soundsOff = VintageEModSystem.PlaysRingWind(false, true, EnumGameMode.Survival, false, true);
+            bool landed = VintageEModSystem.PlaysRingWind(true, true, EnumGameMode.Survival, true, true);
+            Check(ring && !belt && !soundsOff && !landed, $"the ring's wind plays on ring flight ({ring}), not on another mod's flight ({belt}), with sounds off ({soundsOff}) or on the ground ({landed})");
         }
 
         /// <summary>
