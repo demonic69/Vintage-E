@@ -71,6 +71,7 @@ namespace VintageE
                 Check190();
                 Check1100();
                 Check1101();
+                Check1110();
                 IBlockAccessor ba = sapi.World.BlockAccessor;
                 int y = ba.GetTerrainMapheightAt(new BlockPos(x, 0, z)) + 1;
                 Line($"site {x},{y},{z}");
@@ -99,6 +100,18 @@ namespace VintageE
                 BEEnergyCollector collector = Place<BEEnergyCollector>(new BlockPos(x + 6, y, z), "vintagee:energycollector-mk1");
                 BEEnergyCondenser condenser = Place<BEEnergyCondenser>(new BlockPos(x + 7, y, z), "vintagee:energycondenser-mk1");
                 if (collector != null) collector.Stored = 500;
+
+                // 1.11.0: a hopper on top of a transmutation table feeds it (the owner isn't online, so it waits in the table).
+                BETransmutationTable table = Place<BETransmutationTable>(new BlockPos(x + 9, y, z), "vintagee:transmutationtable");
+                Block hopperBlock = sapi.World.Blocks.FirstOrDefault(b => b?.Code != null && b.Code.Domain == "game" && b.Code.Path.StartsWith("hopper"));
+                BlockEntityContainer hopper = hopperBlock == null ? null : Place<BlockEntityContainer>(new BlockPos(x + 9, y + 1, z), hopperBlock.Code.ToString());
+                Item stickItem = sapi.World.GetItem(new AssetLocation("game:stick"));
+                if (table != null) table.SetOwner("selftest-nobody", "Nobody");
+                if (hopper != null && stickItem != null)
+                {
+                    hopper.Inventory[0].Itemstack = new ItemStack(stickItem, 6);
+                    hopper.Inventory[0].MarkDirty();
+                }
 
                 // Projectiles fired straight down at the ground a little way off. The lens aims at its own column's
                 // ground height (hilly sites made it land outside the area that was counted).
@@ -148,6 +161,9 @@ namespace VintageE
                         // The rate is only what came in over the last few seconds (none at night), so it's shown, not checked.
                         Check(condenser != null && collector != null && condenser.Stored >= 400,
                             $"condenser took the collector's EMC: {EmcFormat.Format(condenser?.Stored ?? 0)} stored, {EmcFormat.Format(condenser?.IncomingPerSecond ?? 0)} a second coming in");
+                        ItemStack fed = table?.Inventory[0].Itemstack;
+                        Check(table != null && hopper != null && fed?.Collectible == stickItem && fed.StackSize > 0,
+                            $"a hopper on the table fed it sticks to burn ({fed?.StackSize ?? 0} waiting for its owner to come online, {hopper?.Inventory[0].StackSize ?? -1} left in the hopper)");
                         Report("dark furnace on charcoal", fuelled);
                         Report("red furnace on EMC", onEmc);
                         CheckPedestalWeather();
@@ -653,6 +669,60 @@ namespace VintageE
             Check(byCode.Contains("emc-dump-game_stick.txt") && byCode.Contains("Where the plain item's value comes from"), "/emc dump game:stick explains the stick and writes its file");
             string bad = RunCommand("/emc dump game:no-such-thing-at-all");
             Check(bad.Contains("No block or item is called"), "/emc dump with an unknown code says so");
+        }
+
+        /// <summary>
+        /// 1.11.0: clothes are worth their condition; the philosopher's stone stays in every recipe; containers burned as the
+        /// plain item give their contents' EMC too when ProtectContainersWithContents is off; EMC numbers keep two decimals;
+        /// thatch has a value; the table only takes what it can burn from hoppers.
+        /// </summary>
+        void Check1110()
+        {
+            CollectibleObject coat = sapi.World.Collectibles.Where(c => c?.Code != null && c.Attributes?["warmth"].AsFloat(0) > 0 && mod.Emc.GetValue(c) > 0)
+                .OrderBy(c => c.Code.ToString(), StringComparer.Ordinal).FirstOrDefault();
+            if (coat != null)
+            {
+                var st = new ItemStack(coat);
+                double fresh = mod.Emc.GetValue(st);
+                st.Attributes.SetFloat("condition", 0.25f);
+                double worn = mod.Emc.GetValue(st);
+                Check(Math.Abs(worn - fresh * 0.25) < 1e-6 * Math.Max(1, fresh), $"{coat.Code} at 25% condition is worth a quarter ({EmcFormat.Format(worn)} of {EmcFormat.Format(fresh)})");
+            }
+            else Check(false, "found clothing with warmth and a value");
+
+            var stoneUses = sapi.World.GridRecipes.SelectMany(r => (r.Ingredients ?? new Dictionary<string, CraftingRecipeIngredient>()).Values.Select(i => (r, i)))
+                .Where(t => t.i?.Code?.ToString() == "vintagee:philosophersstone").ToList();
+            Check(stoneUses.Count > 5 && stoneUses.All(t => !t.i.Consume) && stoneUses.Any(t => t.r.Output?.Code?.ToString() == "vintagee:transmutationtable"),
+                $"the philosopher's stone stays in all {stoneUses.Count} recipes that use it, the table's included");
+
+            Block bucket = sapi.World.GetBlock(new AssetLocation("game:woodbucket"));
+            Item waterItem = sapi.World.GetItem(new AssetLocation("game:waterportion"));
+            if (bucket != null && waterItem != null)
+            {
+                var st = new ItemStack(bucket);
+                var contents = new TreeAttribute();
+                contents["0"] = new ItemstackAttribute(new ItemStack(waterItem, 1000));
+                st.Attributes["contents"] = contents;
+                bool before = mod.Config.ProtectContainersWithContents;
+                double plain = mod.Emc.GetValue(st), inside = mod.Emc.ContentsValue(st);
+                mod.Config.ProtectContainersWithContents = true;
+                double guarded = mod.BurnValue(st);
+                mod.Config.ProtectContainersWithContents = false;
+                double open = mod.BurnValue(st);
+                mod.Config.ProtectContainersWithContents = before;
+                Check(Math.Abs(guarded - plain) < 1e-6 && Math.Abs(open - (plain + inside)) < 1e-6 && inside > 0,
+                    $"a bucket of water burns for {EmcFormat.Format(guarded)} with containers protected, {EmcFormat.Format(open)} (with the water) without");
+            }
+
+            Check(EmcFormat.Format(1234.567) == "1,234.56" && EmcFormat.Format(99.999) == "99.99" && EmcFormat.Format(1.15) == "1.15" && EmcFormat.Format(20480) == "20,480",
+                $"EMC numbers keep two decimals, cut off: {EmcFormat.Format(1234.567)}, {EmcFormat.Format(99.999)}, {EmcFormat.Format(1.15)}, {EmcFormat.Format(20480)}");
+
+            Item thatch = sapi.World.GetItem(new AssetLocation("game:thatch"));
+            Check(thatch == null || mod.Emc.GetValue(thatch) > 0, "thatch has a value: " + (thatch == null ? "no thatch item" : EmcFormat.Format(mod.Emc.GetValue(thatch))));
+
+            Item darkMatter = sapi.World.GetItem(new AssetLocation("vintagee:matter-dark"));
+            string burnErr = darkMatter == null ? "missing" : mod.Transmutation.PlanBurn(null, new ItemStack(darkMatter, 3), out TransmutationService.BurnPlan dmPlan, out _);
+            Check(burnErr == null, "dark matter can be burned and learned: " + (burnErr ?? "yes"));
         }
 
         /// <summary>1.10.1: the ring's wind only plays on the ring's own flight, not another mod's (an angel belt).</summary>

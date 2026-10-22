@@ -25,6 +25,8 @@ namespace VintageE
         readonly VintageEModSystem mod;
         readonly BlockPos tablePos;
         readonly DisplayInventory burnInv;
+        /// <summary>Drop an item here to learn it without burning it.</summary>
+        readonly DisplayInventory learnInv;
         readonly DisplayInventory knownInv;
         readonly DisplayInventory magnetInv;
         readonly DisplayInventory filterInv;
@@ -73,6 +75,7 @@ namespace VintageE
             this.tablePos = tablePos?.Copy();
             string uid = capi.World.Player.PlayerUID;
             burnInv = new DisplayInventory(capi, "burn-" + uid, 1);
+            learnInv = new DisplayInventory(capi, "learn-" + uid, 1);
             knownInv = new DisplayInventory(capi, "known-" + uid, PerPage);
             magnetInv = new DisplayInventory(capi, "magnet-" + uid, 1);
             filterInv = new DisplayInventory(capi, "magnetfilter-" + uid, TabletMagnet.FilterSlots);
@@ -88,14 +91,16 @@ namespace VintageE
             double top = GuiStyle.TitleBarHeight;
             CairoFont detail = CairoFont.WhiteDetailText();
 
-            // Header: EMC on the left, the burn slot on the right; the hint wraps under the EMC.
-            double leftWidth = width - slot - 24;
+            // Header: EMC on the left, the learn and burn slots on the right; the hint wraps under the EMC.
+            double leftWidth = width - 2 * slot - 52;
             string burnHint = Lang.Get("vintagee:gui-burn-hint");
             double burnHintHeight = GuiLayout.TextHeight(capi, detail, burnHint, leftWidth);
             ElementBounds emcBounds = ElementBounds.Fixed(0, top + 4, leftWidth, 28);
             ElementBounds burnHintBounds = ElementBounds.Fixed(0, top + 34, leftWidth, burnHintHeight);
             ElementBounds burnSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, width - slot, top + 8, 1, 1);
             ElementBounds burnLabelBounds = ElementBounds.Fixed(width - slot - 14, top + 10 + slot, slot + 28, 20);
+            ElementBounds learnSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, width - 2 * slot - 28, top + 8, 1, 1);
+            ElementBounds learnLabelBounds = ElementBounds.Fixed(width - 2 * slot - 42, top + 10 + slot, slot + 28, 20);
 
             double row = Math.Max(top + 34 + burnHintHeight, top + 32 + slot) + 8;
             ElementBounds searchBounds = ElementBounds.Fixed(0, row, width - 180, 30);
@@ -111,7 +116,7 @@ namespace VintageE
             double helpHeight = GuiLayout.TextHeight(capi, detail, help, width);
             ElementBounds helpBounds = ElementBounds.Fixed(0, pageRow + 38, width, helpHeight);
 
-            var children = new List<ElementBounds> { emcBounds, burnHintBounds, burnSlotBounds, burnLabelBounds, searchBounds, sortBounds, gridBounds, prevBounds, pageBounds, nextBounds, helpBounds };
+            var children = new List<ElementBounds> { emcBounds, burnHintBounds, burnSlotBounds, burnLabelBounds, learnSlotBounds, learnLabelBounds, searchBounds, sortBounds, gridBounds, prevBounds, pageBounds, nextBounds, helpBounds };
 
             // The tablet's magnet: a title row with the filter mode, the magnet slot with its hint, then the filter slots.
             ElementBounds magnetTitleBounds = null, modeBounds = null, magnetSlotBounds = null, magnetHintBounds = null, filterLabelBounds = null, filterBounds = null;
@@ -151,6 +156,8 @@ namespace VintageE
                     .AddStaticText(burnHint, detail, burnHintBounds)
                     .AddItemSlotGrid(burnInv, OnSlotPacket, 1, burnSlotBounds, "burnslot")
                     .AddStaticText(Lang.Get("vintagee:gui-burn-label"), CairoFont.WhiteDetailText().WithOrientation(EnumTextOrientation.Center), burnLabelBounds)
+                    .AddItemSlotGrid(learnInv, OnSlotPacket, 1, learnSlotBounds, "learnslot")
+                    .AddStaticText(Lang.Get("vintagee:gui-learn-label"), CairoFont.WhiteDetailText().WithOrientation(EnumTextOrientation.Center), learnLabelBounds)
                     .AddTextInput(searchBounds, OnSearchChanged, CairoFont.WhiteSmallText(), "search")
                     .AddDropDown(SortValues, sortNames, GameMath.Clamp(sortMode, 0, 3), OnSort, sortBounds, "sort")
                     .AddItemSlotGrid(knownInv, OnSlotPacket, Cols, gridBounds, "knowngrid")
@@ -361,6 +368,13 @@ namespace VintageE
             {
                 if (cursor?.Itemstack == null) return;
                 mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.Burn, Mode = click.Button == EnumMouseButton.Right ? 1 : 0 });
+                return;
+            }
+
+            if (click.Inventory == learnInv)
+            {
+                if (cursor?.Itemstack == null) return;
+                mod.SendTransmuteRequest(new TransmuteRequestPacket { Action = TransmuteAction.Learn });
                 return;
             }
 

@@ -40,7 +40,9 @@ namespace VintageE
         /// <summary>Tablet magnet filter: Mode = filter slot; what's on the cursor goes in it (an empty cursor clears it).</summary>
         MagnetFilter = 6,
         /// <summary>Tablet magnet: switch between "only these" and "everything except these".</summary>
-        MagnetMode = 7
+        MagnetMode = 7,
+        /// <summary>Learn what's on the mouse cursor without burning it (it stays on the cursor).</summary>
+        Learn = 8
     }
 
     /// <summary>Client → server request from the transmutation GUI.</summary>

@@ -116,7 +116,7 @@ for m, text in ARMOUR.items():
         ITEM[f"matterarmor-{m}-{p}"] = text + " Never wears out."
 
 BLOCK = {
-    "transmutationtable": "Right-click to open. Burn items into EMC to learn them, then create anything you know from your EMC. The window closes if you walk more than 10 blocks away.",
+    "transmutationtable": "Right-click to open. Burn items into EMC to learn them (or drop them on Learn to learn them and keep them), then create anything you know from your EMC. The window closes if you walk more than 10 blocks away. A hopper or chute pointing into the table feeds it items, which it burns into its owner's EMC (whoever placed it) a few at a time while they're online.",
     "energycollector-mk1": "Makes up to 4 EMC a second in full sunlight (less in shade, none in the dark) and stores 10,000.\n"
                            "Feeds condensers, furnaces and relays next to it every second; sneak + right-click with an empty hand (or a Klein star) to take the EMC yourself.",
     "energycollector-mk2": "Makes up to 12 EMC a second in full sunlight (less in shade, none in the dark) and stores 30,000.\n"

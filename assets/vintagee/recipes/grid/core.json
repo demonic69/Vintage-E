@@ -36,7 +36,8 @@
       },
       "P": {
         "type": "item",
-        "code": "vintagee:philosophersstone"
+        "code": "vintagee:philosophersstone",
+        "consume": false
       }
     },
     "width": 3,

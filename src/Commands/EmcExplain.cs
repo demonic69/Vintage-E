@@ -269,7 +269,7 @@ namespace VintageE
             r.Section(x.L(held ? "dumpgui-sec-held" : "dumpgui-sec-new"));
             int maxDurability = 0;
             try { maxDurability = c.GetMaxDurability(stack); } catch { /* none */ }
-            bool varies = maxDurability > 1 || c is IEmcStorageItem || emc.StackData.CarriesData(c);
+            bool varies = maxDurability > 1 || c is IEmcStorageItem || emc.StackData.CarriesData(c) || EmcRegistry.ClothingCondition(stack) >= 0;
             if (!held && varies) r.Add(x.L("dumpgui-newnote"), EmcLineStyle.Note);
             int linesBefore = r.Lines.Count;
 
@@ -330,6 +330,8 @@ namespace VintageE
             if (c.TransitionableProps?.Any(tp => tp != null && tp.Type == EnumTransitionType.Perish) == true) r.Add(x.L("dumpgui-fresh"), EmcLineStyle.Note);
 
             r.Add(each > 0 ? x.L("dumpgui-result", F(each)) : x.L("dumpgui-resultnone"), EmcLineStyle.Total);
+            double burn = x.Mod.BurnValue(stack);
+            if (burn > each + 1e-9) r.Add(x.L("dumpgui-burnwith", F(burn)), EmcLineStyle.Total);
             if (held && stack.StackSize > 1 && each > 0) r.Add(x.L("dumpgui-resultstack", stack.StackSize, F(each * stack.StackSize)), EmcLineStyle.Total);
         }
 
@@ -350,21 +352,26 @@ namespace VintageE
                 remaining = stack.Collectible.GetRemainingDurability(stack);
             }
             catch { return; }
-            if (max <= 1) return;
             EmcReport r = x.R;
-            if (!x.Mod.Emc.DurabilityScales)
+            bool scales = x.Mod.Emc.DurabilityScales;
+            if (max > 1)
             {
-                r.Add(x.L("dumpgui-wear-off", remaining, max));
-                return;
+                if (!scales) r.Add(x.L("dumpgui-wear-off", remaining, max));
+                else if (remaining >= max) r.Add(x.L("dumpgui-wear-full", max));
+                else
+                {
+                    double f = Math.Clamp(remaining / (double)max, 0, 1);
+                    r.Add(x.L("dumpgui-wear", remaining, max, Pct(f), F(own), F(own * f)));
+                    own *= f;
+                    if (hasContents) r.Add(x.L("dumpgui-wear-contents"), EmcLineStyle.Note, 1);
+                }
             }
-            if (remaining >= max)
-            {
-                r.Add(x.L("dumpgui-wear-full", max));
-                return;
-            }
-            double f = Math.Clamp(remaining / (double)max, 0, 1);
-            r.Add(x.L("dumpgui-wear", remaining, max, Pct(f), F(own), F(own * f)));
-            if (hasContents) r.Add(x.L("dumpgui-wear-contents"), EmcLineStyle.Note, 1);
+            // Clothes wear by condition instead.
+            double condition = EmcRegistry.ClothingCondition(stack);
+            if (condition < 0) return;
+            if (!scales) r.Add(x.L("dumpgui-cond-off", Pct(condition)));
+            else if (condition >= 1) r.Add(x.L("dumpgui-cond-full"));
+            else r.Add(x.L("dumpgui-cond", Pct(condition), F(own), F(own * condition)));
         }
 
         static void ContentsLines(Ctx x, ItemStack stack, double total)

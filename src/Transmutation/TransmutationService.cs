@@ -48,6 +48,7 @@ namespace VintageE
             switch (req.Action)
             {
                 case TransmuteAction.Burn: Burn(player, req.Mode == 1); break;
+                case TransmuteAction.Learn: LearnHeld(player); break;
                 case TransmuteAction.Create: Create(player, req.Key, req.Mode); break;
                 case TransmuteAction.Forget: PlayerEmc.Forget(player, req.Key); break;
                 case TransmuteAction.MagnetSwap:
@@ -97,7 +98,8 @@ namespace VintageE
         }
 
         /// <summary>Whether this stack can be burned (null) or why not (an error code, with <paramref name="args"/> for its message).</summary>
-        public string PlanBurn(IServerPlayer player, ItemStack stack, out BurnPlan plan, out string[] args)
+        /// <param name="learnOnly">Only learning it, not burning it: a container's contents aren't at risk, so it isn't refused for them.</param>
+        public string PlanBurn(IServerPlayer player, ItemStack stack, out BurnPlan plan, out string[] args, bool learnOnly = false)
         {
             plan = null;
             args = new[] { stack?.GetName() ?? "?" };
@@ -107,10 +109,20 @@ namespace VintageE
             bool keepsData = data.CarriesData(stack.Collectible) && mode != StackDataMode.Item;
 
             // Item only: what's inside would be lost, so containers that hold something are refused.
-            if (!keepsData && mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack)) return "hascontents";
+            if (!learnOnly && !keepsData && mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack)) return "hascontents";
 
-            double each = mod.Emc.GetValue(stack);
-            if (each <= 0) return "novalue";
+            double each = mod.BurnValue(stack);
+            if (each <= 0)
+            {
+                // The table only offers what the player's game shows a value for; if the server disagrees, say what
+                // it has in the log and send the player the server's values again, in case theirs are out of date.
+                double plain = mod.Emc.GetValue(stack.Collectible);
+                sapi.Logger.Warning("Vintage-E: {0} can't burn {1} ({2}): the server values it at {3} each (the plain item {4}); stack attributes: {5}",
+                    player?.PlayerName ?? "?", stack.GetName(), stack.Collectible.Code, each, plain, stack.Attributes?.ToJsonToken() ?? "none");
+                if (player != null) mod.ResendEmcTable(player);
+                args = new[] { stack.GetName() + " (" + stack.Collectible.Code + ")" };
+                return "novalue";
+            }
             if (mod.Emc.IsNoTransmute(stack.Collectible)) return "notransmute";
 
             // Items that keep their contents/material are learned as exactly this version.
@@ -137,6 +149,41 @@ namespace VintageE
             bool learned = PlayerEmc.Learn(player, plan.Key);
             if (plan.AlsoPlain) learned |= PlayerEmc.Learn(player, PlayerEmc.KeyOf(taken.Collectible));
             return learned ? plan.Key : null;
+        }
+
+        /// <summary>
+        /// Learns a stack without burning it (the table's Learn slot, /emc learn hand): the same checks as burning, nothing
+        /// taken. Learning by burning gives back the item's full value in EMC, so keeping it instead costs nothing either way.
+        /// Returns an error code (null when it worked); <paramref name="isNew"/> is false if it was already known.
+        /// </summary>
+        public string Learn(IServerPlayer player, ItemStack stack, out bool isNew, out string[] args)
+        {
+            isNew = false;
+            string error = PlanBurn(player, stack, out BurnPlan plan, out args, learnOnly: true);
+            if (error != null) return error;
+            isNew = PlayerEmc.Learn(player, plan.Key);
+            if (plan.AlsoPlain) isNew |= PlayerEmc.Learn(player, PlayerEmc.KeyOf(stack.Collectible));
+            args = new[] { stack.GetName() };
+            return null;
+        }
+
+        void LearnHeld(IServerPlayer player)
+        {
+            ItemSlot mouse = player.InventoryManager.MouseItemSlot;
+            if (mouse?.Itemstack == null) return;
+            string error = Learn(player, mouse.Itemstack, out bool isNew, out string[] args);
+            if (error != null)
+            {
+                Fail(player, error, args);
+                return;
+            }
+            if (!isNew)
+            {
+                Fail(player, "alreadyknown", mouse.Itemstack.GetName());
+                return;
+            }
+            sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/timeswitch"), player.Entity, null, true, 8, 0.5f);
+            mod.SendResult(player, new TransmuteResultPacket { LearnedKey = PlayerEmc.KeyOf(mouse.Itemstack.Collectible) });
         }
 
         void Burn(IServerPlayer player, bool onlyOne)
@@ -225,6 +272,8 @@ namespace VintageE
 
             ItemStack made = proto.Clone();
             made.StackSize = amount;
+            // Clothes made from EMC are new (the game would otherwise give them a random, worn condition).
+            if (EmcRegistry.ClothingCondition(made) >= 0) made.Attributes.SetFloat("condition", 1);
             if (mode == 2)
             {
                 // Same pattern as vanilla: whatever could not be given is dropped at the player's feet.

@@ -125,7 +125,7 @@ namespace VintageE
                 if (stack == null) continue;
                 if (target != null && stack.Collectible == target.Collectible) continue;
                 if (mod.Config.ProtectContainersWithContents && StackContents.HasNestedStacks(stack) && mod.Emc.StackData.ModeOf(stack.Collectible) == StackDataMode.Item) continue;
-                double value = mod.Emc.IsNoTransmute(stack.Collectible) ? 0 : mod.Emc.GetValue(stack);
+                double value = mod.Emc.IsNoTransmute(stack.Collectible) ? 0 : mod.BurnValue(stack);
                 if (value <= 0 || Stored + value > capacity) continue;
 
                 int n = (int)Math.Min(Math.Floor(burnBudget), Math.Min(stack.StackSize, Math.Floor((capacity - Stored) / value)));

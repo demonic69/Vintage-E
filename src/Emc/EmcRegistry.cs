@@ -142,7 +142,21 @@ namespace VintageE
                 int remaining = stack.Collectible.GetRemainingDurability(stack);
                 v *= Math.Clamp(remaining / (double)max, 0, 1);
             }
+            // Clothes wear by condition (0-100%) instead of durability.
+            double condition = ClothingCondition(stack);
+            if (condition >= 0) v *= condition;
             return v;
+        }
+
+        /// <summary>
+        /// A piece of clothing's condition, 0 to 1 (the game's "condition" attribute; a new one is 1), or -1 for anything
+        /// that isn't clothing. Only clothes that keep you warm have a condition.
+        /// </summary>
+        public static double ClothingCondition(ItemStack stack)
+        {
+            if (stack?.Collectible?.Attributes == null) return -1;
+            if (stack.Collectible.Attributes["warmth"].AsFloat(0) == 0) return -1;
+            return Math.Clamp(stack.Attributes?.GetFloat("condition", 1) ?? 1, 0, 1);
         }
 
         public EmcTablePacket ToPacket()
@@ -252,12 +266,13 @@ namespace VintageE
 
     public static class EmcFormat
     {
-        /// <summary>1234567 → "1,234,567"; 12.5 → "12.5"; 0.0312 → "0.031".</summary>
+        /// <summary>1234567 → "1,234,567"; 1234.567 → "1,234.56"; 12.5 → "12.5"; 0.0312 → "0.031".</summary>
         public static string Format(double v)
         {
-            if (v >= 100) return Math.Floor(v).ToString("#,0", CultureInfo.InvariantCulture);
-            if (v >= 1) return v.ToString("0.##", CultureInfo.InvariantCulture);
-            return v.ToString("0.###", CultureInfo.InvariantCulture);
+            // Two decimals at most (1,234.56), cut off rather than rounded, so a total never shows more than there is.
+            // Burning things worth fractions adds up, and the total should show it.
+            if (v >= 1) return (Math.Floor(v * 100 + 1e-6) / 100).ToString(v >= 1000 ? "#,0.##" : "0.##", CultureInfo.InvariantCulture);
+            return (Math.Floor(v * 1000 + 1e-6) / 1000).ToString("0.###", CultureInfo.InvariantCulture);
         }
     }
 

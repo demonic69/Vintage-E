@@ -129,16 +129,32 @@ namespace VintageE
                 .EndSubCommand()
                 .BeginSubCommand("learn")
                     .RequiresPlayer()
-                    .WithDescription("Learn the held item without burning it")
-                    .RequiresPrivilege(Privilege.controlserver)
-                    .HandleWith(Safe(args =>
-                    {
-                        ItemStack held = args.Caller.Player.InventoryManager.ActiveHotbarSlot?.Itemstack;
-                        if (held == null) return TextCommandResult.Error(Lang.Get("vintagee:cmd-holdsomething"));
-                        PlayerEmc.Learn(args.Caller.Player, KnowledgeKey(mod, held));
-                        return TextCommandResult.Success(Lang.Get("vintagee:learned", held.GetName()));
-                    }))
+                    .WithDescription("Learn the held item without burning it (/emc learn or /emc learn hand)")
+                    .RequiresPrivilege(Privilege.chat)
+                    .WithArgs(parsers.OptionalWordRange("what", "hand"))
+                    .HandleWith(Safe(args => LearnHeld(mod, args)))
                 .EndSubCommand();
+        }
+
+        /// <summary>
+        /// /emc learn [hand]: learns the held item without burning it. Players get the same checks as the table's Learn slot
+        /// (it needs a value and mustn't be on the no-transmute list); admins can learn anything they hold.
+        /// </summary>
+        static TextCommandResult LearnHeld(VintageEModSystem mod, TextCommandCallingArgs args)
+        {
+            string lang = args.LanguageCode;
+            IPlayer player = args.Caller.Player;
+            ItemStack held = player?.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+            if (held == null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:cmd-holdsomething"));
+            bool admin = args.Caller.HasPrivilege(Privilege.controlserver);
+            if (!admin && player is IServerPlayer sp && mod.Transmutation != null)
+            {
+                string error = mod.Transmutation.Learn(sp, held, out bool isNew, out string[] errArgs);
+                if (error != null) return TextCommandResult.Error(Lang.GetL(lang, "vintagee:error-" + error, errArgs ?? new string[0]));
+                return TextCommandResult.Success(Lang.GetL(lang, isNew ? "vintagee:learned" : "vintagee:error-alreadyknown", held.GetName()));
+            }
+            bool learned = PlayerEmc.Learn(player, KnowledgeKey(mod, held));
+            return TextCommandResult.Success(Lang.GetL(lang, learned ? "vintagee:learned" : "vintagee:error-alreadyknown", held.GetName()));
         }
 
         /// <summary>(usage, lang key of the description, admin only)</summary>
@@ -165,7 +181,7 @@ namespace VintageE
             ("/emc recipe add|remove <output = ingredients>", "cmdhelp-recipeset", true),
             ("/emc add <amount> [player]", "cmdhelp-add", true),
             ("/emc remove <amount> [player]", "cmdhelp-remove", true),
-            ("/emc learn", "cmdhelp-learn", true),
+            ("/emc learn [hand]", "cmdhelp-learn", false),
         };
 
         static TextCommandResult Help(TextCommandCallingArgs args)

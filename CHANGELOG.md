@@ -2,6 +2,24 @@
 
 All notable changes to Vintage-E. Each GitHub release uses its section from this file as its release notes.
 
+## 1.11.0 — 2026-10-23
+
+### Added
+- **A Learn slot in the transmutation table and tablet**, next to Burn: drop an item on it to learn it and keep it, like the slots around ProjectE's circle. (Burning gives an item's full value back, so learning without burning costs nothing extra either way.)
+- **`/emc learn hand`** (or just `/emc learn`) learns the held item, for everyone now: anything the table could burn. Admins can still learn anything.
+- **Hoppers and chutes feed the transmutation table.** Point one into a table and it burns what comes in into the table owner's EMC and teaches it, up to 16 items a second while the owner is online (otherwise the items wait in the table). The owner is whoever placed it; a table placed before this version belongs to the next person to open it. Looking at the table says whose it is and what's waiting. It only takes things it can burn, and nothing comes back out of it.
+
+### Changed
+- **Clothes are worth their condition**: a coat at 40% condition is worth 40% of a new one (with `DurabilityScalesEmc`, like tools' durability). Clothes made in the table come out new (100%) instead of getting the game's random worn condition. `/emc dump hand` shows the condition step.
+- **With `ProtectContainersWithContents` off, burning a container also gives what's inside** (it used to give only the empty container, and the contents were lost). The table, condensers and the hopper feed all count it.
+- **EMC numbers show up to two decimals** (`1,234.56`), cut off rather than rounded, so a total never shows more than you have. Fractions were always kept; numbers of 100 and up just didn't show them.
+- **The transmutation table is a thin slab on the floor**, like ProjectE's, instead of a table with legs.
+- **Thatch has a value** of its own (0.5, like dry grass), so it's valued whatever else a server's mods do to thatch roofing.
+
+### Fixed
+- **The philosopher's stone is no longer used up making a transmutation table** (it already stayed in every other recipe).
+- When the table says something has no EMC value but your game showed one, the server now writes what it has for that item to its log and sends you its values again, in case yours were out of date. The message names the item's code too.
+
 ## 1.10.1 — 2026-10-22
 
 ### Fixed

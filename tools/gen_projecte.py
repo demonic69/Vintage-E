@@ -1146,6 +1146,19 @@ LANG = O([
     ("reportgui-search", "Find in this..."), ("reportgui-searchloops", "Find an item in the loops..."),
     ("reportgui-page", "Page {0} of {1}"), ("reportgui-asking", "Asking the server..."),
     ("setvalue-explain", "Why this value?"),
+    # 1.11.0
+    ("gui-learn-label", "Learn"),
+    ("gui-burn-hint", "Drop an item on Burn to turn it into EMC and learn it (left-click: the whole stack, right-click: one). Drop it on Learn to learn it and keep it."),
+    ("error-alreadyknown", "You already know {0}."),
+    ("cmdhelp-learn", "Learns the held item without burning it (anything the transmutation table could burn; admins: anything)"),
+    ("table-noowner", "Nobody owns this table yet: the next person to open it does. A hopper or chute pointing into it feeds it items to burn into its owner's EMC."),
+    ("table-owner", "A hopper or chute pointing into it burns items into {0}'s EMC."),
+    ("table-owner-you", "A hopper or chute pointing into it burns items into your EMC."),
+    ("table-waiting", "Waiting to burn: {0} x {1}"),
+    ("dumpgui-cond-off", "Condition {0} doesn't change the value: DurabilityScalesEmc is off in the server config."),
+    ("dumpgui-cond-full", "Condition 100%: as good as new, so nothing comes off (worn clothes are worth less: DurabilityScalesEmc)."),
+    ("dumpgui-cond", "Condition {0}: worth {0} of new: {1} x {0} = {2} (DurabilityScalesEmc)"),
+    ("dumpgui-burnwith", "Burning this one gives {0} EMC: ProtectContainersWithContents is off, so what's inside counts too."),
 ])
 
 

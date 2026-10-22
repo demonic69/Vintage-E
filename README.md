@@ -11,7 +11,7 @@ Burn items into **EMC**, learn them, and transmute your EMC back into anything y
 | | |
 |---|---|
 | **Philosopher's Stone** | Right-click a block to transmute it: rock types cycle (granite → andesite → basalt …), wood types cycle, sand ↔ gravel, bare soil ↔ grassy soil, water ↔ ice. Sneak to go backwards. Press the tool-mode key (**F**) for 1×1, 3×3 or 5×5. Also the catalyst for the alchemy recipes (never used up). |
-| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them. Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory, Ctrl + right-click: forget it). Searchable, sortable (most or least EMC first, name A–Z or Z–A), paged. Forgetting asks first. The tablet works anywhere, and has a **magnet slot**: put a Black Hole Band or Void Ring in it, choose items in its filter (only these, or all except these), and while you carry the tablet those items on the ground within 7 blocks are pulled in and transmuted into your EMC. Items that hold things or keep their material on the item can be learned and created as exactly that version (see below). |
+| **Transmutation Table / Tablet** | Drop items on the **burn slot** to turn them into EMC and learn them, or on the **learn slot** to learn them and keep them (like the slots around ProjectE's circle). Then click anything you've learned to create it from your EMC (left-click: one, right-click: a stack, shift-click: a stack straight into your inventory, Ctrl + right-click: forget it). Searchable, sortable (most or least EMC first, name A–Z or Z–A), paged. Forgetting asks first. The tablet works anywhere, and has a **magnet slot**: put a Black Hole Band or Void Ring in it, choose items in its filter (only these, or all except these), and while you carry the tablet those items on the ground within 7 blocks are pulled in and transmuted into your EMC. Items that hold things or keep their material on the item can be learned and created as exactly that version (see below). The table is a thin slab, like ProjectE's. A **hopper or chute** pointing into a table feeds it items, which it burns into its owner's EMC (whoever placed it; an older table belongs to the next person to open it) and teaches them, up to 16 a second while the owner is online; it only takes things it can burn. |
 | **Alchemical Coal → Mobius Fuel → Aeternalis Fuel** | Each tier is 4× the last. Hotter and much longer burning than charcoal; they work in forges and fire pits. |
 | **Dark Matter / Red Matter** | Plus blocks of each. |
 | **Matter tools** | Pickaxe, shovel, axe, sword, hoe and **sledgehammer** in dark and red matter, as 3D tools held, swung and displayed like the game's own (they use the vanilla tool models and animations with matter textures; the sledgehammer has its own model). They **never wear out**. The pickaxe/shovel/axe dig 1×1 by default and 3×3 (dark) or up to 5×5 (red) with the tool-mode key **F**; the sledgehammers smash stone and ore **3×3 from the start** (red: 5×5 with **F**). Sneak to dig a single block. The axe still fells trees and the hoe still tills. |
@@ -156,14 +156,14 @@ Value files can also hold:
 | `.vintagee` | everyone | This computer's settings: the Watch of Flowing Time's icon (on/off, size, position) and glow (on/off, colour) |
 | `/emc add <amount> [player]` | admin | Add personal EMC to a player (yourself if no name is given) |
 | `/emc remove <amount> [player]` | admin | Take personal EMC from a player (never below 0) |
-| `/emc learn` | admin | Learn the held item without burning it |
+| `/emc learn` (or `/emc learn hand`) | everyone | Learn the held item without burning it: anything the table could burn (admins: anything) |
 
 ## Recipes
 
 | Makes | Pattern (top / middle / bottom) | Key |
 |---|---|---|
 | 1× Philosopher's Stone | `CGC / GTG / CGC` | C = Copper ingot, G = Gold ingot, T = Temporal gear |
-| 1× Transmutation Table | `RSR / SPS / RSR` | R = Any rock block, S = Any stone, P = Philosopher's Stone |
+| 1× Transmutation Table | `RSR / SPS / RSR` | R = Any rock block, S = Any stone, P = Philosopher's Stone (kept, as in every recipe that uses it) |
 | 1× Transmutation Tablet | `·D· / DTD / ·D·` | D = Dark Matter, T = Transmutation Table |
 | 1× Alchemical Coal | shapeless: 1× Philosopher's Stone + 4× Charcoal | |
 | 1× Alchemical Coal | shapeless: 1× Philosopher's Stone + 2× Coke | |

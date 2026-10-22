@@ -71,6 +71,7 @@ namespace VintageE
             api.RegisterItemClass("ItemEmcTrinket", typeof(ItemEmcTrinket));
             api.RegisterItemClass("ItemEmcGadget", typeof(ItemEmcGadget));
             api.RegisterBlockEntityClass("VintageEAlchemicalChest", typeof(BEAlchemicalChest));
+            api.RegisterBlockEntityClass("VintageETransmutationTable", typeof(BETransmutationTable));
             api.RegisterBlockEntityClass("VintageEMatterFurnace", typeof(BEMatterFurnaceLegacy)); // 1.4.0 furnaces convert themselves
             api.RegisterBlockEntityClass("VintageEFurnace", typeof(BEMatterFurnace));
             api.RegisterBlockEntityClass("VintageEAntimatterRelay", typeof(BEAntimatterRelay));
@@ -376,6 +377,22 @@ namespace VintageE
             OnEmcTableUpdated?.Invoke();
         }
 
+        /// <summary>
+        /// What burning one of this stack gives: its value, plus what's inside when it's burned as the plain item and
+        /// ProtectContainersWithContents is off (so the contents aren't simply lost).
+        /// </summary>
+        public double BurnValue(ItemStack stack)
+        {
+            if (stack?.Collectible == null) return 0;
+            double v = Emc.GetValue(stack);
+            if (!Config.ProtectContainersWithContents && Emc.StackData.ModeOf(stack.Collectible) == StackDataMode.Item && StackContents.HasNestedStacks(stack))
+            {
+                try { v += Emc.ContentsValue(stack); }
+                catch { /* contents that can't be read count for nothing */ }
+            }
+            return v;
+        }
+
         /// <summary>The mod's version as loaded from modinfo.json (falls back to the assembly version).</summary>
         public string Version => Mod?.Info?.Version
             ?? typeof(VintageEModSystem).Assembly.GetName().Version?.ToString(3)
@@ -518,6 +535,9 @@ namespace VintageE
                 return null;
             }
         }
+
+        /// <summary>Sends one player the server's values again (after the server refused something their game showed a value for).</summary>
+        public void ResendEmcTable(IServerPlayer player) => SendEmcTable(player);
 
         void SendEmcTable(IServerPlayer player)
         {
